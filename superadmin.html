@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INTEGRITEST — Superadmin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        :root {
+            --bg: #0a0f1e;
+            --surface: #111827;
+            --surface2: #1a2236;
+            --border: #1f2d45;
+            --accent: #3b82f6;
+            --accent2: #6366f1;
+            --green: #10b981;
+            --red: #ef4444;
+            --amber: #f59e0b;
+            --text: #f1f5f9;
+            --text2: #94a3b8;
+            --text3: #475569;
+        }
+
+        body { background: var(--bg); color: var(--text); min-height: 100vh; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: var(--surface); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+        /* Sidebar */
+        .sidebar { width: 240px; min-height: 100vh; background: var(--surface); border-right: 1px solid var(--border); flex-shrink: 0; }
+        .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 10px; cursor: pointer; color: var(--text2); font-size: 13px; font-weight: 600; transition: all .15s; margin: 2px 8px; }
+        .nav-item:hover { background: var(--surface2); color: var(--text); }
+        .nav-item.active { background: linear-gradient(135deg, rgba(59,130,246,.2), rgba(99,102,241,.15)); color: #60a5fa; border: 1px solid rgba(59,130,246,.2); }
+        .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+        /* Cards */
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; }
+        .stat-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; }
+
+        /* Table */
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text3); padding: 10px 14px; border-bottom: 1px solid var(--border); }
+        td { padding: 12px 14px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: rgba(255,255,255,.02); }
+
+        /* Badge */
+        .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+        .badge-green { background: rgba(16,185,129,.15); color: #34d399; border: 1px solid rgba(16,185,129,.2); }
+        .badge-red { background: rgba(239,68,68,.15); color: #f87171; border: 1px solid rgba(239,68,68,.2); }
+        .badge-amber { background: rgba(245,158,11,.15); color: #fbbf24; border: 1px solid rgba(245,158,11,.2); }
+        .badge-blue { background: rgba(59,130,246,.15); color: #60a5fa; border: 1px solid rgba(59,130,246,.2); }
+
+        /* Input */
+        .inp { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 13px; outline: none; transition: border-color .15s; }
+        .inp:focus { border-color: var(--accent); }
+        .inp::placeholder { color: var(--text3); }
+
+        /* Button */
+        .btn-primary { background: linear-gradient(135deg, #3b82f6, #6366f1); color: white; border: none; padding: 10px 20px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity .15s; }
+        .btn-primary:hover { opacity: .85; }
+        .btn-ghost { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; }
+        .btn-ghost:hover { color: var(--text); border-color: #334155; }
+        .btn-danger { background: rgba(239,68,68,.1); color: #f87171; border: 1px solid rgba(239,68,68,.2); padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; }
+        .btn-danger:hover { background: rgba(239,68,68,.2); }
+
+        /* Modal */
+        .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.7); backdrop-filter: blur(4px); z-index: 100; display: none; align-items: center; justify-content: center; }
+        .modal-bg.open { display: flex; }
+        .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 28px; width: 100%; max-width: 480px; margin: 16px; }
+
+        /* Section */
+        .section { display: none; }
+        .section.active { display: block; }
+
+        /* Login screen */
+        #login-screen { position: fixed; inset: 0; background: var(--bg); z-index: 200; display: flex; align-items: center; justify-content: center; }
+        .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 40px; width: 100%; max-width: 400px; margin: 16px; }
+
+        /* Glow effects */
+        .glow-blue { box-shadow: 0 0 30px rgba(59,130,246,.1); }
+        .dot-online { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse-dot 2s infinite; }
+        @keyframes pulse-dot { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.6; transform:scale(1.3); } }
+
+        /* Copy btn */
+        .copy-btn { cursor: pointer; opacity: .5; transition: opacity .15s; }
+        .copy-btn:hover { opacity: 1; }
+
+        /* Animate in */
+        @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+        .fade-up { animation: fadeUp .3s ease forwards; }
+    </style>
+</head>
+<body>
+
+<!-- ══════════ LOGIN SCREEN ══════════ -->
+<div id="login-screen">
+    <div class="login-card glow-blue fade-up">
+        <!-- Logo -->
+        <div class="flex items-center gap-3 mb-8">
+            <div style="width:44px;height:44px;background:linear-gradient(135deg,#3b82f6,#6366f1);border-radius:12px;display:flex;align-items:center;justify-content:center;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div>
+                <p class="text-xs font-bold" style="color:var(--text3);letter-spacing:.1em;">INTEGRITEST</p>
+                <p class="font-black text-lg" style="color:var(--text);line-height:1.1;">Superadmin Panel</p>
+            </div>
+        </div>
+
+        <p class="text-sm mb-6" style="color:var(--text2);">Login untuk mengelola seluruh sekolah yang terdaftar di sistem.</p>
+
+        <div class="space-y-3">
+            <div>
+                <label class="block text-xs font-bold mb-1.5" style="color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Username</label>
+                <input id="login-user" class="inp" type="text" placeholder="superadmin" autocomplete="off">
+            </div>
+            <div>
+                <label class="block text-xs font-bold mb-1.5" style="color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Password</label>
+                <input id="login-pass" class="inp" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+            </div>
+        </div>
+
+        <p id="login-err" class="text-xs mt-3 hidden" style="color:#f87171;"></p>
+
+        <button onclick="doLogin()" id="btn-login" class="btn-primary w-full mt-5 py-3 text-sm">
+            Masuk ke Panel
+        </button>
+
+        <p class="text-center text-xs mt-4" style="color:var(--text3);">Akses terbatas — hanya untuk administrator sistem</p>
+    </div>
+</div>
+
+<!-- ══════════ MAIN APP ══════════ -->
+<div id="main-app" class="hidden flex" style="min-height:100vh;">
+
+    <!-- Sidebar -->
+    <div class="sidebar flex flex-col" style="position:sticky;top:0;height:100vh;overflow-y:auto;">
+        <!-- Brand -->
+        <div class="p-5 border-b" style="border-color:var(--border);">
+            <div class="flex items-center gap-2.5">
+                <div style="width:36px;height:36px;background:linear-gradient(135deg,#3b82f6,#6366f1);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <div>
+                    <p class="font-black text-sm" style="color:var(--text);">INTEGRITEST</p>
+                    <p class="text-xs font-semibold" style="color:var(--accent);">Superadmin</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Nav -->
+        <nav class="flex-1 py-4">
+            <p class="px-5 text-xs font-bold mb-2" style="color:var(--text3);letter-spacing:.08em;">MENU</p>
+            <div class="nav-item active" onclick="showSection('dashboard')" id="nav-dashboard">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                Dashboard
+            </div>
+            <div class="nav-item" onclick="showSection('sekolah')" id="nav-sekolah">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+                Kelola Sekolah
+            </div>
+            <div class="nav-item" onclick="showSection('admin')" id="nav-admin">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Akun Admin Sekolah
+            </div>
+        </nav>
+
+        <!-- Footer -->
+        <div class="p-4 border-t" style="border-color:var(--border);">
+            <div class="flex items-center gap-2 mb-3">
+                <div class="dot-online"></div>
+                <span class="text-xs font-semibold" style="color:var(--green);">Firebase Terhubung</span>
+            </div>
+            <button onclick="doLogout()" class="btn-ghost w-full text-xs flex items-center gap-2 justify-center">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                Logout
+            </button>
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="flex-1 overflow-y-auto" style="background:var(--bg);">
+        <div class="p-6 max-w-6xl mx-auto">
+
+            <!-- ══ DASHBOARD ══ -->
+            <div id="section-dashboard" class="section active">
+                <div class="mb-6">
+                    <h1 class="text-2xl font-black" style="color:var(--text);">Dashboard</h1>
+                    <p class="text-sm mt-1" style="color:var(--text2);">Ringkasan sistem INTEGRITEST seluruh sekolah</p>
+                </div>
+
+                <!-- Stat cards -->
+                <div class="grid grid-cols-2 gap-4 mb-6" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));">
+                    <div class="stat-card">
+                        <p class="text-xs font-bold mb-2" style="color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Total Sekolah</p>
+                        <p id="stat-total-sekolah" class="text-3xl font-black" style="color:var(--text);">—</p>
+                        <p class="text-xs mt-1" style="color:var(--text3);">terdaftar</p>
+                    </div>
+                    <div class="stat-card">
+                        <p class="text-xs font-bold mb-2" style="color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Sekolah Aktif</p>
+                        <p id="stat-aktif" class="text-3xl font-black" style="color:var(--green);">—</p>
+                        <p class="text-xs mt-1" style="color:var(--text3);">status aktif</p>
+                    </div>
+                    <div class="stat-card">
+                        <p class="text-xs font-bold mb-2" style="color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Total Admin</p>
+                        <p id="stat-total-admin" class="text-3xl font-black" style="color:#60a5fa;">—</p>
+                        <p class="text-xs mt-1" style="color:var(--text3);">akun admin sekolah</p>
+                    </div>
+                    <div class="stat-card">
+                        <p class="text-xs font-bold mb-2" style="color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Nonaktif</p>
+                        <p id="stat-nonaktif" class="text-3xl font-black" style="color:#f87171;">—</p>
+                        <p class="text-xs mt-1" style="color:var(--text3);">sekolah dinonaktifkan</p>
+                    </div>
+                </div>
+
+                <!-- Daftar sekolah ringkas -->
+                <div class="card">
+                    <div class="flex items-center justify-between mb-4">
+                        <p class="font-black text-base" style="color:var(--text);">Sekolah Terdaftar</p>
+                        <button onclick="showSection('sekolah')" class="btn-ghost text-xs">Lihat Semua →</button>
+                    </div>
+                    <div id="dashboard-school-list">
+                        <p class="text-sm py-4 text-center" style="color:var(--text3);">Memuat data...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ══ KELOLA SEKOLAH ══ -->
+            <div id="section-sekolah" class="section">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h1 class="text-2xl font-black" style="color:var(--text);">Kelola Sekolah</h1>
+                        <p class="text-sm mt-1" style="color:var(--text2);">Tambah dan kelola sekolah yang menggunakan INTEGRITEST</p>
+                    </div>
+                    <button onclick="openModalTambahSekolah()" class="btn-primary flex items-center gap-2">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Tambah Sekolah
+                    </button>
+                </div>
+
+                <!-- Search -->
+                <div class="mb-4 relative">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input id="search-sekolah" oninput="filterSekolah()" class="inp" style="padding-left:36px;" placeholder="Cari nama sekolah, kota, atau kode...">
+                </div>
+
+                <div class="card" style="padding:0;overflow:hidden;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Sekolah</th>
+                                <th>Kode / App ID</th>
+                                <th>Link Akses</th>
+                                <th>Status</th>
+                                <th>Terdaftar</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabel-sekolah">
+                            <tr><td colspan="7" class="text-center py-8" style="color:var(--text3);">Memuat data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ══ AKUN ADMIN SEKOLAH ══ -->
+            <div id="section-admin" class="section">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h1 class="text-2xl font-black" style="color:var(--text);">Akun Admin Sekolah</h1>
+                        <p class="text-sm mt-1" style="color:var(--text2);">Buat dan kelola akun admin untuk tiap sekolah</p>
+                    </div>
+                    <button onclick="openModalTambahAdmin()" class="btn-primary flex items-center gap-2">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Tambah Admin
+                    </button>
+                </div>
+
+                <div class="card" style="padding:0;overflow:hidden;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Username</th>
+                                <th>Sekolah</th>
+                                <th>Role</th>
+                                <th>Dibuat</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabel-admin">
+                            <tr><td colspan="6" class="text-center py-8" style="color:var(--text3);">Memuat data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- ══════════ MODAL TAMBAH SEKOLAH ══════════ -->
+<div id="modal-sekolah" class="modal-bg" onclick="if(event.target===this)closeModal('modal-sekolah')">
+    <div class="modal">
+        <div class="flex items-center justify-between mb-5">
+            <div>
+                <h3 class="font-black text-lg" style="color:var(--text);">Tambah Sekolah</h3>
+                <p class="text-xs mt-0.5" style="color:var(--text2);">Daftarkan sekolah baru ke sistem INTEGRITEST</p>
+            </div>
+            <button onclick="closeModal('modal-sekolah')" style="color:var(--text3);" class="hover:text-white transition-colors">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+
+        <div class="space-y-3">
+            <div>
+                <label class="block text-xs font-bold mb-1.5" style="color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Nama Sekolah *</label>
+                <input id="s-nama" class="inp" placeholder="SMAN 1 Surabaya">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold mb-1.5" style="color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Kota / Kab *</label>
+                    <input id="s-kota" class="inp" placeholder="Surabaya">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold mb-1.5" style="color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Provinsi</label>
+                    <input id="s-provinsi" class="inp" placeholder="Jawa Timur">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold mb-1.5" style="color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Kode / App ID * <span style="color:var(--text3);font-weight:400;text-transform:none;">(huruf kecil, tanpa spasi)</span></label>
+                <div class="relative">
+                    <input id="s-appid" class="inp mono" placeholder="sman1sby" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9]/g,'');previewLink()">
+                </div>
+                <p class="text-xs mt-1.5" style="color:var(--text3);">Dipakai sebagai identitas unik sekolah di Firebase & URL akses.</p>
+            </div>
+            <div>
+                <label class="block text-xs font-bold mb-1.5" style="color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Base URL App *</label>
+                <input id="s-baseurl" class="inp mono text-xs" placeholder="https://username.github.io/integritest/app.html">
+                <p class="text-xs mt-1.5" style="color:var(--text3);">URL file app.html di GitHub Pages kamu.</p>
+            </div>
+            <!-- Preview link -->
+            <div id="link-preview-wrap" class="hidden rounded-xl p-3" style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);">
+                <p class="text-xs font-bold mb-1" style="color:#60a5fa;">Preview Link Akses Sekolah:</p>
+                <p id="link-preview" class="mono text-xs break-all" style="color:var(--text2);"></p>
+            </div>
+            <div>
+                <label class="block text-xs font-bold mb-1.5" style="color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Shortlink <span style="color:var(--text3);font-weight:400;text-transform:none;">(opsional, isi manual dari s.id)</span></label>
+                <input id="s-shortlink" class="inp mono text-xs" placeholder="https://s.id/sman1sby">
+            </div>
+            <div>
+                <label class="block text-xs font-bold mb-1.5" style="color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Kontak / Email PIC</label>
+                <input id="s-kontak" class="inp" placeholder="admin@sman1sby.sch.id">
+            </div>
+        </div>
+
+        <div id="modal-sekolah-err" class="hidden text-xs mt-3 p-3 rounded-lg" style="background:rgba(239,68,68,.1);color:#f87171;"></div>
+
+        <div class="flex gap-3 mt-5">
+            <button onclick="closeModal('modal-sekolah')" class="btn-ghost flex-1">Batal</button>
+            <button onclick="simpanSekolah()" id="btn-simpan-sekolah" class="btn-primary flex-1">Simpan Sekolah</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════ MODAL TAMBAH ADMIN ══════════ -->
+<div id="modal-admin" class="modal-bg" onclick="if(event.target===this)closeModal('modal-admin')">
+    <div class="modal">
+        <div class="flex items-center justify-between mb-5">
+            <div>
+                <h3 class="font-black text-lg" style="color:var(--text);">Tambah Admin Sekolah</h3>
+                <p class="text-xs mt-0.5" style="color:var(--text2);">Buat akun admin untuk sekolah yang sudah terdaftar</p>
+            </div>
+            <button onclick="closeModal('modal-admin')" style="color:var(--text3);" class="hover:text-white transition-colors">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+
+        <div class="space-y-3">
+            <div>
+                <label class="block text-xs font-bold mb-1.5" style="color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Sekolah *</label>
+                <select id="a-sekolah" class="inp">
+                    <option value="">-- Pilih Sekolah --</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-bold mb-1.5" style="color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Username *</label>
+                <input id="a-username" class="inp mono" placeholder="admin_sman1" oninput="this.value=this.value.toLowerCase().replace(/\s/g,'_')">
+            </div>
+            <div>
+                <label class="block text-xs font-bold mb-1.5" style="color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Password *</label>
+                <input id="a-password" class="inp" type="text" placeholder="Min. 6 karakter">
+                <p class="text-xs mt-1" style="color:var(--text3);">Password ini yang dipakai admin sekolah untuk login ke app.html</p>
+            </div>
+            <div>
+                <label class="block text-xs font-bold mb-1.5" style="color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Nama Lengkap</label>
+                <input id="a-nama" class="inp" placeholder="Budi Santoso, S.Kom">
+            </div>
+        </div>
+
+        <div id="modal-admin-err" class="hidden text-xs mt-3 p-3 rounded-lg" style="background:rgba(239,68,68,.1);color:#f87171;"></div>
+
+        <!-- Info: cara kerja -->
+        <div class="mt-4 p-3 rounded-xl" style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.15);">
+            <p class="text-xs font-bold mb-1" style="color:#fbbf24;">ℹ️ Cara kerja akun admin sekolah</p>
+            <p class="text-xs leading-relaxed" style="color:var(--text3);">Akun ini disimpan di Firestore pada koleksi <span class="mono" style="color:var(--text2);">artifacts/{appId}/admin_credentials</span>. Admin sekolah login di <span class="mono" style="color:var(--text2);">app.html?s={appId}</span> menggunakan username & password ini.</p>
+        </div>
+
+        <div class="flex gap-3 mt-5">
+            <button onclick="closeModal('modal-admin')" class="btn-ghost flex-1">Batal</button>
+            <button onclick="simpanAdmin()" id="btn-simpan-admin" class="btn-primary flex-1">Buat Akun Admin</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════ MODAL DETAIL SEKOLAH ══════════ -->
+<div id="modal-detail" class="modal-bg" onclick="if(event.target===this)closeModal('modal-detail')">
+    <div class="modal" style="max-width:520px;">
+        <div class="flex items-center justify-between mb-5">
+            <h3 class="font-black text-lg" style="color:var(--text);" id="detail-judul">Detail Sekolah</h3>
+            <button onclick="closeModal('modal-detail')" style="color:var(--text3);" class="hover:text-white transition-colors">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div id="detail-body"></div>
+        <div class="flex gap-3 mt-5">
+            <button onclick="closeModal('modal-detail')" class="btn-ghost flex-1">Tutup</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════ TOAST ══════════ -->
+<div id="toast" class="fixed bottom-6 right-6 z-[999] hidden">
+    <div id="toast-inner" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold shadow-xl" style="background:var(--surface);border:1px solid var(--border);min-width:220px;">
+        <span id="toast-icon">✅</span>
+        <span id="toast-msg" style="color:var(--text);"></span>
+    </div>
+</div>
+
+<!-- ══════════ FIREBASE + LOGIC ══════════ -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+    // ── Firebase config (sama seperti app utama) ──
+    const firebaseConfig = {
+        apiKey: "AIzaSyAdqApOvuUXrZUO19NfiqZCLSyUYR74w5M",
+        authDomain: "waliq-ded98.firebaseapp.com",
+        projectId: "waliq-ded98",
+        storageBucket: "waliq-ded98.firebasestorage.app",
+        messagingSenderId: "915222555864",
+        appId: "1:915222555864:web:25320841c97661172e3bad"
+    };
+
+    const app  = initializeApp(firebaseConfig);
+    const db   = getFirestore(app);
+    const auth = getAuth(app);
+    await signInAnonymously(auth);
+
+    // Koleksi superadmin
+    const SA_ROOT = 'superadmin';
+    const COLL_CRED    = () => collection(db, SA_ROOT, 'config', 'credentials');
+    const COLL_SEKOLAH = () => collection(db, SA_ROOT, 'data', 'schools');
+    const COLL_ADMINS  = () => collection(db, SA_ROOT, 'data', 'school_admins');
+
+    // ─── Expose ke window ───
+    window._db = db;
+    window._col = { COLL_SEKOLAH, COLL_ADMINS };
+    window._fs  = { addDoc, getDocs, doc, updateDoc, deleteDoc, query, onSnapshot, setDoc, getDoc, collection, db };
+
+    // ─── Pastikan kredensial superadmin default ada di Firestore ───
+    // Jalankan sekali — setelah itu admin bisa update via panel
+    async function ensureSuperadminCred() {
+        try {
+            const snap = await getDocs(COLL_CRED());
+            if (snap.empty) {
+                // Buat default superadmin — GANTI PASSWORD INI setelah deploy!
+                await setDoc(doc(db, SA_ROOT, 'config', 'credentials', 'superadmin'), {
+                    username: 'superadmin',
+                    password: 'integritest2025',
+                    createdAt: Date.now()
+                });
+                console.log('[SA] Default credential dibuat');
+            }
+        } catch(e) { console.warn('[SA] ensureCred error:', e); }
+    }
+    await ensureSuperadminCred();
+
+    // ─── LOGIN ───
+    window.doLogin = async function() {
+        const user = document.getElementById('login-user').value.trim();
+        const pass = document.getElementById('login-pass').value;
+        const btn  = document.getElementById('btn-login');
+        const err  = document.getElementById('login-err');
+        if (!user || !pass) { showErr(err, 'Username dan password wajib diisi'); return; }
+        btn.textContent = 'Memeriksa...';
+        btn.disabled = true;
+        err.classList.add('hidden');
+        try {
+            const snap = await getDocs(COLL_CRED());
+            let valid = false;
+            snap.forEach(d => {
+                const data = d.data();
+                if (data.username === user && data.password === pass) valid = true;
+            });
+            if (valid) {
+                sessionStorage.setItem('sa_logged', '1');
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('main-app').classList.remove('hidden');
+                document.getElementById('main-app').classList.add('flex');
+                loadAll();
+            } else {
+                showErr(err, 'Username atau password salah');
+            }
+        } catch(e) {
+            showErr(err, 'Koneksi error: ' + e.message);
+        }
+        btn.textContent = 'Masuk ke Panel';
+        btn.disabled = false;
+    };
+
+    // ─── LOGOUT ───
+    window.doLogout = function() {
+        sessionStorage.removeItem('sa_logged');
+        location.reload();
+    };
+
+    // ─── CHECK SESSION ───
+    if (sessionStorage.getItem('sa_logged') === '1') {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('main-app').classList.remove('hidden');
+        document.getElementById('main-app').classList.add('flex');
+        loadAll();
+    }
+
+    // ─── LOAD ALL DATA ───
+    let _sekolahList = [];
+    let _adminList   = [];
+
+    async function loadAll() {
+        await Promise.all([loadSekolah(), loadAdmins()]);
+        renderDashboard();
+    }
+
+    async function loadSekolah() {
+        try {
+            const snap = await getDocs(COLL_SEKOLAH());
+            _sekolahList = [];
+            snap.forEach(d => _sekolahList.push({ id: d.id, ...d.data() }));
+            _sekolahList.sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
+            renderSekolah(_sekolahList);
+        } catch(e) { console.error(e); }
+    }
+
+    async function loadAdmins() {
+        try {
+            const snap = await getDocs(COLL_ADMINS());
+            _adminList = [];
+            snap.forEach(d => _adminList.push({ id: d.id, ...d.data() }));
+            renderAdmins(_adminList);
+            // Update dropdown sekolah di modal admin
+            updateSekolahDropdown();
+        } catch(e) { console.error(e); }
+    }
+
+    // ─── RENDER DASHBOARD ───
+    function renderDashboard() {
+        const total   = _sekolahList.length;
+        const aktif   = _sekolahList.filter(s => s.status !== 'nonaktif').length;
+        const nonaktif= _sekolahList.filter(s => s.status === 'nonaktif').length;
+        const admins  = _adminList.length;
+        document.getElementById('stat-total-sekolah').textContent = total;
+        document.getElementById('stat-aktif').textContent = aktif;
+        document.getElementById('stat-nonaktif').textContent = nonaktif;
+        document.getElementById('stat-total-admin').textContent = admins;
+
+        const el = document.getElementById('dashboard-school-list');
+        if (!_sekolahList.length) {
+            el.innerHTML = '<p class="text-sm py-6 text-center" style="color:var(--text3);">Belum ada sekolah terdaftar. <button onclick="showSection(\'sekolah\')" style="color:var(--accent);">Tambah sekarang →</button></p>';
+            return;
+        }
+        el.innerHTML = '<table><thead><tr><th>Sekolah</th><th>App ID</th><th>Status</th></tr></thead><tbody>' +
+            _sekolahList.slice(0,8).map(s =>
+                `<tr>
+                    <td><span class="font-semibold" style="color:var(--text);">${_e(s.nama)}</span><br><span class="text-xs" style="color:var(--text3);">${_e(s.kota||'')}${s.provinsi?', '+_e(s.provinsi):''}</span></td>
+                    <td><span class="mono text-xs badge badge-blue">${_e(s.appId)}</span></td>
+                    <td>${statusBadge(s.status)}</td>
+                </tr>`
+            ).join('') + '</tbody></table>';
+    }
+
+    // ─── RENDER SEKOLAH ───
+    window.renderSekolah = function(list) {
+        const tbody = document.getElementById('tabel-sekolah');
+        if (!list.length) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8" style="color:var(--text3);">Belum ada sekolah terdaftar</td></tr>';
+            return;
+        }
+        tbody.innerHTML = list.map((s, i) => {
+            const link = buildLink(s);
+            return `<tr>
+                <td style="color:var(--text3);font-size:12px;">${i+1}</td>
+                <td>
+                    <p class="font-bold text-sm" style="color:var(--text);">${_e(s.nama)}</p>
+                    <p class="text-xs" style="color:var(--text3);">${_e(s.kota||'')}${s.provinsi?' · '+_e(s.provinsi):''}</p>
+                </td>
+                <td><span class="mono text-xs badge badge-blue">${_e(s.appId)}</span></td>
+                <td>
+                    <div class="flex items-center gap-1.5" style="max-width:200px;">
+                        <span class="mono text-xs truncate" style="color:var(--text2);">${_e(s.shortlink || link)}</span>
+                        <button class="copy-btn" onclick="copyText('${_e(s.shortlink||link)}')" title="Salin link">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                        </button>
+                    </div>
+                </td>
+                <td>${statusBadge(s.status)}</td>
+                <td style="color:var(--text3);font-size:11px;">${s.createdAt ? new Date(s.createdAt).toLocaleDateString('id-ID') : '—'}</td>
+                <td>
+                    <div class="flex gap-1.5 flex-wrap">
+                        <button class="btn-ghost text-xs" onclick="showDetailSekolah('${s.id}')">Detail</button>
+                        <button class="btn-ghost text-xs" onclick="toggleStatus('${s.id}','${s.status}')">${s.status==='nonaktif'?'Aktifkan':'Nonaktifkan'}</button>
+                        <button class="btn-danger text-xs" onclick="hapusSekolah('${s.id}','${_e(s.nama)}')">Hapus</button>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+    };
+
+    // ─── RENDER ADMIN ───
+    window.renderAdmins = function(list) {
+        const tbody = document.getElementById('tabel-admin');
+        if (!list.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8" style="color:var(--text3);">Belum ada akun admin sekolah</td></tr>';
+            return;
+        }
+        tbody.innerHTML = list.map((a, i) => {
+            const sekolah = _sekolahList.find(s => s.appId === a.appId);
+            return `<tr>
+                <td style="color:var(--text3);font-size:12px;">${i+1}</td>
+                <td><span class="mono font-bold text-sm" style="color:var(--text);">${_e(a.username)}</span></td>
+                <td>
+                    <p class="text-sm" style="color:var(--text);">${_e(sekolah?.nama || a.appId)}</p>
+                    <span class="mono text-xs badge badge-blue">${_e(a.appId)}</span>
+                </td>
+                <td><span class="badge badge-amber">Admin</span></td>
+                <td style="color:var(--text3);font-size:11px;">${a.createdAt ? new Date(a.createdAt).toLocaleDateString('id-ID') : '—'}</td>
+                <td>
+                    <button class="btn-danger text-xs" onclick="hapusAdmin('${a.id}','${_e(a.username)}')">Hapus</button>
+                </td>
+            </tr>`;
+        }).join('');
+    };
+
+    // ─── FILTER SEKOLAH ───
+    window.filterSekolah = function() {
+        const q = document.getElementById('search-sekolah').value.toLowerCase();
+        const filtered = _sekolahList.filter(s =>
+            (s.nama||'').toLowerCase().includes(q) ||
+            (s.kota||'').toLowerCase().includes(q) ||
+            (s.appId||'').toLowerCase().includes(q)
+        );
+        renderSekolah(filtered);
+    };
+
+    // ─── SIMPAN SEKOLAH ───
+    window.simpanSekolah = async function() {
+        const nama      = document.getElementById('s-nama').value.trim();
+        const kota      = document.getElementById('s-kota').value.trim();
+        const provinsi  = document.getElementById('s-provinsi').value.trim();
+        const appId     = document.getElementById('s-appid').value.trim();
+        const baseUrl   = document.getElementById('s-baseurl').value.trim();
+        const shortlink = document.getElementById('s-shortlink').value.trim();
+        const kontak    = document.getElementById('s-kontak').value.trim();
+        const errEl     = document.getElementById('modal-sekolah-err');
+
+        if (!nama || !kota || !appId || !baseUrl) { showErr(errEl, 'Nama, kota, kode, dan base URL wajib diisi'); return; }
+        if (!/^[a-z0-9]+$/.test(appId)) { showErr(errEl, 'Kode hanya boleh huruf kecil dan angka, tanpa spasi'); return; }
+        if (_sekolahList.find(s => s.appId === appId)) { showErr(errEl, 'Kode/App ID sudah digunakan sekolah lain'); return; }
+
+        const btn = document.getElementById('btn-simpan-sekolah');
+        btn.textContent = 'Menyimpan...'; btn.disabled = true; errEl.classList.add('hidden');
+
+        try {
+            const data = { nama, kota, provinsi, appId, baseUrl, shortlink, kontak, status: 'aktif', createdAt: Date.now() };
+            await addDoc(COLL_SEKOLAH(), data);
+
+            // Juga simpan ke Firebase app sekolah (app_settings awal kosong) agar siap dipakai
+            // Tidak perlu inisialisasi — Firebase auto-create saat admin sekolah pertama save setting
+
+            showToast('✅', `Sekolah ${nama} berhasil ditambahkan`);
+            closeModal('modal-sekolah');
+            clearModalSekolah();
+            await loadAll();
+        } catch(e) {
+            showErr(errEl, 'Gagal menyimpan: ' + e.message);
+        }
+        btn.textContent = 'Simpan Sekolah'; btn.disabled = false;
+    };
+
+    // ─── SIMPAN ADMIN ───
+    window.simpanAdmin = async function() {
+        const appId    = document.getElementById('a-sekolah').value;
+        const username = document.getElementById('a-username').value.trim();
+        const password = document.getElementById('a-password').value;
+        const nama     = document.getElementById('a-nama').value.trim();
+        const errEl    = document.getElementById('modal-admin-err');
+
+        if (!appId)    { showErr(errEl, 'Pilih sekolah terlebih dahulu'); return; }
+        if (!username) { showErr(errEl, 'Username wajib diisi'); return; }
+        if (password.length < 6) { showErr(errEl, 'Password minimal 6 karakter'); return; }
+        if (_adminList.find(a => a.username === username && a.appId === appId)) { showErr(errEl, 'Username sudah ada untuk sekolah ini'); return; }
+
+        const btn = document.getElementById('btn-simpan-admin');
+        btn.textContent = 'Membuat...'; btn.disabled = true; errEl.classList.add('hidden');
+
+        try {
+            // Simpan ke koleksi superadmin (referensi)
+            await addDoc(COLL_ADMINS(), { appId, username, nama, createdAt: Date.now() });
+
+            // Simpan ke koleksi app sekolah (yang dibaca oleh app.html saat login)
+            const sekolahColl = collection(db, 'artifacts', appId, 'public', 'data', 'admin_credentials');
+            await addDoc(sekolahColl, {
+                username,
+                password,
+                nama,
+                role: 'admin',
+                createdAt: Date.now()
+            });
+
+            showToast('✅', `Admin ${username} berhasil dibuat`);
+            closeModal('modal-admin');
+            clearModalAdmin();
+            await loadAll();
+        } catch(e) {
+            showErr(errEl, 'Gagal menyimpan: ' + e.message);
+        }
+        btn.textContent = 'Buat Akun Admin'; btn.disabled = false;
+    };
+
+    // ─── TOGGLE STATUS SEKOLAH ───
+    window.toggleStatus = async function(id, currentStatus) {
+        const newStatus = currentStatus === 'nonaktif' ? 'aktif' : 'nonaktif';
+        try {
+            await updateDoc(doc(db, SA_ROOT, 'data', 'schools', id), { status: newStatus });
+            showToast(newStatus==='aktif'?'✅':'⛔', `Status berhasil diubah ke ${newStatus}`);
+            await loadAll();
+        } catch(e) { alert('Gagal: ' + e.message); }
+    };
+
+    // ─── HAPUS SEKOLAH ───
+    window.hapusSekolah = async function(id, nama) {
+        if (!confirm(`Hapus sekolah "${nama}"? Data sekolah di superadmin akan dihapus. Data ujian di Firebase sekolah tersebut TIDAK ikut terhapus.`)) return;
+        try {
+            await deleteDoc(doc(db, SA_ROOT, 'data', 'schools', id));
+            showToast('🗑️', `Sekolah ${nama} dihapus`);
+            await loadAll();
+        } catch(e) { alert('Gagal: ' + e.message); }
+    };
+
+    // ─── HAPUS ADMIN ───
+    window.hapusAdmin = async function(id, username) {
+        if (!confirm(`Hapus akun admin "${username}"?`)) return;
+        try {
+            await deleteDoc(doc(db, SA_ROOT, 'data', 'school_admins', id));
+            showToast('🗑️', `Admin ${username} dihapus dari list superadmin`);
+            await loadAll();
+        } catch(e) { alert('Gagal: ' + e.message); }
+    };
+
+    // ─── DETAIL SEKOLAH ───
+    window.showDetailSekolah = function(id) {
+        const s = _sekolahList.find(x => x.id === id);
+        if (!s) return;
+        const link = buildLink(s);
+        const admins = _adminList.filter(a => a.appId === s.appId);
+        document.getElementById('detail-judul').textContent = s.nama;
+        document.getElementById('detail-body').innerHTML = `
+            <div class="space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="stat-card"><p class="text-xs mb-1" style="color:var(--text3);">App ID</p><p class="mono font-bold" style="color:var(--accent);">${_e(s.appId)}</p></div>
+                    <div class="stat-card"><p class="text-xs mb-1" style="color:var(--text3);">Status</p>${statusBadge(s.status)}</div>
+                    <div class="stat-card"><p class="text-xs mb-1" style="color:var(--text3);">Kota</p><p class="font-semibold text-sm" style="color:var(--text);">${_e(s.kota||'—')}</p></div>
+                    <div class="stat-card"><p class="text-xs mb-1" style="color:var(--text3);">Admin Terdaftar</p><p class="font-bold text-xl" style="color:#60a5fa;">${admins.length}</p></div>
+                </div>
+                <div class="stat-card">
+                    <p class="text-xs font-bold mb-2" style="color:var(--text3);">Link Akses Sekolah</p>
+                    <div class="flex items-center gap-2">
+                        <span class="mono text-xs flex-1 break-all" style="color:var(--text2);">${_e(s.shortlink||link)}</span>
+                        <button class="btn-ghost text-xs shrink-0" onclick="copyText('${_e(s.shortlink||link)}')">Salin</button>
+                        <a href="${_e(s.shortlink||link)}" target="_blank" class="btn-ghost text-xs shrink-0">Buka</a>
+                    </div>
+                </div>
+                ${admins.length ? `
+                <div class="stat-card">
+                    <p class="text-xs font-bold mb-2" style="color:var(--text3);">Daftar Admin</p>
+                    <div class="space-y-1.5">
+                        ${admins.map(a=>`<div class="flex items-center gap-2"><span class="mono text-xs" style="color:var(--text);">${_e(a.username)}</span>${a.nama?`<span class="text-xs" style="color:var(--text3);">· ${_e(a.nama)}</span>`:''}</div>`).join('')}
+                    </div>
+                </div>` : ''}
+                ${s.kontak ? `<div class="stat-card"><p class="text-xs mb-1" style="color:var(--text3);">Kontak</p><p class="text-sm" style="color:var(--text);">${_e(s.kontak)}</p></div>` : ''}
+                <p class="text-xs" style="color:var(--text3);">Terdaftar: ${s.createdAt ? new Date(s.createdAt).toLocaleString('id-ID') : '—'}</p>
+            </div>`;
+        openModal('modal-detail');
+    };
+
+    // ─── UPDATE DROPDOWN SEKOLAH DI MODAL ADMIN ───
+    window.updateSekolahDropdown = function() {
+        const sel = document.getElementById('a-sekolah');
+        const aktifList = _sekolahList.filter(s => s.status !== 'nonaktif');
+        sel.innerHTML = '<option value="">-- Pilih Sekolah --</option>' +
+            aktifList.map(s => `<option value="${_e(s.appId)}">${_e(s.nama)} (${_e(s.appId)})</option>`).join('');
+    };
+
+    // ─── HELPERS ───
+    function buildLink(s) {
+        if (!s.baseUrl) return `app.html?s=${s.appId}`;
+        const base = s.baseUrl.replace(/\?.*$/, '');
+        return `${base}?s=${s.appId}`;
+    }
+
+    function statusBadge(status) {
+        if (status === 'nonaktif') return '<span class="badge badge-red">⛔ Nonaktif</span>';
+        return '<span class="badge badge-green">✅ Aktif</span>';
+    }
+
+    function showErr(el, msg) { el.textContent = msg; el.classList.remove('hidden'); }
+
+    function _e(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+    }
+
+    // ─── TOAST ───
+    window.showToast = function(icon, msg) {
+        document.getElementById('toast-icon').textContent = icon;
+        document.getElementById('toast-msg').textContent = msg;
+        const t = document.getElementById('toast');
+        t.classList.remove('hidden');
+        clearTimeout(window._toastTimer);
+        window._toastTimer = setTimeout(() => t.classList.add('hidden'), 3000);
+    };
+
+    // ─── COPY ───
+    window.copyText = function(text) {
+        navigator.clipboard.writeText(text).then(() => showToast('📋', 'Link disalin!')).catch(()=>{});
+    };
+
+    // ─── PREVIEW LINK ───
+    window.previewLink = function() {
+        const appId   = document.getElementById('s-appid').value.trim();
+        const baseUrl = document.getElementById('s-baseurl').value.trim();
+        const wrap    = document.getElementById('link-preview-wrap');
+        const prev    = document.getElementById('link-preview');
+        if (appId && baseUrl) {
+            const base = baseUrl.replace(/\?.*$/, '');
+            prev.textContent = `${base}?s=${appId}`;
+            wrap.classList.remove('hidden');
+        } else {
+            wrap.classList.add('hidden');
+        }
+    };
+
+    // baseUrl input juga trigger preview
+    document.getElementById('s-baseurl').addEventListener('input', previewLink);
+
+    // ─── CLEAR MODALS ───
+    window.clearModalSekolah = function() {
+        ['s-nama','s-kota','s-provinsi','s-appid','s-baseurl','s-shortlink','s-kontak'].forEach(id => {
+            const el = document.getElementById(id); if(el) el.value='';
+        });
+        document.getElementById('link-preview-wrap').classList.add('hidden');
+        document.getElementById('modal-sekolah-err').classList.add('hidden');
+    };
+
+    window.clearModalAdmin = function() {
+        ['a-sekolah','a-username','a-password','a-nama'].forEach(id => {
+            const el = document.getElementById(id); if(el) el.value='';
+        });
+        document.getElementById('modal-admin-err').classList.add('hidden');
+    };
+</script>
+
+<script>
+    // ── Non-module helpers ──
+    function showSection(name) {
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.getElementById('section-'+name).classList.add('active');
+        document.getElementById('nav-'+name).classList.add('active');
+    }
+
+    function openModal(id) {
+        const m = document.getElementById(id);
+        m.classList.add('open');
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('open');
+    }
+
+    function openModalTambahSekolah() {
+        if (window.clearModalSekolah) window.clearModalSekolah();
+        openModal('modal-sekolah');
+    }
+
+    function openModalTambahAdmin() {
+        if (window.updateSekolahDropdown) window.updateSekolahDropdown();
+        if (window.clearModalAdmin) window.clearModalAdmin();
+        openModal('modal-admin');
+    }
+</script>
+
+</body>
+</html>
