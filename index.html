@@ -235,11 +235,10 @@
         async function initFirebase() {
             // TIME LIMIT FOR CONNECTION
             const connectionTimeout = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error("Koneksi Timeout")), 5000)
+                setTimeout(() => reject(new Error("Koneksi Timeout")), 8000)
             );
 
             try {
-                let firebaseConfig;
                 const defaultConfig = {
                     apiKey: "AIzaSyAdqApOvuUXrZUO19NfiqZCLSyUYR74w5M",
                     authDomain: "waliq-ded98.firebaseapp.com",
@@ -250,16 +249,64 @@
                     measurementId: "G-K51RW0YQ0M"
                 };
 
-                // Prioritas: 1) custom dari localStorage, 2) default hardcoded, 3) __firebase_config env
-                if (window._customFirebaseConfig && window._customFirebaseConfig.apiKey) {
-                    firebaseConfig = window._customFirebaseConfig;
-                    console.log('[Firebase] Menggunakan custom config:', firebaseConfig.projectId);
-                } else if (defaultConfig.apiKey && defaultConfig.apiKey !== "GANTI_DENGAN_API_KEY_ANDA") {
-                    firebaseConfig = defaultConfig;
-                } else if (typeof __firebase_config !== 'undefined') {
-                    firebaseConfig = JSON.parse(__firebase_config);
+                // ══════════════════════════════════════════════════════
+                // STEP 1: Init Firebase default dulu (untuk baca config sekolah)
+                // ══════════════════════════════════════════════════════
+                const defaultApp = initializeApp(defaultConfig, 'default-sa');
+                const defaultDb  = getFirestore(defaultApp);
+                window._defaultDb = defaultDb; // ★ expose agar syncToSuperadmin bisa akses Firebase bersama
+                const defaultAuth = getAuth(defaultApp);
+                await signInAnonymously(defaultAuth);
+
+                // ══════════════════════════════════════════════════════
+                // STEP 2: Baca data sekolah dari superadmin Firestore
+                // Cek apakah sekolah punya custom Firebase config
+                // ══════════════════════════════════════════════════════
+                let firebaseConfig = defaultConfig;
+                let schoolData = null;
+                try {
+                    const { getDocs: _gd, collection: _col } =
+                        await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+                    const schoolsSnap = await _gd(_col(defaultDb, 'superadmin', 'data', 'schools'));
+                    schoolsSnap.forEach(d => {
+                        const sd = d.data();
+                        if (sd.appId === window.appId) schoolData = sd;
+                    });
+
+                    if (schoolData?.firebaseMode === 'custom' && schoolData?.firebaseConfig) {
+                        try {
+                            const customCfg = JSON.parse(schoolData.firebaseConfig);
+                            if (customCfg.apiKey && customCfg.projectId) {
+                                firebaseConfig = customCfg;
+                                console.log('[Firebase] Sekolah pakai Firebase sendiri:', customCfg.projectId);
+                            }
+                        } catch(eParse) {
+                            console.warn('[Firebase] Gagal parse custom config, fallback ke default:', eParse.message);
+                        }
+                    } else {
+                        console.log('[Firebase] Sekolah pakai Firebase bersama (default)');
+                    }
+                } catch(eRead) {
+                    console.warn('[Firebase] Gagal baca config sekolah, pakai default:', eRead.message);
+                }
+
+                // ══════════════════════════════════════════════════════
+                // STEP 3: Init Firebase final (bisa default atau custom)
+                // ══════════════════════════════════════════════════════
+                let app, isCustomFirebase = false;
+                if (firebaseConfig === defaultConfig) {
+                    // Pakai instance yang sudah ada
+                    app = defaultApp;
+                    window.auth = defaultAuth;
+                    window.db   = defaultDb;
+                    isCustomFirebase = false;
                 } else {
-                    throw new Error("Config Kosong");
+                    // Init Firebase baru untuk sekolah custom
+                    app = initializeApp(firebaseConfig, `school-${window.appId}`);
+                    window.auth = getAuth(app);
+                    window.db   = getFirestore(app);
+                    await signInAnonymously(window.auth);
+                    isCustomFirebase = true;
                 }
 
                 // Override appId jika ada custom app ID dari localStorage
@@ -269,24 +316,71 @@
                     window.appId = __app_id;
                 }
 
-                const app = initializeApp(firebaseConfig);
-                window.auth = getAuth(app);
-                window.db = getFirestore(app);
-
-                // Race between connection and timeout
                 await Promise.race([
-                    (async () => {
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await signInWithCustomToken(window.auth, __initial_auth_token);
-                        } else {
-                            await signInAnonymously(window.auth);
-                        }
-                    })(),
+                    Promise.resolve(), // sudah signIn di atas
                     connectionTimeout
                 ]);
                 
                 window.isFirebaseReady = true;
-                console.log("Firebase Connected");
+                console.log('[Firebase] Connected —', isCustomFirebase ? 'custom project' : 'shared project');
+
+                // ══════════════════════════════════════════════════════
+                // ★ CEK STATUS SEKOLAH — blokir jika nonaktif
+                // Gunakan schoolData yang sudah diambil di STEP 2
+                // ══════════════════════════════════════════════════════
+                try {
+                    const schoolStatus = schoolData?.status || null;
+                    const schoolNama   = schoolData?.nama   || window.appId;
+
+                    if (schoolStatus === 'nonaktif') {
+                        document.body.innerHTML = `
+                        <div style="position:fixed;inset:0;z-index:99999;background:linear-gradient(135deg,#1e3a5f,#1e40af);display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;">
+                            <div style="background:#fff;border-radius:20px;padding:40px 36px;max-width:400px;width:90%;text-align:center;box-shadow:0 32px 80px rgba(0,0,0,.3);">
+                                <div style="width:64px;height:64px;background:#fef2f2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:28px;">⛔</div>
+                                <h2 style="font-size:20px;font-weight:900;color:#0f172a;margin-bottom:8px;">Akses Dinonaktifkan</h2>
+                                <p style="font-size:13px;color:#64748b;line-height:1.6;margin-bottom:6px;">
+                                    Akses untuk <strong style="color:#1d4ed8;">${schoolNama}</strong> saat ini dinonaktifkan oleh administrator sistem.
+                                </p>
+                                <p style="font-size:12px;color:#94a3b8;">Hubungi administrator untuk mengaktifkan kembali.</p>
+                            </div>
+                        </div>`;
+                        return; // hentikan semua proses
+                    }
+                    console.log('[StatusCheck] Sekolah', window.appId, '→', schoolStatus || 'aktif (tidak ditemukan di superadmin, lanjut)');
+
+                    // ══════════════════════════════════════════════════════
+                    // ★ ACTIVITY PING — catat akses ke superadmin/data/schools
+                    // Gunakan defaultDb (selalu Firebase bersama untuk superadmin)
+                    // ══════════════════════════════════════════════════════
+                    try {
+                        const { getDocs: _gd2, collection: _col2, updateDoc: _upd, doc: _doc } =
+                            await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+                        const _pingKey = 'integritest_last_ping_' + window.appId;
+                        const _lastPing = parseInt(sessionStorage.getItem(_pingKey) || '0');
+                        if (Date.now() - _lastPing > 5 * 60 * 1000) {
+                            sessionStorage.setItem(_pingKey, String(Date.now()));
+                            const _schoolsSnap2 = await _gd2(_col2(defaultDb, 'superadmin', 'data', 'schools'));
+                            for (const _sd of _schoolsSnap2.docs) {
+                                if (_sd.data().appId === window.appId) {
+                                    await _upd(_doc(defaultDb, 'superadmin', 'data', 'schools', _sd.id), {
+                                        lastAccess    : Date.now(),
+                                        lastAccessDate: new Date().toISOString(),
+                                        totalAccess   : (_sd.data().totalAccess || 0) + 1
+                                    });
+                                    console.log('[ActivityPing] Berhasil dicatat untuk', window.appId);
+                                    break;
+                                }
+                            }
+                        }
+                    } catch(ePing) {
+                        console.warn('[ActivityPing] Gagal (diabaikan):', ePing.message);
+                    }
+                    // ══════════════════════════════════════════════════════
+
+                } catch(e) {
+                    console.warn('[StatusCheck] Gagal cek status sekolah:', e.message, '— lanjut tanpa blokir');
+                }
+                // ══════════════════════════════════════════════════════
                 
                 // ★ Auto-reconnect saat browser kembali online
                 window.addEventListener('online', function() {
@@ -482,6 +576,25 @@
             // ★ KEAMANAN: Kunci fingerprint ke sessionStorage saat ujian dimulai
             // Menghapus localStorage di tengah ujian tidak akan membantu siswa mengelabui sistem
             if (window._lockFingerprintForExam) window._lockFingerprintForExam();
+            // ★ ACTIVITY PING — catat sesi ujian ke counter superadmin (fire-and-forget)
+            (async function() {
+                try {
+                    if (window.isFirebaseReady && window.db) {
+                        const _sSnap = await window.getDocs(window.collection(window.db, 'superadmin', 'data', 'schools'));
+                        for (const _sd of _sSnap.docs) {
+                            if (_sd.data().appId === window.appId) {
+                                const _d = _sd.data();
+                                await window.updateDoc(window.doc(window.db, 'superadmin', 'data', 'schools', _sd.id), {
+                                    totalExamSessions : (_d.totalExamSessions || 0) + 1,
+                                    lastExamStart     : Date.now(),
+                                    lastExamStartDate : new Date().toISOString()
+                                });
+                                break;
+                            }
+                        }
+                    }
+                } catch(_ep) { /* silent — jangan blokir ujian */ }
+            })();
             if (window.isFirebaseReady && window.db) {
                 try {
                     // Gunakan fingerprint yang sudah terkunci (locked > reguler)
@@ -576,6 +689,64 @@
                     try {
                         sessionStorage.removeItem('ukktkj_current_exam_doc_id');
                     } catch(e) {}
+
+                    // ══════════════════════════════════════════════════════
+                    // ★ SUPERADMIN SYNC — update statistik integritas & ujian
+                    // Dijalankan fire-and-forget, tidak memblokir alur siswa
+                    // ══════════════════════════════════════════════════════
+                    (async function syncToSuperadmin() {
+                        try {
+                            if (!window.isFirebaseReady || !window._defaultDb) return;
+
+                            // Hitung integrityScore siswa ini (formula sama dengan calcIntegrityScore di admin panel)
+                            const _viol = data.violations || 0;
+                            const _logs = data.violationLogs || [];
+                            const VWEIGHTS = { focus:15, clipboard:20, back_button:25, split_screen:30, device_dup:50, idle:10, unknown:15 };
+                            let _intScore;
+                            if (data.status && data.status.includes('DISKUALIFIKASI')) { _intScore = 0; }
+                            else if (_viol >= 3) { _intScore = 0; }
+                            else if (_viol === 0) { _intScore = 100; }
+                            else {
+                                let _ded = 0;
+                                if (_logs.length > 0) { _logs.forEach(l => { _ded += VWEIGHTS[l.type || 'unknown'] || VWEIGHTS.unknown; }); }
+                                else { _ded = _viol * VWEIGHTS.unknown; }
+                                _intScore = Math.max(5, 100 - _ded);
+                            }
+                            const _isDQ = _intScore === 0;
+
+                            // Gunakan window._defaultDb — selalu Firebase bersama (superadmin)
+                            const { getDocs: _gd3, collection: _col3, updateDoc: _upd3, doc: _doc3 } =
+                                await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+
+                            const _schoolsSnap = await _gd3(_col3(window._defaultDb, 'superadmin', 'data', 'schools'));
+                            for (const _sd of _schoolsSnap.docs) {
+                                if (_sd.data().appId !== window.appId) continue;
+                                const _cur = _sd.data();
+
+                                // Hitung avgIntegrityScore baru (rolling average)
+                                const _prevAvg   = _cur.avgIntegrityScore || 0;
+                                const _prevCount = _cur.totalExamSessions || 0;
+                                // totalExamSessions sudah di-increment di saveExamStart, jadi count = prevCount
+                                const _newAvg = _prevCount > 0
+                                    ? Math.round((_prevAvg * (_prevCount - 1) + _intScore) / _prevCount)
+                                    : _intScore;
+
+                                await _upd3(_doc3(window._defaultDb, 'superadmin', 'data', 'schools', _sd.id), {
+                                    avgIntegrityScore  : _newAvg,
+                                    lastExamSession    : Date.now(),
+                                    lastExamSessionDate: new Date().toISOString(),
+                                    disqualifiedCount  : (_cur.disqualifiedCount || 0) + (_isDQ ? 1 : 0),
+                                    lastExamStudentName: data.studentName || '',
+                                    lastExamScore      : data.score || 0
+                                });
+                                console.log('[SuperadminSync] ✅ Statistik integritas diperbarui. avgScore:', _newAvg, 'DQ:', _isDQ);
+                                break;
+                            }
+                        } catch(_es) {
+                            console.warn('[SuperadminSync] Gagal sync ke superadmin (diabaikan):', _es.message);
+                        }
+                    })();
+                    // ══════════════════════════════════════════════════════
 
                     // ★ AUTO KIRIM WA — jika diaktifkan admin
                     try {
@@ -3902,6 +4073,9 @@ html.dark .ob-dot.active { background: #818cf8; }
                     <button onclick="window.switchDashTab('banding')" id="tab-dash-banding" class="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all">
                         <i data-lucide="scale" class="w-4 h-4"></i><span>Banding</span><span id="banding-badge-tab" class="hidden ml-1 min-w-[18px] h-[18px] px-1 bg-amber-500 text-white text-[10px] font-black rounded-full flex items-center justify-center animate-pulse">0</span>
                     </button>
+                    <button onclick="window.switchDashTab('laporan-superadmin')" id="tab-dash-laporan-superadmin" class="admin-only-tab flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all">
+                        <i data-lucide="send" class="w-4 h-4"></i><span>Laporan ke Superadmin</span>
+                    </button>
                 </div>
             </div>
             <script>
@@ -4297,7 +4471,7 @@ html.dark .ob-dot.active { background: #818cf8; }
                             <i data-lucide="graduation-cap" class="w-4 h-4"></i>
                             🗺️ Mulai Panduan Interaktif
                         </button>
-                        <p class="text-xs text-gray-400 text-center sm:text-left">Tur singkat 7 langkah — kenali semua fitur INTEGRITEST dalam 2 menit</p>
+                        <p class="text-xs text-gray-400 text-center sm:text-left">Tur lengkap 13 langkah — kenali semua fitur INTEGRITEST dalam 3 menit</p>
                     </div>
                 </div>
 
@@ -7571,6 +7745,118 @@ Terima kasih 🙏</textarea>
 
             </div><!-- end panel-banding -->
 
+            <!-- PANEL: LAPORAN KE SUPERADMIN -->
+            <div id="panel-laporan-superadmin" class="hidden-section admin-only-panel" style="padding-bottom:100px">
+                <!-- Info Box -->
+                <div class="rounded-2xl border-2 border-blue-200 bg-blue-50 px-5 py-4 mb-5">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center text-white text-xl shrink-0">📡</div>
+                        <div>
+                            <p class="font-black text-blue-900 text-sm mb-1">Menu Laporan Kendala ke Superadmin</p>
+                            <p class="text-xs text-blue-700 leading-relaxed">
+                                Gunakan menu ini untuk melaporkan <strong>bug, kendala teknis, atau masalah sistem</strong> yang kamu temui saat menggunakan INTEGRITEST. Laporan kamu akan langsung diterima dan ditangani oleh superadmin.
+                            </p>
+                            <div class="mt-2 flex flex-wrap gap-2">
+                                <span class="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-white border border-blue-200 rounded-lg px-2.5 py-1">🔴 Baru → 🟡 Diproses → ✅ Selesai</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kontak Darurat -->
+                <div class="rounded-2xl border border-red-200 bg-red-50 px-5 py-3 mb-5 flex items-center gap-3 flex-wrap">
+                    <div class="text-red-500 shrink-0 text-lg">🆘</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-black text-red-800">Kendala Mendesak / Urgent?</p>
+                        <p class="text-xs text-red-600 mt-0.5">Jika masalah sangat kritis dan tidak bisa menunggu, hubungi superadmin langsung melalui email:</p>
+                        <a href="mailto:adminintegritest@gmail.com" class="text-xs font-bold text-red-700 underline mt-0.5 inline-block">adminintegritest@gmail.com</a>
+                    </div>
+                    <a href="mailto:adminintegritest@gmail.com" class="shrink-0 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-xl transition-colors">Kirim Email</a>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <!-- FORM LAPORAN BARU -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div class="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+                            <div class="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center text-white text-sm">📝</div>
+                            <div>
+                                <p class="font-black text-gray-800 text-sm">Kirim Laporan Baru</p>
+                                <p class="text-xs text-gray-400">Ceritakan kendala yang kamu alami</p>
+                            </div>
+                        </div>
+                        <div class="p-5 space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Judul Kendala *</label>
+                                <input id="lsk-judul" type="text" placeholder="Contoh: Token ujian tidak bisa disimpan" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition" maxlength="100">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Kategori *</label>
+                                <select id="lsk-kategori" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 bg-white transition">
+                                    <option value="">-- Pilih Kategori --</option>
+                                    <option value="Bug Sistem">🐛 Bug Sistem</option>
+                                    <option value="Koneksi Firebase">🔥 Koneksi Firebase</option>
+                                    <option value="Tampilan / UI">🎨 Tampilan / UI</option>
+                                    <option value="Permintaan Fitur">💡 Permintaan Fitur</option>
+                                    <option value="Pertanyaan Teknis">❓ Pertanyaan Teknis</option>
+                                    <option value="Lainnya">📌 Lainnya</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Tingkat Urgensi</label>
+                                <div class="flex gap-2">
+                                    <label class="flex-1 cursor-pointer">
+                                        <input type="radio" name="lsk-urgensi" value="rendah" class="hidden" checked>
+                                        <div class="lsk-urgensi-btn border-2 border-gray-200 rounded-xl p-2 text-center text-xs font-bold text-gray-400 transition hover:border-green-300" data-val="rendah">🟢 Rendah</div>
+                                    </label>
+                                    <label class="flex-1 cursor-pointer">
+                                        <input type="radio" name="lsk-urgensi" value="sedang" class="hidden">
+                                        <div class="lsk-urgensi-btn border-2 border-gray-200 rounded-xl p-2 text-center text-xs font-bold text-gray-400 transition hover:border-yellow-300" data-val="sedang">🟡 Sedang</div>
+                                    </label>
+                                    <label class="flex-1 cursor-pointer">
+                                        <input type="radio" name="lsk-urgensi" value="tinggi" class="hidden">
+                                        <div class="lsk-urgensi-btn border-2 border-gray-200 rounded-xl p-2 text-center text-xs font-bold text-gray-400 transition hover:border-red-300" data-val="tinggi">🔴 Tinggi</div>
+                                    </label>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Deskripsi Lengkap *</label>
+                                <textarea id="lsk-deskripsi" rows="4" placeholder="Jelaskan kendala secara detail: apa yang terjadi, langkah yang sudah dicoba, pesan error yang muncul, dsb." class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 transition resize-none" maxlength="2000"></textarea>
+                                <p class="text-xs text-gray-400 text-right mt-1"><span id="lsk-char-count">0</span>/2000 karakter</p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Email Kontak (Opsional)</label>
+                                <input id="lsk-kontak" type="email" placeholder="email@sekolah.sch.id" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 transition">
+                                <p class="text-xs text-gray-400 mt-1">Untuk dihubungi superadmin jika butuh info tambahan</p>
+                            </div>
+                            <div id="lsk-err" class="hidden text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5"></div>
+                            <button onclick="window.kirimLaporanKendala()" id="btn-kirim-lsk" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl py-3 text-sm transition-all active:scale-95 flex items-center justify-center gap-2">
+                                <i data-lucide="send" class="w-4 h-4"></i> Kirim Laporan
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- RIWAYAT LAPORAN -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="w-7 h-7 rounded-lg bg-slate-500 flex items-center justify-center text-white text-sm">📋</div>
+                                <div>
+                                    <p class="font-black text-gray-800 text-sm">Riwayat Laporan Saya</p>
+                                    <p class="text-xs text-gray-400">Laporan yang sudah dikirim</p>
+                                </div>
+                            </div>
+                            <button onclick="window.loadRiwayatLaporan()" class="text-xs font-bold text-blue-600 hover:text-blue-800 transition">↻ Refresh</button>
+                        </div>
+                        <div id="lsk-riwayat-container" class="divide-y divide-gray-50" style="max-height:520px;overflow-y:auto;">
+                            <div class="flex flex-col items-center justify-center gap-2 py-12 text-gray-400">
+                                <i data-lucide="inbox" class="w-10 h-10 opacity-30"></i>
+                                <p class="text-sm font-semibold">Memuat riwayat...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- end panel-laporan-superadmin -->
+
         </main>
         <!-- Footer Dashboard Guru -->
         <footer class="bg-slate-900 border-t border-slate-700 mt-auto" style="margin-bottom:0">
@@ -7648,6 +7934,11 @@ Terima kasih 🙏</textarea>
                     class="min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
                     <i data-lucide="scale" class="w-5 h-5"></i>
                     <span class="text-[9px] font-bold tracking-wide" style="position:relative">BANDING<span id="mob-banding-badge" class="hidden absolute -top-3 -right-2 min-w-[14px] h-[14px] px-0.5 bg-amber-500 text-white text-[8px] font-black rounded-full flex items-center justify-center">0</span></span>
+                </button>
+                <button onclick="window.switchDashTab('laporan-superadmin')" id="mob-tab-laporan-superadmin"
+                    class="admin-only-tab min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
+                    <i data-lucide="send" class="w-5 h-5"></i>
+                    <span class="text-[9px] font-bold tracking-wide">LAPORAN</span>
                 </button>
             </div>
         </nav>
@@ -9339,10 +9630,10 @@ Terima kasih 🙏</textarea>
             const mobActive   = "min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 bg-blue-50 text-blue-600";
             const mobInactive = "min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400";
 
-            const tabs   = ['welcome','nilai','kelasruang','soal','siswa','analitik','jadwal','tampilan','loganomal','databackup','kendala','banding'];
-            const panels = { welcome:'panel-welcome', nilai:'panel-nilai', soal:'panel-soal', kelasruang:'panel-kelasruang', siswa:'panel-siswa', analitik:'panel-analitik', jadwal:'panel-jadwal', tampilan:'panel-tampilan', loganomal:'panel-loganomal', databackup:'panel-databackup', kendala:'panel-kendala', banding:'panel-banding' };
-            const btnIds = { welcome:'tab-dash-welcome', nilai:'tab-dash-nilai', soal:'tab-dash-soal', kelasruang:'tab-dash-kelasruang', siswa:'tab-dash-siswa', analitik:'tab-dash-analitik', jadwal:'tab-dash-jadwal', tampilan:'tab-dash-tampilan', loganomal:'tab-dash-loganomal', databackup:'tab-dash-databackup', kendala:'tab-dash-kendala', banding:'tab-dash-banding' };
-            const mobIds = { welcome:'mob-tab-welcome', nilai:'mob-tab-nilai', soal:'mob-tab-soal', kelasruang:'mob-tab-kelasruang', siswa:'mob-tab-siswa', analitik:'mob-tab-analitik', jadwal:'mob-tab-jadwal', tampilan:'mob-tab-tampilan', loganomal:'mob-tab-loganomal', databackup:'mob-tab-databackup', kendala:'mob-tab-kendala', banding:'mob-tab-banding' };
+            const tabs   = ['welcome','nilai','kelasruang','soal','siswa','analitik','jadwal','tampilan','loganomal','databackup','kendala','banding','laporan-superadmin'];
+            const panels = { welcome:'panel-welcome', nilai:'panel-nilai', soal:'panel-soal', kelasruang:'panel-kelasruang', siswa:'panel-siswa', analitik:'panel-analitik', jadwal:'panel-jadwal', tampilan:'panel-tampilan', loganomal:'panel-loganomal', databackup:'panel-databackup', kendala:'panel-kendala', banding:'panel-banding', 'laporan-superadmin':'panel-laporan-superadmin' };
+            const btnIds = { welcome:'tab-dash-welcome', nilai:'tab-dash-nilai', soal:'tab-dash-soal', kelasruang:'tab-dash-kelasruang', siswa:'tab-dash-siswa', analitik:'tab-dash-analitik', jadwal:'tab-dash-jadwal', tampilan:'tab-dash-tampilan', loganomal:'tab-dash-loganomal', databackup:'tab-dash-databackup', kendala:'tab-dash-kendala', banding:'tab-dash-banding', 'laporan-superadmin':'tab-dash-laporan-superadmin' };
+            const mobIds = { welcome:'mob-tab-welcome', nilai:'mob-tab-nilai', soal:'mob-tab-soal', kelasruang:'mob-tab-kelasruang', siswa:'mob-tab-siswa', analitik:'mob-tab-analitik', jadwal:'mob-tab-jadwal', tampilan:'mob-tab-tampilan', loganomal:'mob-tab-loganomal', databackup:'mob-tab-databackup', kendala:'mob-tab-kendala', banding:'mob-tab-banding', 'laporan-superadmin':'mob-tab-laporan-superadmin' };
 
             tabs.forEach(t => {
                 // Desktop tab
@@ -9430,7 +9721,149 @@ Terima kasih 🙏</textarea>
                     if (window.loadBandingAdminList) window.loadBandingAdminList();
                 }
             }
+            if (tab === 'laporan-superadmin') {
+                window.loadRiwayatLaporan();
+                window.initLaporanSuperadmin();
+            }
             if(typeof lucide !== 'undefined') window._createIconsSafe();
+        };
+
+        // ── LAPORAN KE SUPERADMIN ──
+        window.initLaporanSuperadmin = function() {
+            // Karakter counter
+            const desc = document.getElementById('lsk-deskripsi');
+            const counter = document.getElementById('lsk-char-count');
+            if (desc && counter) {
+                desc.oninput = () => { counter.textContent = desc.value.length; };
+            }
+            // Urgensi radio UI update
+            document.querySelectorAll('input[name="lsk-urgensi"]').forEach(radio => {
+                radio.addEventListener('change', () => {
+                    document.querySelectorAll('.lsk-urgensi-btn').forEach(btn => {
+                        const val = btn.getAttribute('data-val');
+                        const selected = val === radio.value && radio.checked;
+                        if (val === 'rendah') { btn.style.cssText = selected ? 'border-color:#16a34a;background:#f0fdf4;color:#15803d;' : ''; }
+                        else if (val === 'sedang') { btn.style.cssText = selected ? 'border-color:#d97706;background:#fffbeb;color:#b45309;' : ''; }
+                        else if (val === 'tinggi') { btn.style.cssText = selected ? 'border-color:#dc2626;background:#fef2f2;color:#b91c1c;' : ''; }
+                    });
+                });
+                // Trigger untuk set awal
+                if (radio.checked) radio.dispatchEvent(new Event('change'));
+            });
+        };
+
+        window.kirimLaporanKendala = async function() {
+            const judul = (document.getElementById('lsk-judul')?.value || '').trim();
+            const kategori = document.getElementById('lsk-kategori')?.value || '';
+            const deskripsi = (document.getElementById('lsk-deskripsi')?.value || '').trim();
+            const kontak = (document.getElementById('lsk-kontak')?.value || '').trim();
+            const urgensi = document.querySelector('input[name="lsk-urgensi"]:checked')?.value || 'rendah';
+            const errEl = document.getElementById('lsk-err');
+            const btnEl = document.getElementById('btn-kirim-lsk');
+
+            const showLskErr = (msg) => { errEl.textContent = msg; errEl.classList.remove('hidden'); };
+            errEl.classList.add('hidden');
+
+            if (!judul) return showLskErr('⚠️ Judul kendala wajib diisi.');
+            if (!kategori) return showLskErr('⚠️ Pilih kategori terlebih dahulu.');
+            if (!deskripsi || deskripsi.length < 20) return showLskErr('⚠️ Deskripsi minimal 20 karakter agar laporan bisa ditindaklanjuti.');
+            if (!window.isFirebaseReady) return showLskErr('⚠️ Koneksi ke server belum siap. Coba beberapa saat lagi.');
+
+            btnEl.disabled = true;
+            btnEl.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Mengirim...';
+
+            // Ambil info sekolah dari data yang ada
+            const namaSekolah = window._savedAppearance?.judulUjian || document.title || 'Sekolah';
+            const appId = window.appId || 'unknown';
+
+            try {
+                // Kirim ke superadmin/data/laporan_kendala
+                await window.addDoc(window.collection(window.db, 'superadmin', 'data', 'laporan_kendala'), {
+                    judul,
+                    kategori,
+                    deskripsi,
+                    urgensi,
+                    kontakPengirim: kontak,
+                    namaSekolah,
+                    appId,
+                    status: 'baru',
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                });
+
+                // Reset form
+                document.getElementById('lsk-judul').value = '';
+                document.getElementById('lsk-kategori').value = '';
+                document.getElementById('lsk-deskripsi').value = '';
+                document.getElementById('lsk-kontak').value = '';
+                document.getElementById('lsk-char-count').textContent = '0';
+                document.querySelector('input[name="lsk-urgensi"][value="rendah"]').checked = true;
+                document.querySelector('input[name="lsk-urgensi"][value="rendah"]').dispatchEvent(new Event('change'));
+
+                // Tampilkan sukses
+                errEl.textContent = '✅ Laporan berhasil dikirim! Superadmin akan segera meninjau dan merespons.';
+                errEl.className = 'text-xs text-green-700 bg-green-50 border border-green-200 rounded-xl px-3 py-2.5';
+                errEl.classList.remove('hidden');
+                setTimeout(() => errEl.classList.add('hidden'), 5000);
+
+                window.loadRiwayatLaporan();
+            } catch(e) {
+                showLskErr('❌ Gagal mengirim: ' + e.message);
+            }
+            btnEl.disabled = false;
+            btnEl.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i> Kirim Laporan';
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
+        };
+
+        window.loadRiwayatLaporan = async function() {
+            const container = document.getElementById('lsk-riwayat-container');
+            if (!container) return;
+            const appId = window.appId || 'unknown';
+
+            if (!window.isFirebaseReady) {
+                container.innerHTML = `<div class="text-center py-8 text-gray-400 text-sm">Koneksi belum siap</div>`;
+                return;
+            }
+            container.innerHTML = `<div class="flex flex-col items-center justify-center gap-2 py-10 text-gray-400">
+                <p class="text-sm">Memuat riwayat...</p></div>`;
+            try {
+                // Pastikan parent docs ada
+                await window.setDoc(window.doc(window.db,'superadmin','data'),{_init:true},{merge:true});
+                const sn = await window.getDocs(window.collection(window.db,'superadmin','data','laporan_kendala'));
+                let list = [];
+                sn.forEach(d => { const data = d.data(); if(data.appId === appId) list.push({id:d.id,...data}); });
+                list.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+
+                if (!list.length) {
+                    container.innerHTML = `<div class="flex flex-col items-center justify-center gap-2 py-10 text-gray-400">
+                        <p class="text-sm font-semibold">Belum ada laporan</p>
+                        <p class="text-xs">Laporan yang dikirim akan muncul di sini</p></div>`;
+                    return;
+                }
+
+                const statusBadge = (s) => {
+                    if (s==='selesai') return `<span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200">✅ Selesai</span>`;
+                    if (s==='diproses') return `<span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 border border-yellow-200">🟡 Diproses</span>`;
+                    return `<span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">🔴 Baru</span>`;
+                };
+
+                container.innerHTML = list.map(k => `
+                    <div class="px-4 py-3 hover:bg-gray-50 transition">
+                        <div class="flex items-start justify-between gap-2 mb-1">
+                            <p class="text-sm font-bold text-gray-800 leading-snug flex-1">${escapeHtml(k.judul||'—')}</p>
+                            ${statusBadge(k.status||'baru')}
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-[11px] text-gray-400">${k.kategori||'—'}</span>
+                            <span class="text-gray-300">·</span>
+                            <span class="text-[11px] text-gray-400">${k.createdAt?new Date(k.createdAt).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}):'—'}</span>
+                        </div>
+                        ${k.responSuperadmin ? `<div class="mt-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-xs text-green-800 leading-relaxed">
+                            <span class="font-bold">💬 Respons Superadmin:</span> ${escapeHtml(k.responSuperadmin)}</div>` : ''}
+                    </div>`).join('');
+            } catch(e) {
+                container.innerHTML = `<div class="text-center py-8 text-red-400 text-xs">Gagal memuat: ${escapeHtml(e.message)}</div>`;
+            }
         };
 
         // Toggle import section di dalam panel soal
@@ -11007,8 +11440,8 @@ Terima kasih 🙏</textarea>
                     icon: '👋',
                     label: 'Selamat Datang',
                     title: 'Selamat datang di INTEGRITEST!',
-                    desc: 'Ini adalah Panel Admin — tempat kamu mengelola seluruh ujian, soal, siswa, dan hasil analitik. Kita akan tur singkat 7 langkah untuk kenali semua fitur utama.',
-                    tip: '💡 Tutorial ini bisa diulang kapan saja via tombol "Mulai Panduan Interaktif" di halaman ini.',
+                    desc: 'Ini adalah Panel Admin — tempat kamu mengelola seluruh ujian, soal, siswa, dan hasil analitik. Kita akan tur lengkap untuk kenali semua fitur yang tersedia.',
+                    tip: '💡 Tutorial ini bisa diulang kapan saja via tombol "Mulai Panduan Interaktif" di halaman Beranda.',
                     pos: 'bottom',
                 },
                 {
@@ -11020,6 +11453,28 @@ Terima kasih 🙏</textarea>
                     title: 'Monitoring Nilai Langsung',
                     desc: 'Tab ini menampilkan semua siswa yang sedang mengerjakan ujian secara real-time. Kamu bisa lihat progress pengerjaan, status selesai/aktif, dan langsung diskualifikasi jika diperlukan.',
                     tip: '💡 Tidak perlu refresh — data update otomatis setiap ada siswa submit.',
+                    pos: 'bottom',
+                },
+                {
+                    id: 'analitik',
+                    tab: 'analitik',
+                    targetId: 'tab-dash-analitik',
+                    icon: '🔍',
+                    label: 'Analitik Integritas',
+                    title: 'Analitik & Skor Integritas',
+                    desc: 'Setelah ujian, lihat scatter plot nilai vs integritas, bandingkan tren antar jadwal dan kelas, serta cetak laporan PDF individual per siswa lengkap dengan log pelanggaran.',
+                    tip: '💡 Skor Integritas dihitung otomatis dari jumlah pelanggaran (pindah tab, keluar layar, dll).',
+                    pos: 'bottom',
+                },
+                {
+                    id: 'kelasruang',
+                    tab: 'kelasruang',
+                    targetId: 'tab-dash-kelasruang',
+                    icon: '🏫',
+                    label: 'Kelas & Ruang',
+                    title: 'Kelola Kelas & Ruang Ujian',
+                    desc: 'Buat kelas peserta dan ruang ujian, lalu tugaskan pengawas ke tiap ruang. Pengawas akan memantau dan mengelola siswa di ruangnya masing-masing saat ujian berlangsung.',
+                    tip: '💡 Pengawas login dengan akun terpisah dan hanya bisa lihat siswa di ruangnya sendiri.',
                     pos: 'bottom',
                 },
                 {
@@ -11056,25 +11511,69 @@ Terima kasih 🙏</textarea>
                     pos: 'bottom',
                 },
                 {
-                    id: 'analitik',
-                    tab: 'analitik',
-                    targetId: 'tab-dash-analitik',
-                    icon: '🔍',
-                    label: 'Analitik Integritas',
-                    title: 'Analitik & Skor Integritas',
-                    desc: 'Setelah ujian, lihat scatter plot nilai vs integritas, bandingkan tren antar jadwal dan kelas, serta cetak laporan PDF individual per siswa lengkap dengan log pelanggaran.',
-                    tip: '💡 Skor Integritas dihitung otomatis dari jumlah pelanggaran (pindah tab, keluar layar, dll).',
-                    pos: 'bottom',
-                },
-                {
                     id: 'tampilan',
                     tab: 'tampilan',
                     targetId: 'tab-dash-tampilan',
                     icon: '⚙️',
-                    label: 'Pengaturan',
+                    label: 'Setting',
                     title: 'Pengaturan & Tampilan',
-                    desc: 'Atur judul ujian, logo sekolah, durasi, KKM, notifikasi WhatsApp ke orang tua, dan banyak lagi. Semua perubahan langsung terlihat oleh siswa tanpa perlu deploy ulang.',
-                    tip: '💡 INTEGRITEST bisa direplikasi ke sekolah lain hanya dengan ganti Firebase config di sini.',
+                    desc: 'Atur judul ujian, logo sekolah, durasi, KKM, mode nomor ID siswa, dan banyak lagi. Bisa juga buat akun Admin Tamu dan Guru Mapel dengan hak akses terbatas.',
+                    tip: '💡 Semua perubahan langsung terlihat oleh siswa tanpa perlu deploy ulang.',
+                    pos: 'bottom',
+                },
+                {
+                    id: 'loganomal',
+                    tab: 'loganomal',
+                    targetId: 'tab-dash-loganomal',
+                    icon: '🚨',
+                    label: 'Log Anomali',
+                    title: 'Log Anomali & Pelanggaran',
+                    desc: 'Rekam jejak lengkap semua pelanggaran siswa: ganti tab, keluar fullscreen, copy-paste, kamera terdeteksi, dll. Bisa filter per siswa, ruang, dan jenis pelanggaran.',
+                    tip: '💡 Data log ini juga masuk ke laporan PDF integritas individual siswa.',
+                    pos: 'bottom',
+                },
+                {
+                    id: 'databackup',
+                    tab: 'databackup',
+                    targetId: 'tab-dash-databackup',
+                    icon: '💾',
+                    label: 'Data & Backup',
+                    title: 'Data & Cadangan Database',
+                    desc: 'Export seluruh data ujian ke CSV atau Excel, backup soal dan siswa, serta reset data untuk ujian berikutnya. Pastikan selalu backup sebelum reset agar tidak kehilangan data.',
+                    tip: '💡 Gunakan menu ini setelah setiap sesi ujian selesai untuk arsip yang rapi.',
+                    pos: 'bottom',
+                },
+                {
+                    id: 'kendala',
+                    tab: 'kendala',
+                    targetId: 'tab-dash-kendala',
+                    icon: '⚠️',
+                    label: 'Kendala Pengawas',
+                    title: 'Laporan Kendala Pengawas',
+                    desc: 'Pengawas bisa melaporkan kendala yang terjadi di ruangnya secara langsung (siswa bermasalah, gangguan teknis, dll). Kamu bisa memantau dan merespons semua laporan dari sini.',
+                    tip: '💡 Laporan yang belum ditangani akan muncul dengan badge merah di tab ini.',
+                    pos: 'bottom',
+                },
+                {
+                    id: 'banding',
+                    tab: 'banding',
+                    targetId: 'tab-dash-banding',
+                    icon: '⚖️',
+                    label: 'Banding Siswa',
+                    title: 'Kelola Banding Siswa',
+                    desc: 'Siswa yang merasa terdiskualifikasi secara tidak adil bisa mengajukan banding. Kamu bisa meninjau alasan banding, memutuskan ampuni atau tolak, dan memberikan catatan resmi.',
+                    tip: '💡 Fitur banding bisa diaktifkan/nonaktifkan sewaktu-waktu dari tab ini.',
+                    pos: 'bottom',
+                },
+                {
+                    id: 'laporan-superadmin',
+                    tab: 'laporan-superadmin',
+                    targetId: 'tab-dash-laporan-superadmin',
+                    icon: '📡',
+                    label: 'Laporan ke Superadmin',
+                    title: 'Laporan Bug & Kendala ke Superadmin',
+                    desc: 'Temukan bug atau kendala teknis di INTEGRITEST? Laporkan langsung dari sini. Superadmin akan menerima laporan, memprosesnya, dan membalas dengan status penanganan.',
+                    tip: '💡 Untuk masalah sangat mendesak, kamu juga bisa email langsung ke adminintegritest@gmail.com.',
                     pos: 'bottom',
                     isLast: true,
                 },
