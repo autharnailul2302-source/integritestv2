@@ -722,18 +722,26 @@
         <div class="modal-hdr">
             <div>
                 <div class="modal-title">Edit Data Sekolah</div>
-                <div class="modal-sub">App ID: <span class="mono" id="es-appid-label" style="color:#1d4ed8;font-weight:700;"></span> <span style="color:#94a3b8;">(tidak bisa diubah)</span></div>
+                <div class="modal-sub">App ID saat ini: <span class="mono" id="es-appid-label" style="color:#1d4ed8;font-weight:700;"></span></div>
             </div>
             <button class="close-btn" onclick="closeModal('modal-edit-sekolah')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
         <div class="modal-body">
             <input type="hidden" id="es-id">
+            <input type="hidden" id="es-old-appid">
             <div class="fwrap"><label class="flabel">Nama Sekolah *</label><input id="es-nama" class="inp" placeholder="SMK Negeri 1 Brondong"></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                 <div class="fwrap"><label class="flabel">Kota / Kab *</label><input id="es-kota" class="inp" placeholder="Lamongan"></div>
                 <div class="fwrap"><label class="flabel">Provinsi</label><input id="es-provinsi" class="inp" placeholder="Jawa Timur"></div>
             </div>
-            <div class="fwrap"><label class="flabel">Base URL * <span style="font-weight:400;text-transform:none;letter-spacing:0;">(link GitHub Pages)</span></label><input id="es-baseurl" class="inp mono" style="font-size:11px;" placeholder="https://username.github.io/integritestv2/index.html" oninput="previewEditLink()"></div>
+            <div class="fwrap">
+                <label class="flabel">Kode / App ID * <span style="font-weight:400;text-transform:none;letter-spacing:0;">(huruf kecil & angka)</span></label>
+                <input id="es-appid" class="inp mono" placeholder="smkn1brondong" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9]/g,'');previewEditLink()">
+                <div id="es-appid-warn" style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;font-size:11px;color:#92400e;margin-top:6px;line-height:1.6;">
+                    ⚠️ <strong>Hati-hati!</strong> Mengubah App ID akan memindahkan data sekolah ke dokumen baru. Admin yang sudah login perlu login ulang. Pastikan App ID baru benar sebelum menyimpan.
+                </div>
+            </div>
+            <div class="fwrap"><label class="flabel">Base URL <span style="font-weight:400;text-transform:none;letter-spacing:0;">(terisi otomatis)</span></label><input id="es-baseurl" class="inp mono" style="font-size:11px;background:#f1f5f9;color:#64748b;" readonly oninput="previewEditLink()"></div>
             <div id="es-link-preview" class="lp"><div class="lp-lbl">Preview Link Akses Sekolah</div><div id="es-lp-url" class="lp-url"></div></div>
             <div class="fwrap" style="margin-top:12px;"><label class="flabel">Shortlink s.id <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opsional)</span></label><input id="es-shortlink" class="inp mono" style="font-size:11px;" placeholder="https://s.id/smkn1brondong"></div>
             <div class="fwrap"><label class="flabel">Kontak / Email PIC</label><input id="es-kontak" class="inp" placeholder="admin@smkn1brondong.sch.id"></div>
@@ -765,7 +773,6 @@
                     <div style="font-size:10px;color:#94a3b8;margin-top:4px;">Paste JSON dari Firebase Console → Project Settings → Your apps</div>
                 </div>
             </div>
-            <div class="info-box">⚠️ App ID tidak bisa diubah karena digunakan sebagai kunci data di Firestore.</div>
             <div id="modal-edit-sekolah-err" class="err-box"></div>
         </div>
         <div class="modal-foot">
@@ -1444,14 +1451,24 @@
     window.editSekolah=function(id){
         const s=SL.find(x=>x.id===id);if(!s)return;
         document.getElementById('es-id').value=id;
+        document.getElementById('es-old-appid').value=s.appId;
         document.getElementById('es-appid-label').textContent=s.appId;
+        document.getElementById('es-appid').value=s.appId;
+        document.getElementById('es-appid-warn').style.display='none';
         document.getElementById('es-nama').value=s.nama||'';
         document.getElementById('es-kota').value=s.kota||'';
         document.getElementById('es-provinsi').value=s.provinsi||'';
-        document.getElementById('es-baseurl').value=s.baseUrl||'';
+        document.getElementById('es-baseurl').value=s.baseUrl||'https://autharnailul2302-source.github.io/integritestv2/';
         document.getElementById('es-shortlink').value=s.shortlink||'';
         document.getElementById('es-kontak').value=s.kontak||'';
         document.getElementById('modal-edit-sekolah-err').style.display='none';
+        // Tampilkan warning saat App ID diubah
+        document.getElementById('es-appid').oninput=function(){
+            this.value=this.value.toLowerCase().replace(/[^a-z0-9]/g,'');
+            const oldId=document.getElementById('es-old-appid').value;
+            document.getElementById('es-appid-warn').style.display=this.value&&this.value!==oldId?'block':'none';
+            previewEditLink();
+        };
         // Set firebase mode
         const mode=s.firebaseMode||'shared';
         document.querySelectorAll('input[name="es-firebase-mode"]').forEach(r=>{r.checked=r.value===mode;});
@@ -1468,16 +1485,17 @@
 
     window.previewEditLink=function(){
         const b=document.getElementById('es-baseurl').value.trim();
-        const id=document.getElementById('es-id').value;
-        const s=SL.find(x=>x.id===id);
+        const newAppId=document.getElementById('es-appid').value.trim();
         const prev=document.getElementById('es-link-preview');
         const prevUrl=document.getElementById('es-lp-url');
-        if(b&&s){prevUrl.textContent=b.replace(/\?.*$/,'')+`?s=${s.appId}`;prev.classList.add('show');}
+        if(b&&newAppId){prevUrl.textContent=b.replace(/\?.*$/,'')+`?s=${newAppId}`;prev.classList.add('show');}
         else{prev.classList.remove('show');}
     };
 
     window.simpanEditSekolah=async function(){
         const id       = document.getElementById('es-id').value;
+        const oldAppId = document.getElementById('es-old-appid').value;
+        const newAppId = document.getElementById('es-appid').value.trim();
         const nama     = document.getElementById('es-nama').value.trim();
         const kota     = document.getElementById('es-kota').value.trim();
         const provinsi = document.getElementById('es-provinsi').value.trim();
@@ -1487,7 +1505,10 @@
         const fbMode   = document.getElementById('es-firebase-mode-val').value;
         const fbConfigRaw = document.getElementById('es-firebase-config').value.trim();
         const err      = document.getElementById('modal-edit-sekolah-err');
-        if(!nama||!kota||!baseUrl){showErr(err,'Nama, kota, dan base URL wajib diisi');return;}
+        if(!nama||!kota){showErr(err,'Nama dan kota wajib diisi');return;}
+        if(!newAppId||!/^[a-z0-9]+$/.test(newAppId)){showErr(err,'App ID hanya boleh huruf kecil dan angka');return;}
+        // Cek duplikat App ID jika diubah
+        if(newAppId!==oldAppId&&SL.find(s=>s.appId===newAppId)){showErr(err,'App ID sudah dipakai sekolah lain');return;}
         // Validasi Firebase config jika mode custom
         let firebaseConfig=null;
         if(fbMode==='custom'){
@@ -1497,11 +1518,27 @@
         const btn=document.getElementById('btn-simpan-edit-sekolah');
         btn.textContent='Menyimpan...';btn.disabled=true;err.style.display='none';
         try{
-            const payload={nama,kota,provinsi,baseUrl,shortlink,kontak,firebaseMode:fbMode};
+            const payload={nama,kota,provinsi,appId:newAppId,baseUrl,shortlink,kontak,firebaseMode:fbMode};
             if(firebaseConfig) payload.firebaseConfig=JSON.stringify(firebaseConfig);
-            else payload.firebaseConfig=''; // hapus config lama jika ganti ke shared
-            await updateDoc(doc(db,SA,'data','schools',id),payload);
-            showToast('✅',`${nama} berhasil diperbarui`);
+            else payload.firebaseConfig='';
+
+            if(newAppId!==oldAppId){
+                // App ID berubah: buat dokumen baru dengan ID baru, hapus yang lama
+                const oldData=SL.find(x=>x.id===id)||{};
+                await setDoc(doc(db,SA,'data','schools',newAppId),{...oldData,...payload,createdAt:oldData.createdAt||Date.now()});
+                await deleteDoc(doc(db,SA,'data','schools',id));
+                // Update semua admin yang pakai appId lama
+                const adminSnap=await getDocs(CA());
+                for(const ad of adminSnap.docs){
+                    if(ad.data().appId===oldAppId){
+                        await updateDoc(doc(db,SA,'data','school_admins',ad.id),{appId:newAppId});
+                    }
+                }
+                showToast('✅',`${nama} diperbarui (App ID: ${oldAppId} → ${newAppId})`);
+            } else {
+                await updateDoc(doc(db,SA,'data','schools',id),payload);
+                showToast('✅',`${nama} berhasil diperbarui`);
+            }
             closeModal('modal-edit-sekolah');
             await loadAll();
         }catch(e){showErr(err,'Gagal: '+e.message);}
