@@ -627,13 +627,21 @@
             <button class="close-btn" onclick="closeModal('modal-sekolah')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
         <div class="modal-body">
-            <div class="fwrap"><label class="flabel">Nama Sekolah *</label><input id="s-nama" class="inp" placeholder="SMAN 1 Surabaya"></div>
+            <div class="fwrap"><label class="flabel">Nama Sekolah *</label><input id="s-nama" class="inp" placeholder="SMAN 1 Surabaya" oninput="autoGenAppId(this.value);previewLink()"></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                 <div class="fwrap"><label class="flabel">Kota / Kab *</label><input id="s-kota" class="inp" placeholder="Surabaya"></div>
                 <div class="fwrap"><label class="flabel">Provinsi</label><input id="s-provinsi" class="inp" placeholder="Jawa Timur"></div>
             </div>
-            <div class="fwrap"><label class="flabel">Kode / App ID * <span style="font-weight:400;text-transform:none;letter-spacing:0;">(huruf kecil & angka)</span></label><input id="s-appid" class="inp mono" placeholder="sman1sby" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9]/g,'');previewLink()"></div>
-            <div class="fwrap"><label class="flabel">Base URL * <span style="font-weight:400;text-transform:none;letter-spacing:0;">(link index.html GitHub Pages)</span></label><input id="s-baseurl" class="inp mono" style="font-size:11px;" placeholder="https://username.github.io/integritestv2/index.html" oninput="previewLink()"></div>
+            <div class="fwrap">
+                <label class="flabel">Kode / App ID * <span style="font-weight:400;text-transform:none;letter-spacing:0;">(huruf kecil & angka, otomatis dari nama)</span></label>
+                <input id="s-appid" class="inp mono" placeholder="sman1sby" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9]/g,'');previewLink()">
+                <div style="font-size:10px;color:#94a3b8;margin-top:4px;">💡 Otomatis ter-isi dari nama sekolah — bisa diedit manual</div>
+            </div>
+            <div class="fwrap">
+                <label class="flabel">Base URL <span style="font-weight:400;text-transform:none;letter-spacing:0;">(terisi otomatis)</span></label>
+                <input id="s-baseurl" class="inp mono" style="font-size:11px;background:#f1f5f9;color:#64748b;" value="https://autharnailul2302-source.github.io/integritestv2/" readonly>
+                <div style="font-size:10px;color:#94a3b8;margin-top:4px;">🔒 URL default sistem — tidak perlu diubah</div>
+            </div>
             <div id="link-preview" class="lp"><div class="lp-lbl">Preview Link Akses Sekolah</div><div id="lp-url" class="lp-url"></div></div>
             <div class="fwrap" style="margin-top:12px;"><label class="flabel">Shortlink s.id <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opsional)</span></label><input id="s-shortlink" class="inp mono" style="font-size:11px;" placeholder="https://s.id/sman1sby"></div>
             <div class="fwrap"><label class="flabel">Kontak / Email PIC</label><input id="s-kontak" class="inp" placeholder="admin@sman1.sch.id"></div>
@@ -1380,7 +1388,7 @@
         const fbMode=document.getElementById('s-firebase-mode-val').value;
         const fbConfigRaw=document.getElementById('s-firebase-config').value.trim();
         const err=document.getElementById('modal-sekolah-err');
-        if(!nama||!kota||!appId||!baseUrl){showErr(err,'Nama, kota, kode, dan base URL wajib diisi');return;}
+        if(!nama||!kota||!appId){showErr(err,'Nama, kota, dan kode sekolah wajib diisi');return;}
         if(!/^[a-z0-9]+$/.test(appId)){showErr(err,'Kode hanya huruf kecil dan angka');return;}
         if(SL.find(s=>s.appId===appId)){showErr(err,'App ID sudah dipakai sekolah lain');return;}
         // Validasi Firebase config jika mode custom
@@ -1616,9 +1624,24 @@
 
     window.copyText=function(t){navigator.clipboard.writeText(t).then(()=>showToast('📋','Link disalin!')).catch(()=>{});};
     window.showToast=function(icon,msg){document.getElementById('t-icon').textContent=icon;document.getElementById('t-msg').textContent=msg;const t=document.getElementById('toast');t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(()=>t.classList.remove('show'),3000);};
+    window.autoGenAppId=function(nama){
+        // Generate App ID dari nama sekolah: ambil huruf/angka, lowercase, max 20 char
+        const raw=nama.toLowerCase()
+            .replace(/negeri/g,'n').replace(/swasta/g,'sw')
+            .replace(/sekolah menengah atas/g,'sma').replace(/sekolah menengah kejuruan/g,'smk')
+            .replace(/sekolah menengah pertama/g,'smp').replace(/sekolah dasar/g,'sd')
+            .replace(/[^a-z0-9\s]/g,'').trim()
+            .split(/\s+/).join('').slice(0,20);
+        const el=document.getElementById('s-appid');
+        if(el && (!el.dataset.manualEdit || el.dataset.manualEdit==='false')) el.value=raw;
+    };
+    // Tandai App ID sebagai "diedit manual" supaya auto-gen tidak override ketikan user
+    document.getElementById('s-appid').addEventListener('input',function(){this.dataset.manualEdit='true';});
     window.previewLink=function(){const a=document.getElementById('s-appid').value.trim();const b=document.getElementById('s-baseurl').value.trim();const w=document.getElementById('link-preview');const u=document.getElementById('lp-url');if(a&&b){u.textContent=b.replace(/\?.*$/,'')+`?s=${a}`;w.classList.add('show');}else{w.classList.remove('show');}};
     window.clrSK=function(){
-        ['s-nama','s-kota','s-provinsi','s-appid','s-baseurl','s-shortlink','s-kontak','s-firebase-config'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+        ['s-nama','s-kota','s-provinsi','s-appid','s-shortlink','s-kontak','s-firebase-config'].forEach(id=>{const el=document.getElementById(id);if(el){el.value='';if(el.dataset)el.dataset.manualEdit='false';}});
+        // Base URL selalu diisi ulang ke default
+        document.getElementById('s-baseurl').value='https://autharnailul2302-source.github.io/integritestv2/';
         document.getElementById('link-preview').classList.remove('show');
         document.getElementById('modal-sekolah-err').style.display='none';
         // Reset firebase ke shared
