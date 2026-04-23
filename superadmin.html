@@ -857,8 +857,9 @@
     const app=initializeApp(cfg);
     const db=getFirestore(app);
     const auth=getAuth(app);
-    // Expose ke window agar script non-module (openDetailSekolah) bisa akses
+    // Expose ke window agar script non-module (openDetailSekolah, syncManual) bisa akses
     window.db=db; window.getDocs=getDocs; window.collection=collection; window.doc=doc;
+    window.setDoc=setDoc; window.updateDoc=updateDoc;
     // Auth dilakukan saat login — tidak pakai anonymous
 
     const SA='superadmin';
@@ -1739,7 +1740,12 @@
                 <div style="font-size:18px;font-weight:900;color:#fff;" id="ds-nama">Detail Sekolah</div>
                 <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:3px;" id="ds-sub">Rekap Ujian per Kelas & Jadwal</div>
             </div>
-            <button onclick="closeDetailSekolah()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;">✕</button>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <button id="btn-sync-manual" onclick="syncManual()" style="background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.4);color:#fff;border-radius:10px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                    <span id="sync-icon">🔄</span> Sync Data
+                </button>
+                <button onclick="closeDetailSekolah()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;">✕</button>
+            </div>
         </div>
 
         <!-- Stat ringkas sekolah -->
@@ -1747,7 +1753,10 @@
 
         <!-- Tabel rekap ujian per kelas/jadwal -->
         <div style="padding:18px 24px 24px;">
-            <div style="font-size:13px;font-weight:800;color:#0f172a;margin-bottom:10px;">📋 Rekap Ujian per Kelas / Jadwal</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+                <div style="font-size:13px;font-weight:800;color:#0f172a;">📋 Rekap Ujian per Kelas / Jadwal</div>
+                <div id="ds-sync-status" style="display:none;font-size:11px;padding:5px 10px;border-radius:8px;font-weight:600;"></div>
+            </div>
             <div id="ds-loading" style="text-align:center;padding:32px;color:#94a3b8;font-size:13px;">Memuat data...</div>
             <div id="ds-table-wrap" style="display:none;overflow-x:auto;">
                 <table style="width:100%;border-collapse:collapse;">
@@ -1789,11 +1798,19 @@ function fmtIntDetail(v){
 }
 
 window.openDetailSekolah = async function(schoolDocId, schoolData) {
+    // Simpan referensi aktif untuk syncManual
+    window._dsActiveAppId      = schoolData.appId || null;
+    window._dsActiveDocId      = schoolDocId || null;
+    window._dsActiveSchoolData = schoolData;
+
     const modal = document.getElementById('modal-detail-sekolah');
     document.getElementById('ds-nama').textContent = schoolData.nama || schoolData.appId;
     document.getElementById('ds-sub').textContent  = (schoolData.kota||'') + (schoolData.provinsi?' · '+schoolData.provinsi:'') + ' · Kode: ' + (schoolData.appId||'');
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
+    // Reset status sync
+    const ss = document.getElementById('ds-sync-status');
+    if(ss) ss.style.display='none';
 
     // Stat cards ringkas
     const sc = document.getElementById('ds-stats');
@@ -1852,6 +1869,130 @@ window.openDetailSekolah = async function(schoolDocId, schoolData) {
         document.getElementById('ds-table-wrap').style.display = 'block';
     } catch(e) {
         document.getElementById('ds-loading').textContent = '⚠️ Gagal memuat data: ' + e.message;
+    }
+};
+
+// ── Sync Manual: baca exam_results dari Firestore sekolah → tulis ke exam_sessions superadmin ──
+window._dsActiveAppId   = null;
+window._dsActiveDocId   = null;
+
+window.syncManual = async function() {
+    const appId    = window._dsActiveAppId;
+    const schoolDocId = window._dsActiveDocId;
+    if (!appId || !schoolDocId) { alert('Data sekolah tidak ditemukan'); return; }
+
+    const btn  = document.getElementById('btn-sync-manual');
+    const icon = document.getElementById('sync-icon');
+    const statusEl = document.getElementById('ds-sync-status');
+    btn.disabled = true;
+    icon.textContent = '⏳';
+    statusEl.style.display = 'none';
+
+    try {
+        // Baca semua exam_results dari Firestore sekolah
+        const resultsSnap = await getDocs(
+            collection(db, 'artifacts', appId, 'public', 'data', 'exam_results')
+        );
+
+        if (resultsSnap.empty) {
+            statusEl.textContent = '⚠️ Belum ada data ujian di Firestore sekolah ini';
+            statusEl.style.cssText = 'display:block;font-size:11px;padding:5px 10px;border-radius:8px;font-weight:600;background:#fffbeb;color:#92400e;border:1px solid #fde68a;';
+            return;
+        }
+
+        // Formula integritas — sama dengan syncToSuperadmin di app.html
+        const VWEIGHTS = { focus:15, clipboard:20, back_button:25, split_screen:30, device_dup:50, idle:10, unknown:15 };
+        function calcInt(data) {
+            const viol = data.violations || 0;
+            const logs = data.violationLogs || [];
+            if (data.status && data.status.includes('DISKUALIFIKASI')) return 0;
+            if (viol >= 3) return 0;
+            if (viol === 0) return 100;
+            let ded = 0;
+            if (logs.length > 0) logs.forEach(l => { ded += VWEIGHTS[l.type||'unknown']||VWEIGHTS.unknown; });
+            else ded = viol * VWEIGHTS.unknown;
+            return Math.max(5, 100 - ded);
+        }
+
+        // Agregasi per (kelas × sesi)
+        const sessions = {};
+        resultsSnap.forEach(d => {
+            const r = d.data();
+            // Hanya siswa yang sudah selesai
+            if (!r.status || r.status === 'sedang_ujian') return;
+            const kelas    = (r.className || 'Tidak Diketahui').trim();
+            const sesiId   = r.sesiId  || r.jadwalId || 'tanpa-jadwal';
+            const sesiName = r.sesiName || r.paketNama || 'Ujian';
+            const key = (appId + '__' + kelas + '__' + sesiId).replace(/[^a-zA-Z0-9_\-]/g,'_').substring(0,200);
+            const intScore = calcInt(r);
+            const isDQ     = intScore === 0;
+            const score    = r.score || 0;
+
+            if (!sessions[key]) {
+                sessions[key] = { appId, kelas, sesiId, sesiName, paketNama: r.paketNama||sesiName,
+                    totalSiswa:0, sumInt:0, sumScore:0, disqualified:0, lastUpdated: Date.now() };
+            }
+            const s = sessions[key];
+            s.totalSiswa++;
+            s.sumInt   += intScore;
+            s.sumScore += score;
+            if (isDQ) s.disqualified++;
+        });
+
+        const keys = Object.keys(sessions);
+        if (!keys.length) {
+            statusEl.textContent = '⚠️ Tidak ada siswa yang sudah selesai ujian';
+            statusEl.style.cssText = 'display:block;font-size:11px;padding:5px 10px;border-radius:8px;font-weight:600;background:#fffbeb;color:#92400e;border:1px solid #fde68a;';
+            return;
+        }
+
+        // Tulis ke exam_sessions superadmin
+        let written = 0;
+        for (const key of keys) {
+            const s = sessions[key];
+            const sessionRef = doc(db, 'superadmin', 'data', 'schools', schoolDocId, 'exam_sessions', key);
+            await setDoc(sessionRef, {
+                appId        : s.appId,
+                kelas        : s.kelas,
+                sesiId       : s.sesiId,
+                sesiName     : s.sesiName,
+                paketNama    : s.paketNama,
+                totalSiswa   : s.totalSiswa,
+                avgIntegrity : Math.round(s.sumInt   / s.totalSiswa),
+                avgScore     : Math.round(s.sumScore / s.totalSiswa),
+                disqualified : s.disqualified,
+                lastUpdated  : s.lastUpdated,
+                lastUpdatedDate: new Date().toISOString(),
+                syncedManually: true
+            }, { merge: false });
+            written++;
+        }
+
+        // Update stat agregat sekolah juga
+        const allSess = Object.values(sessions);
+        const totalSiswa = allSess.reduce((a,s)=>a+s.totalSiswa, 0);
+        const avgInt     = Math.round(allSess.reduce((a,s)=>a+s.sumInt,0) / Math.max(totalSiswa,1));
+        const totalDQ    = allSess.reduce((a,s)=>a+s.disqualified, 0);
+        await updateDoc(doc(db, 'superadmin', 'data', 'schools', schoolDocId), {
+            totalExamSessions : totalSiswa,
+            avgIntegrityScore : avgInt,
+            disqualifiedCount : totalDQ,
+            lastSyncManual    : Date.now()
+        });
+
+        statusEl.textContent = `✅ Sync selesai — ${written} sesi, ${totalSiswa} peserta`;
+        statusEl.style.cssText = 'display:block;font-size:11px;padding:5px 10px;border-radius:8px;font-weight:600;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;';
+
+        // Reload tabel
+        await openDetailSekolah(schoolDocId, { ...window._dsActiveSchoolData,
+            totalExamSessions: totalSiswa, avgIntegrityScore: avgInt, disqualifiedCount: totalDQ });
+
+    } catch(e) {
+        statusEl.textContent = '❌ Gagal: ' + e.message;
+        statusEl.style.cssText = 'display:block;font-size:11px;padding:5px 10px;border-radius:8px;font-weight:600;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;';
+    } finally {
+        btn.disabled = false;
+        icon.textContent = '🔄';
     }
 };
 
