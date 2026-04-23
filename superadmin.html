@@ -857,6 +857,8 @@
     const app=initializeApp(cfg);
     const db=getFirestore(app);
     const auth=getAuth(app);
+    // Expose ke window agar script non-module (openDetailSekolah) bisa akses
+    window.db=db; window.getDocs=getDocs; window.collection=collection; window.doc=doc;
     // Auth dilakukan saat login — tidak pakai anonymous
 
     const SA='superadmin';
