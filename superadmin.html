@@ -1973,12 +1973,12 @@ window.syncManual = async function() {
         const totalSiswa = allSess.reduce((a,s)=>a+s.totalSiswa, 0);
         const avgInt     = Math.round(allSess.reduce((a,s)=>a+s.sumInt,0) / Math.max(totalSiswa,1));
         const totalDQ    = allSess.reduce((a,s)=>a+s.disqualified, 0);
-        await updateDoc(doc(db, 'superadmin', 'data', 'schools', schoolDocId), {
+        await setDoc(doc(db, 'superadmin', 'data', 'schools', schoolDocId), {
             totalExamSessions : totalSiswa,
             avgIntegrityScore : avgInt,
             disqualifiedCount : totalDQ,
             lastSyncManual    : Date.now()
-        });
+        }, { merge: true });
 
         statusEl.textContent = `✅ Sync selesai — ${written} sesi, ${totalSiswa} peserta`;
         statusEl.style.cssText = 'display:block;font-size:11px;padding:5px 10px;border-radius:8px;font-weight:600;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;';
