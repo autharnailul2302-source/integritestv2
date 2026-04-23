@@ -1134,6 +1134,7 @@
 
     async function loadSK(){
         try{
+            await ensureParentDocs();
             const sn=await getDocs(CS());
             SL=[];
             window._SL_MAP={};
@@ -1144,9 +1145,11 @@
             });
             SL.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
             renderSK(SL);
+            if(window.filterMonitoring)window.filterMonitoring();
         }catch(e){
             console.error('[loadSK] Error:', e.code, e.message);
             document.getElementById('tabel-sekolah').innerHTML=`<tr><td colspan="9"><div class="empty" style="color:#dc2626;">⚠️ Gagal memuat: ${e.message}</div></td></tr>`;
+            document.getElementById('tabel-monitoring').innerHTML=`<tr><td colspan="11"><div class="empty" style="color:#dc2626;">⚠️ Gagal memuat: ${e.message}</div></td></tr>`;
         }
     }
     async function loadAD(){
@@ -1212,7 +1215,7 @@
         const offset=(PG.sk-1)*pp;
         tb.innerHTML=slice.map((s,i)=>{
             const lnk=bLink(s);const dl=s.shortlink||lnk;
-            return`<tr data-id="${_e(a.id)}" data-nama="${_e(a.username)}">
+            return`<tr data-id="${_e(s.id)}" data-nama="${_e(s.nama)}">
                 <td style="color:#94a3b8;font-size:12px;">${offset+i+1}</td>
                 <td><strong>${_e(s.nama)}</strong><br><span style="font-size:11px;color:#64748b;">${_e(s.kota||'')}${s.provinsi?' · '+_e(s.provinsi):''}</span></td>
                 <td><span class="badge bg-blue mono" style="font-size:11px;">${_e(s.appId)}</span></td>
@@ -1292,7 +1295,7 @@
         tb.innerHTML=slice.map((s,i)=>{
             const dq=s.disqualifiedCount||0;
             const avgInt=s.avgIntegrityScore;
-            return`<tr data-id="${_e(a.id)}" data-nama="${_e(a.username)}">
+            return`<tr data-id="${_e(s.id)}" data-nama="${_e(s.nama)}">
                 <td style="color:#94a3b8;font-size:12px;">${offset+i+1}</td>
                 <td><strong>${_e(s.nama)}</strong><br><span style="font-size:11px;color:#64748b;">${_e(s.kota||'')}${s.provinsi?' · '+_e(s.provinsi):''}</span></td>
                 <td><span class="badge bg-blue mono" style="font-size:11px;">${_e(s.appId)}</span></td>
