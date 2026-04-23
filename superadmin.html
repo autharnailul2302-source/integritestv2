@@ -882,19 +882,8 @@
     // ══════════════════════════════════════════════════════════════
     async function runSeedIfEmpty() {
         try {
-            // ✅ FIX: buat dokumen perantara dulu sebelum akses sub-koleksi
             await ensureParentDocs();
-
-            const SCHOOL_APPID  = 'smkn1brondong';
-            const SCHOOL_NAMA   = 'SMK Negeri 1 Brondong';
-            const SCHOOL_KOTA   = 'Lamongan';
-            const SCHOOL_PROV   = 'Jawa Timur';
-            const SCHOOL_BASEURL= 'https://autharnailul2302-source.github.io/integritest/';
-            const ADMIN_USER    = 'admin_smkn1brondong';
-            const ADMIN_PASS    = 'admin123';
-            const ADMIN_NAMA    = 'Admin SMK Negeri 1 Brondong';
-
-            // 1) Superadmin credentials
+            // Hanya seed superadmin credentials — tidak auto-buat sekolah/admin
             const snCred = await getDocs(CC());
             if (snCred.empty) {
                 await setDoc(doc(db, SA, 'config', 'credentials', 'superadmin'), {
@@ -902,48 +891,7 @@
                     password: 'integritest2025',
                     createdAt: Date.now()
                 });
-                console.log('[Seed] Superadmin credentials dibuat');
             }
-
-            // 2) Data sekolah — dicek INDEPENDEN, tidak bergantung pada data admin
-            const snSK = await getDocs(CS());
-            let sekolahSudahAda = false;
-            snSK.forEach(d => { if (d.data().appId === SCHOOL_APPID) sekolahSudahAda = true; });
-
-            if (!sekolahSudahAda) {
-                await setDoc(doc(db, SA, 'data', 'schools', SCHOOL_APPID), {
-                    nama      : SCHOOL_NAMA,
-                    kota      : SCHOOL_KOTA,
-                    provinsi  : SCHOOL_PROV,
-                    appId     : SCHOOL_APPID,
-                    baseUrl   : SCHOOL_BASEURL,
-                    shortlink : '',
-                    kontak    : '',
-                    status    : 'aktif',
-                    createdAt : Date.now()
-                });
-                console.log('[Seed] Sekolah', SCHOOL_NAMA, 'ditambahkan');
-            }
-
-            // 3) Akun admin sekolah — dicek INDEPENDEN, tidak bergantung pada data sekolah
-            const snAD = await getDocs(CA());
-            let adminSudahAda = false;
-            snAD.forEach(d => { if (d.data().username === ADMIN_USER && d.data().appId === SCHOOL_APPID) adminSudahAda = true; });
-
-            if (!adminSudahAda) {
-                await setDoc(doc(db, SA, 'data', 'school_admins', `${SCHOOL_APPID}_main`), {
-                    appId    : SCHOOL_APPID,
-                    username : ADMIN_USER,
-                    nama     : ADMIN_NAMA,
-                    createdAt: Date.now()
-                });
-                await setDoc(
-                    doc(db, 'artifacts', SCHOOL_APPID, 'public', 'data', 'admin_credentials', 'main_admin'),
-                    { username: ADMIN_USER, password: ADMIN_PASS, nama: ADMIN_NAMA, role: 'admin', createdAt: Date.now() }
-                );
-                console.log('[Seed] Admin sekolah', ADMIN_USER, 'dibuat');
-            }
-
         } catch(e) {
             console.warn('[Seed] Error:', e.message);
         }
@@ -1303,8 +1251,8 @@
                 <td>${_e(sk?.nama||a.appId)}<br><span class="badge bg-blue mono" style="font-size:10px;">${_e(a.appId)}</span></td>
                 <td style="font-size:11px;color:#94a3b8;">${a.createdAt?new Date(a.createdAt).toLocaleDateString('id-ID'):'—'}</td>
                 <td><div style="display:flex;gap:4px;">
-                    <button class="btn-sm btn-blue" onclick="editAdmin('${a.id}')">Edit</button>
-                    <button class="btn-sm btn-red" onclick="hapusAD('${a.id}','${_e(a.username)}')">Hapus</button>
+                    <button class="btn-sm btn-blue" onclick="editAdmin(this.closest('tr').dataset.id)">Edit</button>
+                    <button class="btn-sm btn-red" onclick="hapusAD(this)">Hapus</button>
                 </div></td>
             </tr>`;
         }).join('');
@@ -1550,7 +1498,11 @@
         btn.textContent='Simpan Perubahan';btn.disabled=false;
     };
 
-    window.hapusAD=async function(id,username){
+    window.hapusAD=async function(btn){
+        const tr=btn.closest('tr');
+        const id=tr?tr.dataset.id:'';
+        const username=tr?tr.dataset.nama:'';
+        if(!id){alert('Gagal: ID admin tidak ditemukan');return;}
         if(!confirm(`Hapus admin "${username}"?`))return;
         try{await deleteDoc(doc(db,SA,'data','school_admins',id));showToast('🗑️',`Admin ${username} dihapus`);await loadAll();}catch(e){alert('Gagal: '+e.message);}
     };
