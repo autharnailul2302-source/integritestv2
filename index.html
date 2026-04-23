@@ -330,7 +330,7 @@
                             // Sampai sini hanya jika: tidak ada ?s=, tidak ada session,
                             // dan tidak ada sekolah di Firebase yang baseUrl-nya cocok.
                             // Kemungkinan: akses offline / URL belum terdaftar.
-                            window.appId = 'smkn1brondong'; // pemilik sistem = default
+                            window.appId = 'ukktkj'; // pemilik sistem = default
                             window._appIdSource = 'last-resort';
                             console.warn('[MultiTenant] ⚠️ Tidak ada baseUrl yang cocok — fallback smkn1brondong');
                         }
@@ -2880,12 +2880,9 @@ html.dark .ob-dot.active { background: #818cf8; }
                         <span class="text-white">INTEGRI</span><span style="color:#38bdf8;text-shadow:0 0 18px rgba(56,189,248,0.55)">TEST</span>
                     </h1>
                     <p class="text-blue-200/70 text-[10px] font-semibold tracking-[0.2em] uppercase mt-0.5 mb-0">Digitalizing Integrity, Empowering Honesty</p>
-                    <!-- Badge nama sekolah — tampil kalau ada ?s= di URL -->
-                    <div id="school-badge-wrap" class="hidden mt-2">
-                        <span id="school-badge" class="inline-flex items-center gap-1.5 bg-white/15 border border-white/25 backdrop-blur-sm text-white text-[10px] font-bold px-3 py-1 rounded-full tracking-wide">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
-                            <span id="school-badge-text">—</span>
-                        </span>
+                    <!-- Badge nama sekolah — disembunyikan -->
+                    <div id="school-badge-wrap" style="display:none!important">
+                        <span id="school-badge"><span id="school-badge-text"></span></span>
                     </div>
                     <!-- Nama ujian custom dari setting (muncul jika admin isi di pengaturan) -->
                     <div id="login-exam-name-wrap" class="hidden mt-2 flex-col items-center gap-0">
@@ -23451,31 +23448,32 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
     <script>
         document.addEventListener('DOMContentLoaded', async function() {
             const urlParam = new URLSearchParams(window.location.search).get('s');
-            if (!urlParam) return; // tidak ada ?s= — mode default, tidak perlu badge
-
-            // Tampilkan badge sementara dengan appId dulu
+            // Tampilkan badge untuk ?s= maupun mode default (baseUrl match / last-resort)
+            // resolvedId akan diisi setelah appId selesai diresolved secara async
             const badgeWrap = document.getElementById('school-badge-wrap');
             const badgeText = document.getElementById('school-badge-text');
-            if (badgeWrap && badgeText) {
-                badgeText.textContent = urlParam.toUpperCase();
-                badgeWrap.classList.remove('hidden');
-            }
 
-            // Tunggu Firebase siap, lalu ambil nama sekolah dari superadmin
+            // Tunggu Firebase siap & appId selesai diresolved
             function waitAndFetch(tries) {
-                if (tries > 20) return;
-                if (!window.isFirebaseReady || !window.db) {
+                if (tries > 30) return;
+                const currentId = urlParam || window.appId;
+                if (!window.isFirebaseReady || !window.db || !currentId || window._appIdSource === 'pending-baseurl') {
                     setTimeout(() => waitAndFetch(tries + 1), 400);
                     return;
+                }
+                // Tampilkan badge dengan appId sementara
+                if (badgeWrap && badgeText) {
+                    badgeText.textContent = currentId.toUpperCase();
+                    badgeWrap.classList.remove('hidden');
                 }
                 // Cari sekolah di superadmin/data/schools berdasarkan appId
                 window.getDocs(window.collection(window.db, 'superadmin', 'data', 'schools'))
                     .then(snap => {
                         snap.forEach(d => {
                             const data = d.data();
-                            if (data.appId === urlParam.toLowerCase()) {
-                                // Update badge dengan nama sekolah
-                                if (badgeText) badgeText.textContent = data.nama || urlParam.toUpperCase();
+                            if (data.appId === (urlParam || window.appId || '').toLowerCase()) {
+                                // Update badge dengan nama sekolah lengkap
+                                if (badgeText) badgeText.textContent = data.nama || (urlParam || window.appId || '').toUpperCase();
 
                                 // Jika sekolah nonaktif — blokir akses
                                 if (data.status === 'nonaktif') {
