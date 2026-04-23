@@ -290,50 +290,14 @@
                 try {
                     const schoolsSnap = await getDocs(collection(defaultDb, 'superadmin', 'data', 'schools'));
 
-                    // ── LAPIS 3: baseUrl matching ────────────────────────────────────────
-                    // Jika appId masih null / pending (tidak ada ?s= dan tidak ada session),
-                    // cocokkan URL aktif dengan field baseUrl tiap sekolah di Firebase.
-                    // Ini yang membuat: buka integritestv2 tanpa ?s= → otomatis smkn1brondong
+                    // ── LAPIS 3: baseUrl matching — DINONAKTIFKAN ─────────────────────────
+                    // Semua sekolah pakai baseUrl yang sama, matching tidak relevan.
+                    // Tanpa ?s= langsung fallback ke appId default (ukktkj).
                     if (!window.appId || window._appIdSource === 'pending-baseurl') {
-                        const currentHref   = (window.location.href).split('?')[0].split('#')[0].toLowerCase();
-                        const currentOrigin = window.location.origin.toLowerCase();
-                        const currentPath   = window.location.pathname.toLowerCase()
-                            .replace(/\/[^\/]*$/, '/'); // ambil direktori, buang nama file
-
-                        let matched = null;
-                        schoolsSnap.forEach(d => {
-                            const sd = d.data();
-                            if (!sd.baseUrl || !sd.appId) return;
-                            const base = sd.baseUrl.split('?')[0].split('#')[0].toLowerCase()
-                                .replace(/\/?$/, '/'); // normalisasi trailing slash
-                            // Cocok HANYA jika URL saat ini dimulai dengan baseUrl sekolah
-                            // (one-way match — baseUrl harus prefix dari URL aktif, bukan sebaliknya)
-                            const isMatch = currentHref.startsWith(base);
-                            if (isMatch) {
-                                // Pilih match terpanjang (lebih spesifik = lebih baik)
-                                if (!matched || base.length > matched.baseLen) {
-                                    matched = { appId: sd.appId, baseLen: base.length };
-                                }
-                            }
-                        });
-
-                        if (matched) {
-                            window.appId = matched.appId;
-                            window._appIdSource = 'baseurl-match';
-                            try {
-                                sessionStorage.setItem('integritest_appid_from_url', window.appId);
-                                sessionStorage.setItem('integritest_appid_source', 'baseurl-match');
-                            } catch(e) {}
-                            console.log('[MultiTenant] ✅ appId dari baseUrl matching:', window.appId);
-                        } else {
-                            // ── LAPIS 4: last-resort ──────────────────────────────────────────
-                            // Sampai sini hanya jika: tidak ada ?s=, tidak ada session,
-                            // dan tidak ada sekolah di Firebase yang baseUrl-nya cocok.
-                            // Kemungkinan: akses offline / URL belum terdaftar.
-                            window.appId = 'ukktkj'; // pemilik sistem = default
-                            window._appIdSource = 'last-resort';
-                            console.warn('[MultiTenant] ⚠️ Tidak ada baseUrl yang cocok — fallback smkn1brondong');
-                        }
+                        // ── LAPIS 4: last-resort — langsung tanpa baseUrl matching ───────────
+                        window.appId = 'ukktkj'; // default pemilik sistem
+                        window._appIdSource = 'last-resort';
+                        console.log('[MultiTenant] Tidak ada ?s= — pakai default appId: ukktkj');
                     }
                     // ── Selesai resolusi appId ─────────────────────────────────────────────────────
 
