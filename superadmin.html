@@ -638,9 +638,8 @@
                 <div style="font-size:10px;color:#94a3b8;margin-top:4px;">💡 Otomatis ter-isi dari nama sekolah — bisa diedit manual</div>
             </div>
             <div class="fwrap">
-                <label class="flabel">Base URL <span style="font-weight:400;text-transform:none;letter-spacing:0;">(terisi otomatis)</span></label>
-                <input id="s-baseurl" class="inp mono" style="font-size:11px;background:#f1f5f9;color:#64748b;" value="https://autharnailul2302-source.github.io/integritestv2/" readonly>
-                <div style="font-size:10px;color:#94a3b8;margin-top:4px;">🔒 URL default sistem — tidak perlu diubah</div>
+                <label class="flabel">Base URL * <span style="font-weight:400;text-transform:none;letter-spacing:0;">(link GitHub Pages)</span></label>
+                <input id="s-baseurl" class="inp mono" style="font-size:11px;" placeholder="https://username.github.io/integritestv2/" oninput="previewLink()">
             </div>
             <div id="link-preview" class="lp"><div class="lp-lbl">Preview Link Akses Sekolah</div><div id="lp-url" class="lp-url"></div></div>
             <div class="fwrap" style="margin-top:12px;"><label class="flabel">Shortlink s.id <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opsional)</span></label><input id="s-shortlink" class="inp mono" style="font-size:11px;" placeholder="https://s.id/sman1sby"></div>
@@ -741,7 +740,7 @@
                     ⚠️ <strong>Hati-hati!</strong> Mengubah App ID akan memindahkan data sekolah ke dokumen baru. Admin yang sudah login perlu login ulang. Pastikan App ID baru benar sebelum menyimpan.
                 </div>
             </div>
-            <div class="fwrap"><label class="flabel">Base URL <span style="font-weight:400;text-transform:none;letter-spacing:0;">(terisi otomatis)</span></label><input id="es-baseurl" class="inp mono" style="font-size:11px;background:#f1f5f9;color:#64748b;" readonly oninput="previewEditLink()"></div>
+            <div class="fwrap"><label class="flabel">Base URL * <span style="font-weight:400;text-transform:none;letter-spacing:0;">(link GitHub Pages)</span></label><input id="es-baseurl" class="inp mono" style="font-size:11px;" placeholder="https://username.github.io/integritestv2/" oninput="previewEditLink()"></div>
             <div id="es-link-preview" class="lp"><div class="lp-lbl">Preview Link Akses Sekolah</div><div id="es-lp-url" class="lp-url"></div></div>
             <div class="fwrap" style="margin-top:12px;"><label class="flabel">Shortlink s.id <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opsional)</span></label><input id="es-shortlink" class="inp mono" style="font-size:11px;" placeholder="https://s.id/smkn1brondong"></div>
             <div class="fwrap"><label class="flabel">Kontak / Email PIC</label><input id="es-kontak" class="inp" placeholder="admin@smkn1brondong.sch.id"></div>
@@ -1263,7 +1262,7 @@
         const offset=(PG.sk-1)*pp;
         tb.innerHTML=slice.map((s,i)=>{
             const lnk=bLink(s);const dl=s.shortlink||lnk;
-            return`<tr>
+            return`<tr data-id="${_e(s.id)}" data-nama="${_e(s.nama)}">
                 <td style="color:#94a3b8;font-size:12px;">${offset+i+1}</td>
                 <td><strong>${_e(s.nama)}</strong><br><span style="font-size:11px;color:#64748b;">${_e(s.kota||'')}${s.provinsi?' · '+_e(s.provinsi):''}</span></td>
                 <td><span class="badge bg-blue mono" style="font-size:11px;">${_e(s.appId)}</span></td>
@@ -1273,10 +1272,10 @@
                 <td style="font-size:11px;color:#475569;font-weight:700;">${s.totalExamSessions||0}x</td>
                 <td style="font-size:11px;color:#94a3b8;">${s.createdAt?new Date(s.createdAt).toLocaleDateString('id-ID'):'—'}</td>
                 <td><div style="display:flex;gap:4px;flex-wrap:wrap;">
-                    <button class="btn-sm btn-outline" onclick="showDetail('${s.id}')">Detail</button>
-                    <button class="btn-sm btn-blue" onclick="editSekolah('${s.id}')">Edit</button>
-                    <button class="btn-sm ${s.status==='nonaktif'?'btn-green':'btn-outline'}" onclick="toggleStatus('${s.id}','${s.status}')">${s.status==='nonaktif'?'Aktifkan':'Nonaktifkan'}</button>
-                    <button class="btn-sm btn-red" onclick="hapusSK('${s.id}','${_e(s.nama)}')">Hapus</button>
+                    <button class="btn-sm btn-outline" onclick="showDetail(this.closest('tr').dataset.id)">Detail</button>
+                    <button class="btn-sm btn-blue" onclick="editSekolah(this.closest('tr').dataset.id)">Edit</button>
+                    <button class="btn-sm ${s.status==='nonaktif'?'btn-green':'btn-outline'}" onclick="toggleStatus(this.closest('tr').dataset.id,'${s.status}')">${s.status==='nonaktif'?'Aktifkan':'Nonaktifkan'}</button>
+                    <button class="btn-sm btn-red" onclick="hapusSK(this)">Hapus</button>
                 </div></td>
             </tr>`;
         }).join('');
@@ -1295,7 +1294,7 @@
         const offset=(PG.ad-1)*pp;
         tb.innerHTML=slice.map((a,i)=>{
             const sk=SL.find(s=>s.appId===a.appId);
-            return`<tr>
+            return`<tr data-id="${_e(s.id)}" data-nama="${_e(s.nama)}">
                 <td style="color:#94a3b8;font-size:12px;">${offset+i+1}</td>
                 <td><span class="mono" style="font-weight:700;">${_e(a.username)}</span></td>
                 <td style="color:#475569;">${_e(a.nama||'—')}</td>
@@ -1343,7 +1342,7 @@
         tb.innerHTML=slice.map((s,i)=>{
             const dq=s.disqualifiedCount||0;
             const avgInt=s.avgIntegrityScore;
-            return`<tr>
+            return`<tr data-id="${_e(s.id)}" data-nama="${_e(s.nama)}">
                 <td style="color:#94a3b8;font-size:12px;">${offset+i+1}</td>
                 <td><strong>${_e(s.nama)}</strong><br><span style="font-size:11px;color:#64748b;">${_e(s.kota||'')}${s.provinsi?' · '+_e(s.provinsi):''}</span></td>
                 <td><span class="badge bg-blue mono" style="font-size:11px;">${_e(s.appId)}</span></td>
@@ -1442,7 +1441,11 @@
         try{await updateDoc(doc(db,SA,'data','schools',id),{status:ns});showToast(ns==='aktif'?'✅':'⛔',`Status → ${ns}`);await loadAll();}catch(e){alert('Gagal: '+e.message);}
     };
 
-    window.hapusSK=async function(id,nama){
+    window.hapusSK=async function(btn){
+        const tr=btn.closest('tr');
+        const id=tr?tr.dataset.id:'';
+        const nama=tr?tr.dataset.nama:'';
+        if(!id){alert('Gagal: ID sekolah tidak ditemukan');return;}
         if(!confirm(`Hapus sekolah "${nama}"?`))return;
         try{await deleteDoc(doc(db,SA,'data','schools',id));showToast('🗑️',`${nama} dihapus`);await loadAll();}catch(e){alert('Gagal: '+e.message);}
     };
@@ -1458,7 +1461,7 @@
         document.getElementById('es-nama').value=s.nama||'';
         document.getElementById('es-kota').value=s.kota||'';
         document.getElementById('es-provinsi').value=s.provinsi||'';
-        document.getElementById('es-baseurl').value=s.baseUrl||'https://autharnailul2302-source.github.io/integritestv2/';
+        document.getElementById('es-baseurl').value=s.baseUrl||'';
         document.getElementById('es-shortlink').value=s.shortlink||'';
         document.getElementById('es-kontak').value=s.kontak||'';
         document.getElementById('modal-edit-sekolah-err').style.display='none';
@@ -1677,8 +1680,7 @@
     window.previewLink=function(){const a=document.getElementById('s-appid').value.trim();const b=document.getElementById('s-baseurl').value.trim();const w=document.getElementById('link-preview');const u=document.getElementById('lp-url');if(a&&b){u.textContent=b.replace(/\?.*$/,'')+`?s=${a}`;w.classList.add('show');}else{w.classList.remove('show');}};
     window.clrSK=function(){
         ['s-nama','s-kota','s-provinsi','s-appid','s-shortlink','s-kontak','s-firebase-config'].forEach(id=>{const el=document.getElementById(id);if(el){el.value='';if(el.dataset)el.dataset.manualEdit='false';}});
-        // Base URL selalu diisi ulang ke default
-        document.getElementById('s-baseurl').value='https://autharnailul2302-source.github.io/integritestv2/';
+        document.getElementById('s-baseurl').value='';
         document.getElementById('link-preview').classList.remove('show');
         document.getElementById('modal-sekolah-err').style.display='none';
         // Reset firebase ke shared
