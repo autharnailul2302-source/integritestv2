@@ -306,10 +306,9 @@
                             if (!sd.baseUrl || !sd.appId) return;
                             const base = sd.baseUrl.split('?')[0].split('#')[0].toLowerCase()
                                 .replace(/\/?$/, '/'); // normalisasi trailing slash
-                            // Cocok jika URL saat ini dimulai dengan baseUrl sekolah,
-                            // atau baseUrl sekolah berada di direktori yang sama
-                            const isMatch = currentHref.startsWith(base)
-                                || base.startsWith(currentOrigin + currentPath);
+                            // Cocok HANYA jika URL saat ini dimulai dengan baseUrl sekolah
+                            // (one-way match — baseUrl harus prefix dari URL aktif, bukan sebaliknya)
+                            const isMatch = currentHref.startsWith(base);
                             if (isMatch) {
                                 // Pilih match terpanjang (lebih spesifik = lebih baik)
                                 if (!matched || base.length > matched.baseLen) {
