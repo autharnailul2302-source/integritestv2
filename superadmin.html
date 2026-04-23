@@ -1203,6 +1203,7 @@
     }
     async function loadAD(){
         try{
+            await ensureParentDocs();
             const sn=await getDocs(CA());
             AL=[];
             sn.forEach(d=>AL.push({id:d.id,...d.data()}));
@@ -1210,6 +1211,7 @@
             updDrop();
         }catch(e){
             console.error('[loadAD] Error:', e.code, e.message);
+            document.getElementById('tabel-admin').innerHTML=`<tr><td colspan="6"><div class="empty" style="color:#dc2626;">⚠️ Gagal memuat admin: ${e.message}</div></td></tr>`;
         }
     }
 
