@@ -1,0 +1,533 @@
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap');
+
+        /* ══════════ DARK MODE — CSS VARIABLES ══════════ */
+        :root {
+            --dm-bg:          #f1f5f9;
+            --dm-surface:     #ffffff;
+            --dm-surface2:    #f8fafc;
+            --dm-surface3:    #f1f5f9;
+            --dm-border:      #e2e8f0;
+            --dm-border2:     #cbd5e1;
+            --dm-text:        #0f172a;
+            --dm-text2:       #475569;
+            --dm-text3:       #64748b;
+            --dm-text4:       #94a3b8;
+            --dm-tab-bg:      #ffffff;
+            --dm-tab-inactive:#6b7280;
+            --dm-tab-hover:   #f3f4f6;
+            --dm-input-bg:    #f9fafb;
+            --dm-card-bg:     #ffffff;
+            --dm-header-btn:  rgba(255,255,255,0.08);
+            --dm-scrollbar:   #cbd5e1;
+            --dm-th-bg:       #f8fafc;
+            --dm-tr-hover:    #f8fafc;
+            --dm-badge-bg:    #f1f5f9;
+            --dm-badge-text:  #475569;
+        }
+        html.dark {
+            --dm-bg:          #0f172a;
+            --dm-surface:     #1e293b;
+            --dm-surface2:    #162032;
+            --dm-surface3:    #0f172a;
+            --dm-border:      #334155;
+            --dm-border2:     #475569;
+            --dm-text:        #f1f5f9;
+            --dm-text2:       #cbd5e1;
+            --dm-text3:       #94a3b8;
+            --dm-text4:       #64748b;
+            --dm-tab-bg:      #1e293b;
+            --dm-tab-inactive:#94a3b8;
+            --dm-tab-hover:   #334155;
+            --dm-input-bg:    #0f172a;
+            --dm-card-bg:     #1e293b;
+            --dm-header-btn:  rgba(255,255,255,0.12);
+            --dm-scrollbar:   #475569;
+            --dm-th-bg:       #162032;
+            --dm-tr-hover:    #162032;
+            --dm-badge-bg:    #334155;
+            --dm-badge-text:  #cbd5e1;
+        }
+
+        /* ── Dark Mode: Elemen Global ── */
+        html.dark body { background-color: var(--dm-bg) !important; color: var(--dm-text) !important; }
+        html.dark ::-webkit-scrollbar-track { background: var(--dm-surface); }
+        html.dark ::-webkit-scrollbar-thumb { background: var(--dm-scrollbar); }
+
+        /* ── Dark Mode: Section Dashboard ── */
+        html.dark #section-dashboard { background-color: var(--dm-bg) !important; }
+        html.dark #section-dashboard main { background-color: var(--dm-bg); }
+
+        /* Tab bar */
+        html.dark .bg-white.rounded-2xl.shadow-sm.border { background-color: var(--dm-surface) !important; border-color: var(--dm-border) !important; }
+        html.dark #admin-tab-bar button.text-gray-500 { color: var(--dm-tab-inactive) !important; }
+        html.dark #admin-tab-bar button:hover:not(.bg-blue-600):not(.bg-indigo-600) { background-color: var(--dm-tab-hover) !important; color: var(--dm-text2) !important; }
+        html.dark #tab-fade-left  { background: linear-gradient(to right,  var(--dm-surface), transparent) !important; }
+        html.dark #tab-fade-right { background: linear-gradient(to left, var(--dm-surface), transparent) !important; }
+
+        /* Semua kartu/panel putih di dashboard */
+        html.dark #section-dashboard .bg-white,
+        html.dark #section-dashboard .bg-gray-50\/80,
+        html.dark #section-dashboard .bg-slate-50 { background-color: var(--dm-surface) !important; }
+        html.dark #section-dashboard .bg-gray-50 { background-color: var(--dm-surface2) !important; }
+        html.dark #section-dashboard .bg-gray-100 { background-color: var(--dm-surface3) !important; }
+        html.dark #section-dashboard .bg-slate-100 { background-color: var(--dm-surface3) !important; }
+
+        /* Border */
+        html.dark #section-dashboard .border,
+        html.dark #section-dashboard .border-gray-100,
+        html.dark #section-dashboard .border-gray-200,
+        html.dark #section-dashboard .border-slate-200 { border-color: var(--dm-border) !important; }
+
+        /* Teks */
+        html.dark #section-dashboard .text-gray-800,
+        html.dark #section-dashboard .text-gray-900,
+        html.dark #section-dashboard .text-slate-800,
+        html.dark #section-dashboard .text-slate-900 { color: var(--dm-text) !important; }
+        html.dark #section-dashboard .text-gray-600,
+        html.dark #section-dashboard .text-gray-700,
+        html.dark #section-dashboard .text-slate-600,
+        html.dark #section-dashboard .text-slate-700 { color: var(--dm-text2) !important; }
+        html.dark #section-dashboard .text-gray-500,
+        html.dark #section-dashboard .text-slate-500 { color: var(--dm-text3) !important; }
+        html.dark #section-dashboard .text-gray-400,
+        html.dark #section-dashboard .text-slate-400 { color: var(--dm-text4) !important; }
+
+        /* Input, select, textarea */
+        html.dark #section-dashboard input:not([type=checkbox]):not([type=radio]),
+        html.dark #section-dashboard select,
+        html.dark #section-dashboard textarea {
+            background-color: var(--dm-input-bg) !important;
+            border-color: var(--dm-border) !important;
+            color: var(--dm-text) !important;
+        }
+        html.dark #section-dashboard input::placeholder,
+        html.dark #section-dashboard textarea::placeholder { color: var(--dm-text4) !important; }
+
+        /* Tabel */
+        html.dark #section-dashboard table { color: var(--dm-text); }
+        html.dark #section-dashboard thead th,
+        html.dark #section-dashboard thead { background-color: var(--dm-th-bg) !important; color: var(--dm-text3) !important; border-color: var(--dm-border) !important; }
+        html.dark #section-dashboard tbody tr:hover { background-color: var(--dm-tr-hover) !important; }
+        html.dark #section-dashboard tbody td { border-color: var(--dm-border) !important; color: var(--dm-text2); }
+
+        /* Tombol abu-abu/outline */
+        html.dark #section-dashboard .bg-gray-100:not(.text-white):not([class*="text-"]),
+        html.dark #section-dashboard button.border.border-gray-200:not([class*="bg-"]) { 
+            background-color: var(--dm-surface2) !important; 
+            border-color: var(--dm-border) !important; 
+            color: var(--dm-text2) !important;
+        }
+
+        /* Divider/separator */
+        html.dark #section-dashboard .divide-y > * { border-color: var(--dm-border) !important; }
+        html.dark #section-dashboard hr { border-color: var(--dm-border) !important; }
+
+        /* Badge abu */
+        html.dark #section-dashboard .bg-slate-100 { background-color: var(--dm-badge-bg) !important; }
+        html.dark #section-dashboard .text-slate-700 { color: var(--dm-badge-text) !important; }
+
+        /* Modal overlay yang digunakan oleh admin */
+        html.dark .bg-white.rounded-2xl.shadow-2xl:not(#section-login *),
+        html.dark .bg-white.rounded-xl.shadow-2xl:not(#section-login *) { 
+            background-color: var(--dm-surface) !important; 
+            border-color: var(--dm-border) !important; 
+        }
+        html.dark .bg-gray-50.rounded-xl:not(#section-login *),
+        html.dark .bg-gray-50.rounded-2xl:not(#section-login *) { background-color: var(--dm-surface2) !important; }
+
+        /* ── Dark Mode: Toggle Button ── */
+        #btn-dark-mode {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.08);
+            color: #cbd5e1;
+            white-space: nowrap;
+        }
+        #btn-dark-mode:hover { background: rgba(255,255,255,0.18); color: #fff; }
+        html.dark #btn-dark-mode { background: rgba(99,102,241,0.25); border-color: rgba(99,102,241,0.5); color: #a5b4fc; }
+        html.dark #btn-dark-mode:hover { background: rgba(99,102,241,0.4); color: #c7d2fe; }
+
+        /* ── Dark Mode: Mobile Bottom Nav ── */
+        html.dark #mobile-bottom-nav {
+            background: rgba(15,23,42,0.97) !important;
+            border-color: #334155 !important;
+        }
+        html.dark #mobile-bottom-nav button.text-gray-400 { color: #64748b !important; }
+        html.dark #mobile-bottom-nav button.bg-blue-50 { background-color: rgba(37,99,235,0.2) !important; }
+        html.dark #mobile-bottom-nav button.text-blue-600 { color: #60a5fa !important; }
+        html.dark #mobile-bottom-nav button.text-blue-600::after { background: #60a5fa; }
+
+        /* ── Dark Mode: Modal overlay konten ── */
+        html.dark .fixed.inset-0[class*="bg-black"] > .bg-white,
+        html.dark .fixed.inset-0[class*="bg-black"] > div > .bg-white {
+            background-color: var(--dm-surface) !important;
+            border-color: var(--dm-border) !important;
+        }
+        html.dark .fixed.inset-0 .bg-gray-50 { background-color: var(--dm-surface2) !important; }
+        html.dark .fixed.inset-0 .border-gray-100,
+        html.dark .fixed.inset-0 .border-gray-200 { border-color: var(--dm-border) !important; }
+        html.dark .fixed.inset-0 .text-gray-800,
+        html.dark .fixed.inset-0 .text-gray-900 { color: var(--dm-text) !important; }
+        html.dark .fixed.inset-0 .text-gray-600,
+        html.dark .fixed.inset-0 .text-gray-700 { color: var(--dm-text2) !important; }
+        html.dark .fixed.inset-0 .text-gray-500 { color: var(--dm-text3) !important; }
+        html.dark .fixed.inset-0 input:not([type=checkbox]):not([type=radio]),
+        html.dark .fixed.inset-0 select,
+        html.dark .fixed.inset-0 textarea {
+            background-color: var(--dm-input-bg) !important;
+            border-color: var(--dm-border) !important;
+            color: var(--dm-text) !important;
+        }
+        html.dark .fixed.inset-0 .hover\:bg-gray-100:hover { background-color: var(--dm-surface3) !important; }
+
+        /* ── Dark Mode: Khusus elemen dengan inline style bg putih ── */
+        html.dark #section-dashboard [style*="background:#fff"],
+        html.dark #section-dashboard [style*="background: #fff"],
+        html.dark #section-dashboard [style*="background:white"],
+        html.dark #section-dashboard [style*="background: white"] {
+            background: var(--dm-surface) !important;
+        }
+        html.dark #section-dashboard [style*="background:#f8fafc"],
+        html.dark #section-dashboard [style*="background:#f9fafb"],
+        html.dark #section-dashboard [style*="background:#f1f5f9"] {
+            background: var(--dm-surface2) !important;
+        }
+        html.dark #section-dashboard [style*="color:#0f172a"],
+        html.dark #section-dashboard [style*="color:#1e293b"],
+        html.dark #section-dashboard [style*="color:#374151"],
+        html.dark #section-dashboard [style*="color:#111827"] {
+            color: var(--dm-text) !important;
+        }
+        html.dark #section-dashboard [style*="color:#475569"],
+        html.dark #section-dashboard [style*="color:#4b5563"],
+        html.dark #section-dashboard [style*="color:#6b7280"] {
+            color: var(--dm-text2) !important;
+        }
+        html.dark #section-dashboard [style*="border-color:#e2e8f0"],
+        html.dark #section-dashboard [style*="border-color:#e5e7eb"],
+        html.dark #section-dashboard [style*="border: 1px solid #e"],
+        html.dark #section-dashboard [style*="border:1px solid #e"] {
+            border-color: var(--dm-border) !important;
+        }
+
+        /* ── Notifikasi Real-time Pembahasan ── */
+        #discussion-realtime-notif {
+            will-change: opacity, transform;
+        }
+        @keyframes disc-pulse-border {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); }
+            50%       { box-shadow: 0 0 0 8px rgba(16,185,129,0); }
+        }
+        #disc-notif-open {
+            animation: disc-pulse-border 1.5s ease-in-out 3;
+        }
+
+        /* ── Dark Mode: Transition halus ── */
+        html, body, #section-dashboard, #section-dashboard * {
+            transition: background-color 0.25s ease, border-color 0.25s ease, color 0.15s ease;
+        }
+        /* Kecualikan elemen yang animasinya sendiri */
+        html.dark .animate-pulse, html.dark .animate-spin,
+        html.dark [class*="transition-"]:not([class*="bg-"]) {
+            transition-property: inherit;
+        }
+
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; user-select: none; }
+        .hidden-section { display: none !important; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .no-copy { user-select: none; -webkit-user-select: none; }
+        #exam-sidebar { transition: transform 0.3s ease-in-out; }
+
+        /* ===== MOBILE BOTTOM NAV ===== */
+        #mobile-bottom-nav {
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        #mobile-bottom-nav button {
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        #mobile-bottom-nav button:active {
+            transform: scale(0.92);
+        }
+        /* Active indicator dot */
+        #mobile-bottom-nav button.text-blue-600::after {
+            content: '';
+            display: block;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #2563eb;
+            margin: 0 auto;
+            margin-top: 1px;
+        }
+        .sidebar-closed { transform: translateX(100%); }
+        .sidebar-open { transform: translateX(0); }
+        .animate-fade-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        #modal-confirm { transition: opacity 0.2s ease-out; opacity: 0; }
+        #modal-confirm.show { opacity: 1; }
+        #modal-content { transition: transform 0.2s ease-out; }
+        #modal-confirm.show #modal-content { transform: scale(100%); }
+
+        /* ===== ANTI-CHEAT ENGINE STYLES ===== */
+        #watermark-canvas { pointer-events: none; }
+        #modal-warning-student, #modal-dq-final { backdrop-filter: blur(6px); }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* ===== HP KENTANG MODE (low-end device) ===== */
+        /* Diterapkan otomatis via JS bila device lambat */
+        body.perf-mode * {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+            transition-delay: 0ms !important;
+        }
+        body.perf-mode .animate-pulse { animation: none !important; }
+        body.perf-mode .animate-spin  { animation: none !important; }
+        body.perf-mode .animate-bounce { animation: none !important; }
+        body.perf-mode .animate-ping  { animation: none !important; }
+        body.perf-mode .animate-fade-in { animation: none !important; opacity: 1 !important; transform: none !important; }
+
+        /* Hapus semua blur/filter berat */
+        body.perf-mode .blur-\[100px\],
+        body.perf-mode .blur-\[80px\],
+        body.perf-mode .blur-xl,
+        body.perf-mode .blur-2xl,
+        body.perf-mode .backdrop-blur-xl,
+        body.perf-mode .backdrop-blur-sm,
+        body.perf-mode .backdrop-blur-md { 
+            filter: none !important; 
+            backdrop-filter: none !important; 
+            -webkit-backdrop-filter: none !important;
+        }
+
+        /* Hapus gradient berat — pakai warna solid */
+        body.perf-mode .bg-gradient-to-r,
+        body.perf-mode .bg-gradient-to-br,
+        body.perf-mode .bg-gradient-to-b { background-image: none !important; }
+
+        /* Sembunyikan elemen dekoratif yang tidak penting (blob/glow) */
+        body.perf-mode #section-login .absolute.rounded-full { display: none !important; }
+        body.perf-mode .welcome-blob { display: none !important; }
+        body.perf-mode .bg-\[url\(\'https\:\/\/grainy-gradients\.vercel\.app\/noise\.svg\'\)\],
+        body.perf-mode .bg-\[url\(\'https\:\/\/www\.transparenttextures\.com\/patterns\/carbon-fibre\.png\'\)\] {
+            display: none !important;
+        }
+        /* Welcome section perf-mode: pakai warna solid, tanpa animasi */
+        body.perf-mode #section-welcome {
+            background: #6366f1 !important;
+        }
+        body.perf-mode #section-welcome [class*="animate-spin"] {
+            animation: none !important;
+            border-top-color: #6366f1 !important;
+        }
+
+        /* Modal: tidak ada blur */
+        body.perf-mode #modal-warning-student,
+        body.perf-mode #modal-dq-final { backdrop-filter: none !important; background: rgba(0,0,0,0.85) !important; }
+
+        /* Kurangi shadow berat */
+        body.perf-mode .shadow-lg,
+        body.perf-mode .shadow-xl,
+        body.perf-mode .shadow-2xl { box-shadow: 0 2px 6px rgba(0,0,0,0.12) !important; }
+        body.perf-mode .drop-shadow-md { filter: none !important; }
+        body.perf-mode #section-welcome { background: #1e40af !important; }
+        body.perf-mode .welcome-blob { display: none !important; }
+
+        /* Nonaktifkan hover:scale / hover:shadow karena lambat di HP kentang */
+        body.perf-mode *:hover { transform: none !important; box-shadow: inherit !important; }
+
+        /* Scroll lebih ringan */
+        body.perf-mode { scroll-behavior: auto !important; }
+
+        /* Indikator kecil di pojok bahwa perf-mode aktif (opsional, bisa dihapus) */
+        body.perf-mode::after {
+            content: '⚡ Mode Hemat';
+            position: fixed;
+            bottom: 6px;
+            right: 8px;
+            font-size: 10px;
+            color: #94a3b8;
+            z-index: 9999;
+            pointer-events: none;
+        }
+        #modal-warning-student h1 { text-shadow: 0 0 40px rgba(239,68,68,0.9); }
+        @keyframes siren-ring {
+            0%   { box-shadow: 0 0 0 0   rgba(239,68,68,0.9); }
+            70%  { box-shadow: 0 0 0 28px rgba(239,68,68,0);  }
+            100% { box-shadow: 0 0 0 0   rgba(239,68,68,0);  }
+        }
+        .siren-ring { animation: siren-ring 1.1s ease-out infinite; }
+
+        /* ===== MOBILE FRIENDLY (HP semua spesifikasi) ===== */
+        /* Cegah auto-zoom saat fokus input di iOS/Android */
+        @media (max-width: 768px) {
+            input, select, textarea {
+                font-size: 16px !important; /* iOS tidak zoom jika font >= 16px */
+            }
+            /* Tombol ujian lebih mudah di-tap (min 44px) */
+            #btn-prev, #btn-next, #btn-finish-main {
+                min-height: 48px;
+                padding-left: 1rem;
+                padding-right: 1rem;
+                font-size: 14px;
+            }
+            /* Pilihan jawaban soal lebih tinggi agar mudah di-tap */
+            .option-group label {
+                min-height: 52px;
+                padding-top: 0.75rem;
+                padding-bottom: 0.75rem;
+            }
+            /* Sidebar soal lebih lebar di layar kecil */
+            #exam-sidebar { width: 88vw; max-width: 320px; }
+            /* Login form lebih padat di HP */
+            #section-login .bg-white { padding: 1.25rem !important; }
+            /* Timer lebih kecil di HP agar tidak makan tempat */
+            #timer-box { font-size: 1rem; padding: 0.35rem 0.7rem; }
+        }
+        /* Layar sangat kecil (HP kecil <380px) */
+        @media (max-width: 380px) {
+            #btn-prev span, #btn-next span { display: none; }
+            #timer-display { font-size: 0.9rem; }
+        }
+
+        /* Sub-tab siswa - override Tailwind hidden */
+        #siswa-sub-data, #siswa-sub-kartu, #siswa-sub-wa {
+            display: block;
+        }
+        #siswa-sub-data.siswa-hidden,
+        #siswa-sub-kartu.siswa-hidden,
+        #siswa-sub-wa.siswa-hidden {
+            display: none !important;
+        }
+        
+/* ★ HP Kentang: skip rendering elemen yang tidak terlihat */
+.tab-panel { content-visibility: auto; }
+.perf-mode .animate-fade-in { animation: none !important; }
+.perf-mode .transition-all { transition: none !important; }
+.perf-mode .animate-spin { animation: spin 1.5s linear infinite !important; }
+/* Paksa GPU layer hanya untuk elemen penting */
+.exam-container, #question-display { transform: translateZ(0); }
+
+/* ══════════════════════════════════════════
+   ★ INTEGRITEST ONBOARDING / TOUR SYSTEM ★
+   ══════════════════════════════════════════ */
+#ob-backdrop {
+    position: fixed; inset: 0; z-index: 9000;
+    background: rgba(2,6,23,0.75);
+    backdrop-filter: blur(2px);
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+#ob-spotlight {
+    position: fixed; z-index: 9001;
+    border-radius: 14px;
+    box-shadow: 0 0 0 9999px rgba(2,6,23,0.75);
+    transition: all 0.4s cubic-bezier(0.4,0,0.2,1);
+    pointer-events: none;
+    outline: 2.5px solid rgba(99,102,241,0.7);
+    outline-offset: 3px;
+}
+#ob-card {
+    position: fixed; z-index: 9002;
+    width: min(360px, calc(100vw - 24px));
+    max-width: 360px;
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35), 0 0 0 1px rgba(99,102,241,0.15);
+    transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+    overflow: hidden;
+}
+html.dark #ob-card { background: #1e1e2e; color: #e2e8f0; }
+#ob-card-header {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    padding: 16px 20px 12px;
+    color: #fff;
+}
+#ob-card-body { padding: 16px 20px; }
+#ob-card-footer {
+    padding: 10px 16px 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-top: 1px solid #f1f5f9;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+html.dark #ob-card-footer { border-color: #2d2d3f; }
+.ob-btn-primary {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    color: #fff; border: none;
+    padding: 9px 20px; border-radius: 10px;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 12px rgba(79,70,229,0.35);
+}
+.ob-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(79,70,229,0.45); }
+.ob-btn-secondary {
+    background: transparent; color: #6b7280;
+    border: 1.5px solid #e5e7eb; border-radius: 10px;
+    padding: 9px 16px; font-size: 12px; font-weight: 600; cursor: pointer;
+    transition: all 0.15s;
+}
+.ob-btn-secondary:hover { border-color: #4f46e5; color: #4f46e5; background: #eef2ff; }
+html.dark .ob-btn-secondary { border-color: #3d3d55; color: #94a3b8; }
+.ob-step-dots { display: flex; gap: 4px; align-items: center; flex-shrink: 1; overflow: hidden; max-width: 160px; }
+.ob-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #e2e8f0; transition: all 0.3s; flex-shrink: 0;
+}
+.ob-dot.active { background: #4f46e5; width: 14px; border-radius: 4px; }
+html.dark .ob-dot { background: #3d3d55; }
+html.dark .ob-dot.active { background: #818cf8; }
+@keyframes ob-pulse-ring {
+    0% { transform: scale(1); opacity: 0.7; }
+    100% { transform: scale(1.5); opacity: 0; }
+}
+#ob-pulse {
+    position: fixed; z-index: 9001; border-radius: 50%;
+    width: 40px; height: 40px;
+    border: 2.5px solid #818cf8;
+    pointer-events: none;
+    animation: ob-pulse-ring 1.2s ease-out infinite;
+}
+#ob-skip-btn {
+    position: fixed; z-index: 9003;
+    bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: rgba(255,255,255,0.12); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.8);
+    padding: 8px 20px; border-radius: 99px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    transition: all 0.2s; white-space: nowrap;
+}
+#ob-skip-btn:hover { background: rgba(255,255,255,0.2); color: #fff; }
+</style>
+
+                <!-- Status overlay -->
+                <div id="qr-status-overlay" class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-4 py-3">
+                    <p id="qr-status-text" class="text-white text-xs font-bold text-center">🔍 Mencari QR code...</p>
+                </div>
+            </div>
+            <!-- Footer -->
+            <div class="px-5 py-4 text-center">
+                <p class="text-xs text-gray-500 mb-3">Pastikan pencahayaan cukup dan QR code terlihat jelas di dalam kotak</p>
+                <button onclick="window.closeQrScanner()" class="w-full py-2.5 border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-colors text-sm">Tutup — Ketik Manual</button>
+            </div>
+        </div>
+    </div>
+    <style>
+        @keyframes qrScanLine {
+            0%,100% { top: 10%; }
+            50% { top: 85%; }
+        }
+    </style>
