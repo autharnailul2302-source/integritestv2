@@ -14934,7 +14934,7 @@ Terima kasih 🙏</textarea>
             violationLogs.push({ time: Date.now(), message, type: violationType });
 
             if (window.isFirebaseReady && window.currentExamDocId && window.db) {
-                const statusUpdate = violations >= 3 ? "PERLU VERIFIKASI GURU" : "SEDANG MENGERJAKAN";
+                const statusUpdate = violations >= 3 ? (window.appealEnabled !== false ? "PERLU VERIFIKASI GURU" : "DISKUALIFIKASI") : "SEDANG MENGERJAKAN";
                 updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', window.currentExamDocId), {
                     violations, violationLogs, status: statusUpdate
                 }).catch(console.error);
@@ -15147,7 +15147,7 @@ Terima kasih 🙏</textarea>
                 sesiName:     window.currentSesiName || '',
                 score:        score,
                 scoreNonEssay: score,
-                status:       forced ? "PERLU VERIFIKASI GURU" : (hasManualEssay && hasEssay ? "SELESAI (Esai Pending)" : "SELESAI"),
+                status:       forced ? (window.appealEnabled !== false ? "PERLU VERIFIKASI GURU" : "DISKUALIFIKASI") : (hasManualEssay && hasEssay ? "SELESAI (Esai Pending)" : "SELESAI"),
                 appealStatus: "none",
                 appealNote:   "",
                 guruNote:     "",
