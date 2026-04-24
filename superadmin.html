@@ -980,7 +980,7 @@
         location.reload();
     };
 
-    async function loadAll(){
+    window.loadAll = async function loadAll(){
         await ensureParentDocs();
         await Promise.all([loadSK(),loadAD()]);
         renderDash();
@@ -2059,6 +2059,9 @@ window.syncManual = async function() {
             statusEl2.textContent = `✅ Sync selesai — ${written} sesi, ${totalSiswaGlobal} peserta`;
             statusEl2.style.cssText = 'display:block;font-size:11px;padding:5px 10px;border-radius:8px;font-weight:600;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;';
         }
+
+        // Reload tabel monitoring & dashboard di background agar data terbaru tampil
+        if (typeof loadAll === 'function') loadAll().catch(()=>{});
 
     } catch(e) {
         statusEl.textContent = '❌ Gagal: ' + e.message;
