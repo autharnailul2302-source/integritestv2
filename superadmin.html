@@ -1928,6 +1928,8 @@ window.syncManual = async function() {
     const appId       = window._dsActiveAppId;
     const schoolDocId = window._dsActiveDocId;
     if (!appId || !schoolDocId) { alert('Data sekolah tidak ditemukan'); return; }
+    // Selalu tulis ke dokumen dengan appId sebagai docId (konsisten, hindari dokumen hantu)
+    const targetDocId = appId;
 
     const btn      = document.getElementById('btn-sync-manual');
     const icon     = document.getElementById('sync-icon');
@@ -2029,9 +2031,7 @@ window.syncManual = async function() {
         // Hitung avgIntegrity keseluruhan dari total peserta (bukan rata-rata sesi)
         const avgIntGlobal = Math.round(sumIntGlobal / Math.max(totalSiswaGlobal, 1));
 
-        // Update stat agregat di dokumen sekolah
-        // Gunakan appId sebagai docId agar konsisten (bukan auto-generated ID)
-        const targetDocId = appId; // appId == ukktkj, bukan EioO9BsnFPzLiQMmxkRU
+        // Update stat agregat di dokumen sekolah (targetDocId = appId, sudah dideklarasi di atas)
         await setDoc(doc(db, 'superadmin', 'data', 'schools', targetDocId), {
             appId             : appId,
             totalExamSessions : totalSiswaGlobal,
