@@ -11819,8 +11819,9 @@ Terima kasih 🙏</textarea>
             try {
                 const name        = document.getElementById('student-name').value.trim();
                 const studentNisn = document.getElementById('student-nisn').value.trim();
-                const cls         = document.getElementById('student-class').value;
-                const room        = document.getElementById('student-room').value;
+                // [FIX BUG 2] Ubah const → let agar bisa di-assign ulang saat mode kartu peserta
+                let cls           = document.getElementById('student-class').value;
+                let room          = document.getElementById('student-room').value;
                 const tokenInput  = document.getElementById('student-token').value.trim().toUpperCase();
 
                 // ── MODE KARTU PESERTA: Validasi No. Peserta → auto-fill data siswa ──
@@ -11885,9 +11886,14 @@ Terima kasih 🙏</textarea>
                 });
 
                 // ── 3. Fallback: token cocok dengan global token ujian ──
-                if (paketCocok.length === 0 && tokenInput !== window.currentExamToken) {
-                    alert("TOKEN SALAH atau tidak ada ujian tersedia untuk kelas " + cls + ".\nMinta token yang benar kepada pengawas.");
-                    return;
+                // [FIX BUG 4] Perbaiki logika: tolak hanya jika tidak ada paket DAN
+                // global token juga tidak cocok (atau belum di-set)
+                if (paketCocok.length === 0) {
+                    const globalTokenOk = window.currentExamToken && tokenInput === window.currentExamToken;
+                    if (!globalTokenOk) {
+                        alert("TOKEN SALAH atau tidak ada ujian tersedia untuk kelas " + cls + ".\nMinta token yang benar kepada pengawas.");
+                        return;
+                    }
                 }
 
                 // ── 4. Cek incognito ──
@@ -11904,7 +11910,9 @@ Terima kasih 🙏</textarea>
                 }
 
                 // ── 5. Cek local session cooldown ──
-                const localSession = localStorage.getItem('ukktkj_session_done');
+                // [FIX BUG 1] Gunakan key dinamis berdasarkan appId agar tidak lintas sekolah
+                const _sessionKey = (window.appId || 'ukktkj') + '_session_done';
+                const localSession = localStorage.getItem(_sessionKey);
                 if (localSession) {
                     try {
                         const sd = JSON.parse(localSession);
@@ -11913,8 +11921,8 @@ Terima kasih 🙏</textarea>
                             const remaining = Math.ceil(window.deviceCooldownHours - diffMinutes);
                             alert(`⛔ PERANGKAT TERKUNCI\n\nBaru digunakan: "${sd.name}" (NISN: ${sd.nisn || '-'}).\nSisa cooldown: ${remaining} menit lagi.`);
                             return;
-                        } else { localStorage.removeItem('ukktkj_session_done'); }
-                    } catch(_) { localStorage.removeItem('ukktkj_session_done'); }
+                        } else { localStorage.removeItem(_sessionKey); }
+                    } catch(_) { localStorage.removeItem(_sessionKey); }
                 }
 
                 if (submitBtn) { submitBtn.disabled = true; submitBtn.querySelector('span').textContent = "Memeriksa..."; }
@@ -12296,6 +12304,10 @@ Terima kasih 🙏</textarea>
             const btn = e.target.querySelector('button[type="submit"]') || e.target.querySelector('button');
 
             if (!u || !p) { alert("Username dan password tidak boleh kosong!"); return; }
+            // [FIX BUG 3] Guard: pastikan appId sudah siap sebelum akses Firestore
+            if (window.isFirebaseReady && window.db && !window.appId) {
+                alert('Aplikasi belum siap, tunggu beberapa detik lalu coba lagi.'); return;
+            }
             if (btn) { btn.disabled = true; btn.textContent = "Memeriksa..."; }
 
             try {
@@ -13199,6 +13211,8 @@ Terima kasih 🙏</textarea>
         window.handleGuruLogin = async function(e) {
             e.preventDefault();
             if (!window.isFirebaseReady || !window.db) { alert('Koneksi Firebase belum siap.'); return; }
+            // [FIX BUG 3] Guard: pastikan appId sudah siap sebelum akses Firestore
+            if (!window.appId) { alert('Aplikasi belum siap, tunggu beberapa detik lalu coba lagi.'); return; }
             const u   = document.getElementById('guru-user').value.trim();
             const p   = document.getElementById('guru-pass').value;
             const btn = e.target.querySelector('button[type="submit"]');
@@ -15327,7 +15341,8 @@ Terima kasih 🙏</textarea>
             }, 300);
             if (window._integrityAutoRefresh) window._integrityAutoRefresh();
 
-            try { localStorage.setItem('ukktkj_session_done', JSON.stringify({
+            // [FIX BUG 1] Gunakan key dinamis saat menyimpan session
+            try { localStorage.setItem((window.appId || 'ukktkj') + '_session_done', JSON.stringify({
                 name: (currentStudent || {}).name,
                 date: new Date().toISOString()
             })); } catch(e) {}
