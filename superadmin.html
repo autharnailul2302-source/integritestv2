@@ -850,7 +850,7 @@
 <!-- FIREBASE -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, getDoc, doc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
     const cfg = {apiKey:"AIzaSyAdqApOvuUXrZUO19NfiqZCLSyUYR74w5M",authDomain:"waliq-ded98.firebaseapp.com",projectId:"waliq-ded98",storageBucket:"waliq-ded98.firebasestorage.app",messagingSenderId:"915222555864",appId:"1:915222555864:web:25320841c97661172e3bad"};
@@ -858,7 +858,7 @@
     const db=getFirestore(app);
     const auth=getAuth(app);
     // Expose ke window agar script non-module (openDetailSekolah, syncManual) bisa akses
-    window.db=db; window.getDocs=getDocs; window.collection=collection; window.doc=doc;
+    window.db=db; window.getDocs=getDocs; window.getDoc=getDoc; window.collection=collection; window.doc=doc;
     window.setDoc=setDoc; window.updateDoc=updateDoc;
     // Auth dilakukan saat login — tidak pakai anonymous
 
@@ -1142,7 +1142,10 @@
             SL=[];
             window._SL_MAP={};
             sn.forEach(d=>{
-                const row={_docId:d.id,id:d.id,...d.data()};
+                const data=d.data();
+                // Lewati dokumen hantu yang tidak punya field appId/nama (misal dokumen _init)
+                if(!data.appId && !data.nama) return;
+                const row={_docId:d.id,id:d.id,...data};
                 SL.push(row);
                 window._SL_MAP[row.appId]=row;
             });
@@ -1877,12 +1880,12 @@ window._dsActiveAppId   = null;
 window._dsActiveDocId   = null;
 
 window.syncManual = async function() {
-    const appId    = window._dsActiveAppId;
+    const appId       = window._dsActiveAppId;
     const schoolDocId = window._dsActiveDocId;
     if (!appId || !schoolDocId) { alert('Data sekolah tidak ditemukan'); return; }
 
-    const btn  = document.getElementById('btn-sync-manual');
-    const icon = document.getElementById('sync-icon');
+    const btn      = document.getElementById('btn-sync-manual');
+    const icon     = document.getElementById('sync-icon');
     const statusEl = document.getElementById('ds-sync-status');
     btn.disabled = true;
     icon.textContent = '⏳';
@@ -1916,6 +1919,11 @@ window.syncManual = async function() {
 
         // Agregasi per (kelas × sesi)
         const sessions = {};
+        // Untuk agregat sekolah: hitung unik per siswa (hindari double-count)
+        let totalSiswaGlobal = 0;
+        let sumIntGlobal = 0;
+        let totalDQGlobal = 0;
+
         resultsSnap.forEach(d => {
             const r = d.data();
             // Hanya siswa yang sudah selesai
@@ -1937,6 +1945,11 @@ window.syncManual = async function() {
             s.sumInt   += intScore;
             s.sumScore += score;
             if (isDQ) s.disqualified++;
+
+            // Agregat global (per record, bukan per sesi)
+            totalSiswaGlobal++;
+            sumIntGlobal += intScore;
+            if (isDQ) totalDQGlobal++;
         });
 
         const keys = Object.keys(sessions);
@@ -1968,28 +1981,41 @@ window.syncManual = async function() {
             written++;
         }
 
-        // Update stat agregat sekolah juga
-        const allSess = Object.values(sessions);
-        const totalSiswa = allSess.reduce((a,s)=>a+s.totalSiswa, 0);
-        const avgInt     = Math.round(allSess.reduce((a,s)=>a+s.sumInt,0) / Math.max(totalSiswa,1));
-        const totalDQ    = allSess.reduce((a,s)=>a+s.disqualified, 0);
+        // Hitung avgIntegrity keseluruhan dari total peserta (bukan rata-rata sesi)
+        const avgIntGlobal = Math.round(sumIntGlobal / Math.max(totalSiswaGlobal, 1));
+
+        // Update stat agregat di dokumen sekolah
         await setDoc(doc(db, 'superadmin', 'data', 'schools', schoolDocId), {
-            totalExamSessions : totalSiswa,
-            avgIntegrityScore : avgInt,
-            disqualifiedCount : totalDQ,
+            totalExamSessions : totalSiswaGlobal,
+            avgIntegrityScore : avgIntGlobal,
+            disqualifiedCount : totalDQGlobal,
             lastSyncManual    : Date.now()
         }, { merge: true });
 
-        statusEl.textContent = `✅ Sync selesai — ${written} sesi, ${totalSiswa} peserta`;
+        statusEl.textContent = `✅ Sync selesai — ${written} sesi, ${totalSiswaGlobal} peserta`;
         statusEl.style.cssText = 'display:block;font-size:11px;padding:5px 10px;border-radius:8px;font-weight:600;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;';
 
-        // Reload tabel
-        await openDetailSekolah(schoolDocId, { ...window._dsActiveSchoolData,
-            totalExamSessions: totalSiswa, avgIntegrityScore: avgInt, disqualifiedCount: totalDQ });
+        // Reload modal dengan data terbaru langsung dari Firestore
+        const freshSnap = await window.getDoc(doc(db, 'superadmin', 'data', 'schools', schoolDocId));
+        const freshData = freshSnap.exists() ? { _docId: schoolDocId, id: schoolDocId, ...freshSnap.data() } : {
+            ...window._dsActiveSchoolData,
+            totalExamSessions: totalSiswaGlobal,
+            avgIntegrityScore: avgIntGlobal,
+            disqualifiedCount: totalDQGlobal
+        };
+        await openDetailSekolah(schoolDocId, freshData);
+
+        // Tampilkan ulang status setelah openDetailSekolah (karena ia reset status)
+        const statusEl2 = document.getElementById('ds-sync-status');
+        if (statusEl2) {
+            statusEl2.textContent = `✅ Sync selesai — ${written} sesi, ${totalSiswaGlobal} peserta`;
+            statusEl2.style.cssText = 'display:block;font-size:11px;padding:5px 10px;border-radius:8px;font-weight:600;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;';
+        }
 
     } catch(e) {
         statusEl.textContent = '❌ Gagal: ' + e.message;
         statusEl.style.cssText = 'display:block;font-size:11px;padding:5px 10px;border-radius:8px;font-weight:600;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;';
+        console.error('[syncManual]', e);
     } finally {
         btn.disabled = false;
         icon.textContent = '🔄';
