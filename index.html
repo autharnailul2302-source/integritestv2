@@ -65,92 +65,22 @@
         })();
     </script>
 
-    <!-- [OPT-4] Critical CSS: render login page skeleton sebelum Tailwind selesai load -->
-    <!-- Mencegah FOUC (Flash of Unstyled Content) — login muncul langsung -->
-    <style>
-        /* Reset minimal agar halaman tidak kosong saat Tailwind belum siap */
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
-
-        /* Login section: tampil langsung tanpa menunggu Tailwind */
-        #section-login {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #0f172a; /* slate-900 */
-        }
-
-        /* Spinner saat JS/Firebase loading */
-        .critical-loader {
-            width: 40px; height: 40px;
-            border: 3px solid rgba(255,255,255,0.15);
-            border-top-color: #60a5fa;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* Hidden sections tidak tampil sebelum diload */
-        .hidden-section { display: none !important; }
-
-        /* Tombol dasar agar interaktif sebelum Tailwind */
-        button { cursor: pointer; }
-    </style>
-
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Lucide Icons -->
     <script defer src="https://unpkg.com/lucide@latest"></script>
     
-    <!-- [OPT-3] SheetJS + Mammoth: TIDAK diload saat startup -->
-    <!-- Hanya diload saat user membuka fitur Import Soal (via loadImportLibs) -->
-    <script>
-        // Loader on-demand untuk library import soal (XLSX + Mammoth)
-        // Total size: ~1.2MB — hanya diload saat benar-benar dibutuhkan
-        window._importLibsLoaded = false;
-        window._importLibsLoading = false;
-        window.loadImportLibs = function() {
-            return new Promise((resolve, reject) => {
-                if (window._importLibsLoaded) { resolve(); return; }
-                if (window._importLibsLoading) {
-                    // Tunggu loading selesai
-                    const check = setInterval(() => {
-                        if (window._importLibsLoaded) { clearInterval(check); resolve(); }
-                    }, 100);
-                    return;
-                }
-                window._importLibsLoading = true;
-                console.log('[OPT-3] Loading XLSX + Mammoth on-demand...');
-                
-                const loadScript = (src) => new Promise((res, rej) => {
-                    const s = document.createElement('script');
-                    s.src = src;
-                    s.onload = res;
-                    s.onerror = rej;
-                    document.head.appendChild(s);
-                });
-
-                Promise.all([
-                    loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'),
-                    loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js')
-                ]).then(() => {
-                    window._importLibsLoaded = true;
-                    window._importLibsLoading = false;
-                    console.log('[OPT-3] Import libs ready.');
-                    resolve();
-                }).catch(reject);
-            });
-        };
-    </script>
+    <!-- SheetJS for Excel import -->
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- Mammoth.js for Word import -->
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
     <!-- QRCode.js — generate QR token untuk pengawas -->
-    <!-- [OPT-1] defer: tidak block render, library ini hanya dipakai SETELAH login guru/pengawas -->
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <!-- jsQR — scan QR dari kamera siswa -->
-    <!-- [OPT-1] defer: tidak block render, library ini hanya dipakai saat scan QR dimulai -->
-    <script defer src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
     <!-- Firebase SDK (Modular) -->
     <script type="module">
@@ -3232,8 +3162,6 @@ html.dark .ob-dot.active { background: #818cf8; }
         </div>
     </div>
 
-    <!-- [OPT-2] Template lazy-load: section-welcome tidak di-render sampai dibutuhkan -->
-    <template id="tpl-welcome">
     <!-- SECTION: SELAMAT DATANG -->
     <div id="section-welcome" class="hidden-section min-h-screen flex flex-col" style="background:#f0f6ff;">
 
@@ -3419,10 +3347,6 @@ html.dark .ob-dot.active { background: #818cf8; }
 
         </div>
     </div>    <!-- SECTION: EXAM -->
-    </template>
-    <div id="section-welcome" class="hidden-section"></div>
-    <!-- [OPT-2] Template lazy-load: section-exam tidak di-render sampai dibutuhkan -->
-    <template id="tpl-exam">
     <div id="section-exam" class="hidden-section min-h-screen bg-slate-100 flex flex-col no-copy relative overflow-hidden">
         <header class="bg-white shadow-sm border-b sticky top-0 z-30">
             <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -4137,10 +4061,6 @@ html.dark .ob-dot.active { background: #818cf8; }
         </div>
     </div>
 
-    </template>
-    <div id="section-exam" class="hidden-section"></div>
-    <!-- [OPT-2] Template lazy-load: section-dashboard tidak di-render sampai dibutuhkan -->
-    <template id="tpl-dashboard">
     <!-- SECTION: DASHBOARD GURU -->
     <div id="section-dashboard" class="hidden-section min-h-screen bg-slate-50 flex flex-col" style="padding-bottom: 0px;">
         <header class="bg-slate-900 text-white shadow-lg">
@@ -9006,10 +8926,6 @@ Terima kasih 🙏</textarea>
         </div>
     </div>
 
-    </template>
-    <div id="section-dashboard" class="hidden-section"></div>
-    <!-- [OPT-2] Template lazy-load: section-result tidak di-render sampai dibutuhkan -->
-    <template id="tpl-result">
     <!-- SECTION: RESULT -->
     <div id="section-result" class="hidden-section min-h-screen bg-slate-900 flex flex-col items-center justify-start pt-10 p-4 overflow-y-auto">
         <!-- BANNER OFFLINE -->
@@ -9109,46 +9025,6 @@ Terima kasih 🙏</textarea>
             </div>
         </div>
     </div>
-    </template>
-    <div id="section-result" class="hidden-section"></div>
-
-    <!-- [OPT-2] Section Lazy Loader: klon template ke DOM saat section dibutuhkan -->
-    <script>
-        (function() {
-            // Cache: track section mana yang sudah dimuat ke DOM
-            const _loaded = {};
-
-            /**
-             * loadSection(id) — pastikan section sudah ada di DOM sebelum dishow.
-             * Jika sudah pernah dimuat, tidak ada yang dikerjakan (idempoten).
-             * @param {string} id - misal 'welcome', 'exam', 'dashboard', 'result'
-             */
-            window.loadSection = function(id) {
-                if (_loaded[id]) return; // sudah dimuat sebelumnya
-                const tpl = document.getElementById('tpl-' + id);
-                if (!tpl) return; // tidak ada template, skip
-                const placeholder = document.getElementById('section-' + id);
-                if (!placeholder) return;
-
-                // Clone isi template ke dalam placeholder
-                const clone = tpl.content.cloneNode(true);
-                placeholder.replaceWith(clone);
-
-                // Hapus template dari DOM (sudah tidak dibutuhkan)
-                tpl.remove();
-                _loaded[id] = true;
-
-                // Re-init Lucide icons jika sudah tersedia
-                if (typeof lucide !== 'undefined' && typeof window._createIconsSafe === 'function') {
-                    window._createIconsSafe();
-                }
-            };
-
-            // Auto-load via MutationObserver alternatif:
-            // loadSection dipanggil eksplisit sebelum setiap remove('hidden-section') di kode utama.
-            // Lihat komentar [OPT-2-CALL] di setiap titik navigasi.
-        })();
-    </script>
 
     <!-- LOGIC SCRIPT -->
     <script>
@@ -10894,14 +10770,12 @@ Terima kasih 🙏</textarea>
             if(typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
-        window.toggleImportSection = async function() { // [OPT-3-CALL]
+        window.toggleImportSection = function() {
             const sec = document.getElementById('section-import-inline');
             if (!sec) return;
             const isHidden = sec.classList.contains('hidden');
             sec.classList.toggle('hidden', !isHidden);
             if (isHidden) {
-                // Load XLSX + Mammoth saat panel import pertama kali dibuka
-                window.loadImportLibs().catch(e => console.warn('[OPT-3] Gagal load import libs:', e));
                 setTimeout(() => sec.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
             }
             if(typeof lucide !== 'undefined') window._createIconsSafe();
@@ -11819,9 +11693,8 @@ Terima kasih 🙏</textarea>
             try {
                 const name        = document.getElementById('student-name').value.trim();
                 const studentNisn = document.getElementById('student-nisn').value.trim();
-                // [FIX BUG 2] Ubah const → let agar bisa di-assign ulang saat mode kartu peserta
-                let cls           = document.getElementById('student-class').value;
-                let room          = document.getElementById('student-room').value;
+                const cls         = document.getElementById('student-class').value;
+                const room        = document.getElementById('student-room').value;
                 const tokenInput  = document.getElementById('student-token').value.trim().toUpperCase();
 
                 // ── MODE KARTU PESERTA: Validasi No. Peserta → auto-fill data siswa ──
@@ -11886,14 +11759,9 @@ Terima kasih 🙏</textarea>
                 });
 
                 // ── 3. Fallback: token cocok dengan global token ujian ──
-                // [FIX BUG 4] Perbaiki logika: tolak hanya jika tidak ada paket DAN
-                // global token juga tidak cocok (atau belum di-set)
-                if (paketCocok.length === 0) {
-                    const globalTokenOk = window.currentExamToken && tokenInput === window.currentExamToken;
-                    if (!globalTokenOk) {
-                        alert("TOKEN SALAH atau tidak ada ujian tersedia untuk kelas " + cls + ".\nMinta token yang benar kepada pengawas.");
-                        return;
-                    }
+                if (paketCocok.length === 0 && tokenInput !== window.currentExamToken) {
+                    alert("TOKEN SALAH atau tidak ada ujian tersedia untuk kelas " + cls + ".\nMinta token yang benar kepada pengawas.");
+                    return;
                 }
 
                 // ── 4. Cek incognito ──
@@ -11910,9 +11778,7 @@ Terima kasih 🙏</textarea>
                 }
 
                 // ── 5. Cek local session cooldown ──
-                // [FIX BUG 1] Gunakan key dinamis berdasarkan appId agar tidak lintas sekolah
-                const _sessionKey = (window.appId || 'ukktkj') + '_session_done';
-                const localSession = localStorage.getItem(_sessionKey);
+                const localSession = localStorage.getItem('ukktkj_session_done');
                 if (localSession) {
                     try {
                         const sd = JSON.parse(localSession);
@@ -11921,8 +11787,8 @@ Terima kasih 🙏</textarea>
                             const remaining = Math.ceil(window.deviceCooldownHours - diffMinutes);
                             alert(`⛔ PERANGKAT TERKUNCI\n\nBaru digunakan: "${sd.name}" (NISN: ${sd.nisn || '-'}).\nSisa cooldown: ${remaining} menit lagi.`);
                             return;
-                        } else { localStorage.removeItem(_sessionKey); }
-                    } catch(_) { localStorage.removeItem(_sessionKey); }
+                        } else { localStorage.removeItem('ukktkj_session_done'); }
+                    } catch(_) { localStorage.removeItem('ukktkj_session_done'); }
                 }
 
                 if (submitBtn) { submitBtn.disabled = true; submitBtn.querySelector('span').textContent = "Memeriksa..."; }
@@ -11987,7 +11853,6 @@ Terima kasih 🙏</textarea>
                 window.renderWelcomePaketList(paketCocok, cls, tokenInput);
 
                 document.getElementById('section-login').classList.add('hidden-section');
-                window.loadSection('welcome'); // [OPT-2-CALL]
                 document.getElementById('section-welcome').classList.remove('hidden-section');
                 if (typeof lucide !== 'undefined') window._createIconsSafe();
 
@@ -12237,7 +12102,6 @@ Terima kasih 🙏</textarea>
                 renderSidebarButtons();
 
                 document.getElementById('section-welcome').classList.add('hidden-section');
-                window.loadSection('exam'); // [OPT-2-CALL]
                 document.getElementById('section-exam').classList.remove('hidden-section');
 
                 // ── Paksa fullscreen saat ujian dimulai ──
@@ -12304,10 +12168,6 @@ Terima kasih 🙏</textarea>
             const btn = e.target.querySelector('button[type="submit"]') || e.target.querySelector('button');
 
             if (!u || !p) { alert("Username dan password tidak boleh kosong!"); return; }
-            // [FIX BUG 3] Guard: pastikan appId sudah siap sebelum akses Firestore
-            if (window.isFirebaseReady && window.db && !window.appId) {
-                alert('Aplikasi belum siap, tunggu beberapa detik lalu coba lagi.'); return;
-            }
             if (btn) { btn.disabled = true; btn.textContent = "Memeriksa..."; }
 
             try {
@@ -12416,7 +12276,6 @@ Terima kasih 🙏</textarea>
                 if (mobileNav) mobileNav.style.display = '';
 
                 document.getElementById('section-login').classList.add('hidden-section');
-                window.loadSection('dashboard'); // [OPT-2-CALL]
                 document.getElementById('section-dashboard').classList.remove('hidden-section');
                 // Delay kecil agar DOM selesai render (terutama di HP)
                 // ★ Restore ke tab terakhir yang aktif sebelum refresh
@@ -12887,8 +12746,7 @@ Terima kasih 🙏</textarea>
 
             // Buka dashboard dan paksa tab Monitoring Nilai aktif
             document.getElementById('section-login').classList.add('hidden-section');
-            window.loadSection('dashboard'); // [OPT-2-CALL]
-                document.getElementById('section-dashboard').classList.remove('hidden-section');
+            document.getElementById('section-dashboard').classList.remove('hidden-section');
             window.switchDashTab('nilai');
 
             // Load data banding & kendala setelah Firebase siap
@@ -13211,8 +13069,6 @@ Terima kasih 🙏</textarea>
         window.handleGuruLogin = async function(e) {
             e.preventDefault();
             if (!window.isFirebaseReady || !window.db) { alert('Koneksi Firebase belum siap.'); return; }
-            // [FIX BUG 3] Guard: pastikan appId sudah siap sebelum akses Firestore
-            if (!window.appId) { alert('Aplikasi belum siap, tunggu beberapa detik lalu coba lagi.'); return; }
             const u   = document.getElementById('guru-user').value.trim();
             const p   = document.getElementById('guru-pass').value;
             const btn = e.target.querySelector('button[type="submit"]');
@@ -13315,8 +13171,7 @@ Terima kasih 🙏</textarea>
 
             // Masuk dashboard & langsung ke tab Soal
             document.getElementById('section-login').classList.add('hidden-section');
-            window.loadSection('dashboard'); // [OPT-2-CALL]
-                document.getElementById('section-dashboard').classList.remove('hidden-section');
+            document.getElementById('section-dashboard').classList.remove('hidden-section');
 
             if (typeof lucide !== 'undefined') window._createIconsSafe && window._createIconsSafe();
             setTimeout(() => { window.switchDashTab('soal'); }, 100);
@@ -13704,7 +13559,6 @@ Terima kasih 🙏</textarea>
                 if (mobileNav) mobileNav.style.display = '';
 
                 document.getElementById('section-login').classList.add('hidden-section');
-                window.loadSection('dashboard'); // [OPT-2-CALL]
                 document.getElementById('section-dashboard').classList.remove('hidden-section');
                 // ★ Restore ke tab terakhir aktif sebelum refresh
                 const _lastTabR = (() => { try { return sessionStorage.getItem('integritest_active_tab') || 'welcome'; } catch(e) { return 'welcome'; } })();
@@ -13742,7 +13596,6 @@ Terima kasih 🙏</textarea>
                 if (mobileNavG) mobileNavG.style.display = '';
 
                 document.getElementById('section-login').classList.add('hidden-section');
-                window.loadSection('dashboard'); // [OPT-2-CALL]
                 document.getElementById('section-dashboard').classList.remove('hidden-section');
                 const _lastTabG = (() => { try { return sessionStorage.getItem('integritest_active_tab') || 'nilai'; } catch(e) { return 'nilai'; } })();
                 const _validTabsG = ['welcome','nilai','kelasruang','soal','siswa','analitik','jadwal','tampilan','loganomal','databackup','kendala'];
@@ -13796,7 +13649,6 @@ Terima kasih 🙏</textarea>
                 document.querySelectorAll('.admin-only-el').forEach(el => el.classList.add('hidden'));
 
                 document.getElementById('section-login').classList.add('hidden-section');
-                window.loadSection('dashboard'); // [OPT-2-CALL]
                 document.getElementById('section-dashboard').classList.remove('hidden-section');
                 const _lastTabP = (() => { try { return sessionStorage.getItem('integritest_active_tab') || 'nilai'; } catch(e) { return 'nilai'; } })();
                 const _validTabsP = ['nilai', 'analitik', 'kendala'];
@@ -13951,8 +13803,8 @@ Terima kasih 🙏</textarea>
         window.exportToCSV = function() {
             exportToCSVInternal();
         };
-        window.exportToExcel = async function() {
-            await exportToExcelInternal(); // [OPT-3-CALL]
+        window.exportToExcel = function() {
+            exportToExcelInternal();
         };
 
         // ── STATISTIK KELAS MODAL ──────────────────────────────
@@ -15341,8 +15193,7 @@ Terima kasih 🙏</textarea>
             }, 300);
             if (window._integrityAutoRefresh) window._integrityAutoRefresh();
 
-            // [FIX BUG 1] Gunakan key dinamis saat menyimpan session
-            try { localStorage.setItem((window.appId || 'ukktkj') + '_session_done', JSON.stringify({
+            try { localStorage.setItem('ukktkj_session_done', JSON.stringify({
                 name: (currentStudent || {}).name,
                 date: new Date().toISOString()
             })); } catch(e) {}
@@ -15363,7 +15214,6 @@ Terima kasih 🙏</textarea>
             const examSection = document.getElementById('section-exam');
             const resultSection = document.getElementById('section-result');
             
-            window.loadSection('result'); // [OPT-2-CALL]
             examSection.classList.add('hidden-section');
             resultSection.classList.remove('hidden-section');
             
@@ -18992,8 +18842,8 @@ Terima kasih 🙏</textarea>
             URL.revokeObjectURL(url);
         }
 
-        async function exportToExcelInternal() {
-            await window.loadImportLibs(); // [OPT-3-CALL]
+        function exportToExcelInternal() {
+            if (typeof XLSX === 'undefined') { alert("Library XLSX belum siap, coba refresh halaman."); return; }
 
             const dataToExport = window.currentFilteredData && window.currentFilteredData.length > 0
                 ? window.currentFilteredData : dashboardData;
@@ -19788,8 +19638,8 @@ Terima kasih 🙏</textarea>
 
 
         // ---------- DOWNLOAD TEMPLATE EXCEL ----------
-        window.downloadExcelTemplate = async function() {
-            await window.loadImportLibs(); // [OPT-3-CALL]
+        window.downloadExcelTemplate = function() {
+            if (typeof XLSX === 'undefined') { alert("Library XLSX belum siap, coba refresh halaman."); return; }
             const wb = XLSX.utils.book_new();
 
             // ── Sheet 1: Pilihan Tunggal (single) ──
@@ -20396,10 +20246,9 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
             if (file) window.handleExcelFile(file);
         };
 
-        window.handleExcelFile = async function(file) { // [OPT-3-CALL]
+        window.handleExcelFile = function(file) {
             if (!file) return;
-            await window.loadImportLibs();
-            if (typeof XLSX === 'undefined') { alert("Library XLSX gagal dimuat."); return; }
+            if (typeof XLSX === 'undefined') { alert("Library XLSX belum siap."); return; }
 
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -20479,11 +20328,10 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
             if (file) window.handleWordFile(file);
         };
 
-        window.handleWordFile = async function(file) { // [OPT-3-CALL]
+        window.handleWordFile = function(file) {
             if (!file) return;
             if (!file.name.endsWith('.docx')) { alert("Hanya file .docx yang didukung!"); return; }
-            await window.loadImportLibs();
-            if (typeof mammoth === 'undefined') { alert("Library mammoth gagal dimuat."); return; }
+            if (typeof mammoth === 'undefined') { alert("Library mammoth belum siap."); return; }
 
             const logEl = document.getElementById('word-log');
             logEl.classList.remove('hidden');
@@ -21410,8 +21258,8 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
             }
         };
 
-        window.downloadTemplateSiswa = async function() { // [OPT-3-CALL]
-            await window.loadImportLibs();
+        window.downloadTemplateSiswa = function() {
+            if (typeof XLSX === 'undefined') { alert('Library XLSX belum siap.'); return; }
             const ws = XLSX.utils.aoa_to_sheet([
                 ['nisn', 'nama', 'kelas', 'wa_ortu'],
                 ['1234567890', 'Ahmad Fauzan', 'XI TKJ 1', '628123456789'],
@@ -21423,10 +21271,10 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
             XLSX.writeFile(wb, 'template_data_siswa.xlsx');
         };
 
-        window.handleSiswaImport = async function(input) { // [OPT-3-CALL]
+        window.handleSiswaImport = function(input) {
             const file = input.files[0];
             if (!file) return;
-            await window.loadImportLibs();
+            if (typeof XLSX === 'undefined') { alert('Library XLSX belum siap.'); return; }
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
