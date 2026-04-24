@@ -1801,42 +1801,87 @@ function fmtIntDetail(v){
 }
 
 window.openDetailSekolah = async function(schoolDocId, schoolData) {
+    // schoolDocId bisa berupa appId (e.g. 'ukktkj') atau Firestore auto-ID
+    // Kita selalu ambil data terbaru dari Firestore supaya stat cards akurat
+    const appIdToUse = schoolData.appId || schoolDocId || null;
+
+    // Tentukan docId yang benar: pakai appId sebagai docId jika dokumen dengan appId ada
+    // (karena sekolah yang dibuat via form simpanSekolah pakai addDoc → auto-ID,
+    //  tapi syncManual perlu tahu docId yang benar)
+    let resolvedDocId = schoolDocId;
+    let freshData = { ...schoolData };
+
+    try {
+        // Coba baca langsung pakai schoolDocId
+        const snap = await window.getDoc(window.doc(window.db, 'superadmin', 'data', 'schools', schoolDocId));
+        if (snap.exists()) {
+            const d = snap.data();
+            // Jika dokumen ini hanya punya _init (dokumen hantu), coba cari yang benar via appId
+            if (!d.appId && !d.nama && appIdToUse) {
+                const appSnap = await window.getDoc(window.doc(window.db, 'superadmin', 'data', 'schools', appIdToUse));
+                if (appSnap.exists()) {
+                    resolvedDocId = appIdToUse;
+                    freshData = { _docId: appIdToUse, id: appIdToUse, ...appSnap.data() };
+                }
+            } else {
+                freshData = { _docId: schoolDocId, id: schoolDocId, ...d };
+                resolvedDocId = schoolDocId;
+            }
+        } else if (appIdToUse && appIdToUse !== schoolDocId) {
+            // Coba dengan appId sebagai docId
+            const appSnap = await window.getDoc(window.doc(window.db, 'superadmin', 'data', 'schools', appIdToUse));
+            if (appSnap.exists()) {
+                resolvedDocId = appIdToUse;
+                freshData = { _docId: appIdToUse, id: appIdToUse, ...appSnap.data() };
+            }
+        }
+    } catch(e) {
+        console.warn('[openDetailSekolah] gagal baca Firestore:', e.message);
+    }
+
     // Simpan referensi aktif untuk syncManual
-    window._dsActiveAppId      = schoolData.appId || null;
-    window._dsActiveDocId      = schoolDocId || null;
-    window._dsActiveSchoolData = schoolData;
+    window._dsActiveAppId      = freshData.appId || appIdToUse;
+    window._dsActiveDocId      = resolvedDocId;
+    window._dsActiveSchoolData = freshData;
 
     const modal = document.getElementById('modal-detail-sekolah');
-    document.getElementById('ds-nama').textContent = schoolData.nama || schoolData.appId;
-    document.getElementById('ds-sub').textContent  = (schoolData.kota||'') + (schoolData.provinsi?' · '+schoolData.provinsi:'') + ' · Kode: ' + (schoolData.appId||'');
+    document.getElementById('ds-nama').textContent = freshData.nama || freshData.appId || resolvedDocId;
+    document.getElementById('ds-sub').textContent  = (freshData.kota||'') + (freshData.provinsi?' · '+freshData.provinsi:'') + ' · Kode: ' + (freshData.appId||resolvedDocId||'');
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
     // Reset status sync
     const ss = document.getElementById('ds-sync-status');
     if(ss) ss.style.display='none';
 
-    // Stat cards ringkas
+    // Stat cards ringkas — pakai freshData yang sudah diambil dari Firestore
     const sc = document.getElementById('ds-stats');
     sc.innerHTML = [
-        {lbl:'Total Sesi Ujian', val: schoolData.totalExamSessions||0, col:'#3b82f6'},
-        {lbl:'Rata Integritas',  val: (schoolData.avgIntegrityScore!=null ? Math.round(schoolData.avgIntegrityScore)+'%' : '—'), col:'#10b981'},
-        {lbl:'Diskualifikasi',   val: schoolData.disqualifiedCount||0, col:'#ef4444'},
-        {lbl:'Total Akses',      val: (schoolData.totalAccess||0)+'×', col:'#7c3aed'}
+        {lbl:'Total Sesi Ujian', val: freshData.totalExamSessions||0, col:'#3b82f6'},
+        {lbl:'Rata Integritas',  val: (freshData.avgIntegrityScore!=null ? Math.round(freshData.avgIntegrityScore)+'%' : '—'), col:'#10b981'},
+        {lbl:'Diskualifikasi',   val: freshData.disqualifiedCount||0, col:'#ef4444'},
+        {lbl:'Total Akses',      val: (freshData.totalAccess||0)+'×', col:'#7c3aed'}
     ].map(c=>`
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;border-top:3px solid ${c.col};">
             <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#64748b;margin-bottom:4px;">${c.lbl}</div>
             <div style="font-size:22px;font-weight:900;color:#0f172a;">${c.val}</div>
         </div>`).join('');
 
-    // Load exam_sessions subcollection
+    // Load exam_sessions subcollection — pakai resolvedDocId yang sudah diverifikasi
     document.getElementById('ds-loading').style.display = 'block';
     document.getElementById('ds-table-wrap').style.display = 'none';
     document.getElementById('ds-empty').style.display = 'none';
 
     try {
-        const sessSnap = await getDocs(
-            collection(db, 'superadmin', 'data', 'schools', schoolDocId, 'exam_sessions')
+        // Coba baca dari resolvedDocId, fallback ke appId jika kosong
+        let sessSnap = await getDocs(
+            collection(db, 'superadmin', 'data', 'schools', resolvedDocId, 'exam_sessions')
         );
+        if (sessSnap.empty && freshData.appId && freshData.appId !== resolvedDocId) {
+            const altSnap = await getDocs(
+                collection(db, 'superadmin', 'data', 'schools', freshData.appId, 'exam_sessions')
+            );
+            if (!altSnap.empty) sessSnap = altSnap;
+        }
         const rows = [];
         sessSnap.forEach(d => rows.push(d.data()));
 
@@ -1963,7 +2008,7 @@ window.syncManual = async function() {
         let written = 0;
         for (const key of keys) {
             const s = sessions[key];
-            const sessionRef = doc(db, 'superadmin', 'data', 'schools', schoolDocId, 'exam_sessions', key);
+            const sessionRef = doc(db, 'superadmin', 'data', 'schools', targetDocId, 'exam_sessions', key);
             await setDoc(sessionRef, {
                 appId        : s.appId,
                 kelas        : s.kelas,
@@ -1985,7 +2030,10 @@ window.syncManual = async function() {
         const avgIntGlobal = Math.round(sumIntGlobal / Math.max(totalSiswaGlobal, 1));
 
         // Update stat agregat di dokumen sekolah
-        await setDoc(doc(db, 'superadmin', 'data', 'schools', schoolDocId), {
+        // Gunakan appId sebagai docId agar konsisten (bukan auto-generated ID)
+        const targetDocId = appId; // appId == ukktkj, bukan EioO9BsnFPzLiQMmxkRU
+        await setDoc(doc(db, 'superadmin', 'data', 'schools', targetDocId), {
+            appId             : appId,
             totalExamSessions : totalSiswaGlobal,
             avgIntegrityScore : avgIntGlobal,
             disqualifiedCount : totalDQGlobal,
@@ -1995,15 +2043,15 @@ window.syncManual = async function() {
         statusEl.textContent = `✅ Sync selesai — ${written} sesi, ${totalSiswaGlobal} peserta`;
         statusEl.style.cssText = 'display:block;font-size:11px;padding:5px 10px;border-radius:8px;font-weight:600;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;';
 
-        // Reload modal dengan data terbaru langsung dari Firestore
-        const freshSnap = await window.getDoc(doc(db, 'superadmin', 'data', 'schools', schoolDocId));
+        // Reload modal dengan data terbaru langsung dari Firestore (pakai appId sebagai docId)
+        const freshSnap = await window.getDoc(doc(db, 'superadmin', 'data', 'schools', targetDocId));
         const freshData = freshSnap.exists() ? { _docId: schoolDocId, id: schoolDocId, ...freshSnap.data() } : {
             ...window._dsActiveSchoolData,
             totalExamSessions: totalSiswaGlobal,
             avgIntegrityScore: avgIntGlobal,
             disqualifiedCount: totalDQGlobal
         };
-        await openDetailSekolah(schoolDocId, freshData);
+        await openDetailSekolah(targetDocId, freshData);
 
         // Tampilkan ulang status setelah openDetailSekolah (karena ia reset status)
         const statusEl2 = document.getElementById('ds-sync-status');
