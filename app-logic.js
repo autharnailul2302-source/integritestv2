@@ -1,4 +1,4 @@
-    <script>
+<script>
         // ── LUCIDE DEBOUNCE untuk HP Kentang ──────────────────
         // Pada perf-mode, kumpulkan panggilan createIcons dan jalankan sekali per frame
         (function() {
@@ -11426,5 +11426,65 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                 const badge = document.getElementById('perf-mode-info');
                 if (badge) badge.classList.remove('hidden');
             }
+
+            // ══════════════════════════════════════════════════════════════
+            // ★ MODE STAF — Sembunyikan/tampilkan tab Login Staf
+            // ══════════════════════════════════════════════════════════════
+            // Cara akses:
+            //   1. URL param  : ?mode=staff  → tab langsung terlihat
+            //   2. Tombol dot : klik 3x dalam 2 detik → sama seperti ?mode=staff
+            // ──────────────────────────────────────────────────────────────
+            const _params        = new URLSearchParams(window.location.search);
+            const _isStaffMode   = _params.get('mode') === 'staff';
+            const _tabTeacher    = document.getElementById('tab-teacher');
+            const _btnStaffDot   = document.getElementById('btn-staff-access');
+            const _sectionLogin  = document.getElementById('section-login');
+
+            // Fungsi aktifkan mode staf (bisa dipanggil dari mana saja)
+            window._activateStaffTab = function() {
+                if (!_tabTeacher) return;
+                _tabTeacher.style.display = '';          // tampilkan tab
+                _tabTeacher.style.flex    = '1';
+                if (_btnStaffDot) _btnStaffDot.style.display = 'none'; // sembunyikan dot
+            };
+
+            // Jika URL mengandung ?mode=staff → aktifkan langsung
+            if (_isStaffMode) {
+                window._activateStaffTab();
+            }
+
+            // Tampilkan tombol dot hanya saat section-login terlihat (dan mode belum aktif)
+            function _syncDotVisibility() {
+                if (!_btnStaffDot) return;
+                const loginVisible = _sectionLogin &&
+                    !_sectionLogin.classList.contains('hidden') &&
+                    _sectionLogin.style.display !== 'none';
+                const tabHidden = _tabTeacher && _tabTeacher.style.display === 'none';
+                _btnStaffDot.style.display = (loginVisible && tabHidden) ? 'block' : 'none';
+            }
+            _syncDotVisibility();
+
+            // Observer: perbarui visibilitas dot saat section-login di-show/hide
+            if (_sectionLogin && typeof MutationObserver !== 'undefined') {
+                new MutationObserver(_syncDotVisibility)
+                    .observe(_sectionLogin, { attributes: true, attributeFilter: ['class','style'] });
+            }
+
+            // Triple-click handler untuk tombol dot
+            let _dotClickCount = 0;
+            let _dotClickTimer = null;
+            window._handleStaffAccessClick = function() {
+                _dotClickCount++;
+                clearTimeout(_dotClickTimer);
+                if (_dotClickCount >= 3) {
+                    _dotClickCount = 0;
+                    window._activateStaffTab();
+                } else {
+                    _dotClickTimer = setTimeout(() => { _dotClickCount = 0; }, 2000);
+                }
+            };
+
+            // Export sync agar bisa dipanggil saat navigasi antar section
+            window._syncStaffDot = _syncDotVisibility;
         });
     </script>
