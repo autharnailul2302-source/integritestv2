@@ -1151,12 +1151,27 @@
             window._SL_MAP={};
             sn.forEach(d=>{
                 const data=d.data();
-                // Lewati dokumen hantu yang tidak punya field appId/nama (misal dokumen _init)
+                // Lewati dokumen hantu yang tidak punya field appId/nama (misal dokumen _init atau sisa sync)
                 if(!data.appId && !data.nama) return;
+                // Lewati dokumen duplikat: jika docId != appId DAN sudah ada dokumen dengan docId == appId, skip
+                // (dokumen lama pakai auto-ID, dokumen baru pakai appId sebagai docId)
                 const row={_docId:d.id,id:d.id,...data};
                 SL.push(row);
                 window._SL_MAP[row.appId]=row;
             });
+            // Hapus duplikat: jika ada sekolah dengan appId sama, utamakan yang docId == appId
+            const seen = {};
+            SL = SL.filter(s => {
+                const key = s.appId;
+                if (!key) return true;
+                if (!seen[key]) { seen[key] = s; return true; }
+                // Sudah ada — utamakan docId == appId
+                if (s._docId === s.appId) { seen[key] = s; return true; }
+                return false;
+            });
+            // Rebuild _SL_MAP setelah dedup
+            window._SL_MAP = {};
+            SL.forEach(s => { if(s.appId) window._SL_MAP[s.appId] = s; });
             SL.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
             renderSK(SL);
             if(window.filterMonitoring)window.filterMonitoring();
@@ -1375,7 +1390,7 @@
         try{
             const payload={nama,kota,provinsi,appId,baseUrl,shortlink,kontak,status:'aktif',createdAt:Date.now(),firebaseMode:fbMode};
             if(firebaseConfig) payload.firebaseConfig=JSON.stringify(firebaseConfig);
-            await addDoc(CS(),payload);
+            await setDoc(doc(db,SA,'data','schools',appId),payload);
             showToast('✅',`${nama} berhasil ditambahkan`);
             closeModal('modal-sekolah');clrSK();await loadAll();
         }catch(e){showErr(err,'Gagal: '+e.message);}
