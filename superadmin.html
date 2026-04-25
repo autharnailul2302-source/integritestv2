@@ -49,7 +49,7 @@
         /* ── LAYOUT ── */
         #main-app{display:none;min-height:100vh;}
         #main-app.show{display:flex;}
-        .mob-nav{display:none!important;}
+
         .sidebar{width:228px;flex-shrink:0;background:#fff;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;}
         .sb-brand{padding:18px 16px 14px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:10px;}
         .sb-icon{width:36px;height:36px;flex-shrink:0;background:linear-gradient(135deg,#1d4ed8,#4f46e5);border-radius:10px;display:flex;align-items:center;justify-content:center;}
@@ -160,13 +160,6 @@
         .pg-btn.active{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8;}
         .pg-btn:disabled{opacity:.4;cursor:not-allowed;}
 
-        /* ── MOBILE BOTTOM NAV ── */
-        .mob-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:100;background:#fff;border-top:1px solid #e2e8f0;padding:6px 0 max(6px,env(safe-area-inset-bottom));box-shadow:0 -4px 20px rgba(0,0,0,.08);}
-        .mob-nav-items{display:flex;align-items:stretch;}
-        .mob-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px 4px;border:none;background:none;cursor:pointer;color:#94a3b8;font-family:inherit;font-size:10px;font-weight:700;transition:color .15s;-webkit-tap-highlight-color:transparent;}
-        .mob-nav-item svg{width:20px;height:20px;flex-shrink:0;}
-        .mob-nav-item.active{color:#1d4ed8;}
-        .mob-nav-item.active svg{stroke:#1d4ed8;}
         /* mobile topbar hamburger */
         .mob-topbar-left{display:none;align-items:center;gap:10px;}
         .ham-btn{width:36px;height:36px;border-radius:10px;background:#f1f5f9;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#475569;transition:all .15s;}
@@ -178,10 +171,9 @@
 
         @media(max-width:768px){
             .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:160;transform:translateX(-100%);transition:transform .25s ease;box-shadow:4px 0 24px rgba(0,0,0,.12);}
-            .mob-nav{display:block!important;}
             .mob-topbar-left{display:flex;}
             .main-col{width:100%;}
-            .content{padding:14px;padding-bottom:80px;}
+            .content{padding:14px;}
             .topbar{padding:0 14px;}
             .topbar > span:last-child{display:none;}
             /* stats grid 2 cols on mobile */
@@ -287,10 +279,6 @@
         body.dark .pg-btn.active{background:#1e3a5f;border-color:#1d4ed8;color:#60a5fa;}
 
         /* mobile nav */
-        body.dark .mob-nav{background:#1e293b;border-color:#334155;}
-        body.dark .mob-nav-item{color:#475569;}
-        body.dark .mob-nav-item.active{color:#60a5fa;}
-        body.dark .mob-nav-item.active svg{stroke:#60a5fa;}
         body.dark .mob-sidebar-ov{background:rgba(0,0,0,.6);}
 
         /* err/info */
@@ -373,8 +361,11 @@
                                 <div class="nav-item" id="nav-admin" onclick="showSection('admin')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Admin Sekolah
                 </div>
-                <div class="nav-item" id="nav-kendala" onclick="showSection('kendala')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Laporan Kendala
+                <div class="nav-item" id="nav-kendala" onclick="showSection('kendala')" style="justify-content:space-between;">
+                    <span style="display:flex;align-items:center;gap:9px;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Laporan Kendala
+                    </span>
+                    <span id="badge-kendala" style="display:none;background:#ef4444;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:99px;display:none;align-items:center;justify-content:center;padding:0 5px;line-height:1;"></span>
                 </div>
             </nav>
             <div class="sb-footer">
@@ -825,40 +816,12 @@
 <!-- MOBILE SIDEBAR OVERLAY -->
 <div id="mob-sidebar-ov" class="mob-sidebar-ov" onclick="toggleMobSidebar()"></div>
 
-<!-- MOBILE BOTTOM NAV -->
-<nav class="mob-nav" id="mob-nav">
-    <div class="mob-nav-items">
-        <button class="mob-nav-item active" id="mob-nav-dashboard" onclick="showSection('dashboard');closeMobSidebar()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-            Dashboard
-        </button>
-        <button class="mob-nav-item" id="mob-nav-sekolah" onclick="showSection('sekolah');closeMobSidebar()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
-            Sekolah
-        </button>
-        <button class="mob-nav-item" id="mob-nav-admin" onclick="showSection('admin');closeMobSidebar()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            Admin
-        </button>
-        <button class="mob-nav-item" id="mob-nav-monitoring" onclick="showSection('monitoring');closeMobSidebar()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-            Monitoring
-        </button>
-        <button class="mob-nav-item" id="mob-nav-kendala" onclick="showSection('kendala');closeMobSidebar()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            Kendala
-        </button>
-        <button class="mob-nav-item" onclick="doLogout()" style="color:#dc2626;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-            Keluar
-        </button>
-    </div>
-</nav>
+
 
 <!-- FIREBASE -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, getDoc, doc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, getDoc, doc, updateDoc, deleteDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
     const cfg = {apiKey:"AIzaSyAdqApOvuUXrZUO19NfiqZCLSyUYR74w5M",authDomain:"waliq-ded98.firebaseapp.com",projectId:"waliq-ded98",storageBucket:"waliq-ded98.firebasestorage.app",messagingSenderId:"915222555864",appId:"1:915222555864:web:25320841c97661172e3bad"};
@@ -1001,26 +964,106 @@
     const CK=()=>collection(db,SA,'data','laporan_kendala');
     const PG_KD={cur:1,perPage:10};
 
-    window.loadKendala=async function(){
-        document.getElementById('tabel-kendala').innerHTML=`<tr><td colspan="7"><div class="empty">Memuat laporan...</div></td></tr>`;
-        try{
-            await setDoc(doc(db,SA,'data'),{_init:true},{merge:true});
-            const sn=await getDocs(CK());
-            KL=[];
-            sn.forEach(d=>KL.push({id:d.id,...d.data()}));
-            KL.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    // ── NOTIFIKASI KENDALA REAL-TIME ──
+    let _kdKnownIds = null; // null = belum inisialisasi (load pertama)
+    let _kdUnsubscribe = null;
+
+    function updateKendalaBadge(jumlahBaru) {
+        const badge = document.getElementById('badge-kendala');
+        if (!badge) return;
+        if (jumlahBaru > 0) {
+            badge.textContent = jumlahBaru > 99 ? '99+' : jumlahBaru;
+            badge.style.display = 'inline-flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    function showKendalaNotif(k) {
+        // Buat elemen pop-up notifikasi
+        const notif = document.createElement('div');
+        notif.style.cssText = `
+            position:fixed;top:20px;right:20px;z-index:9999;
+            background:#fff;border:1px solid #e2e8f0;border-radius:14px;
+            box-shadow:0 8px 32px rgba(0,0,0,.18);
+            padding:14px 16px;max-width:320px;width:calc(100vw - 40px);
+            display:flex;align-items:flex-start;gap:12px;
+            animation:slideInRight .3s ease;cursor:pointer;
+        `;
+        notif.innerHTML = `
+            <div style="width:38px;height:38px;flex-shrink:0;border-radius:10px;background:#fef2f2;display:flex;align-items:center;justify-content:center;font-size:18px;">🔔</div>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:12px;font-weight:800;color:#dc2626;margin-bottom:2px;">Laporan Kendala Baru!</div>
+                <div style="font-size:13px;font-weight:700;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_e(k.judul||'Laporan baru')}</div>
+                <div style="font-size:11px;color:#64748b;margin-top:2px;">${_e(k.namaSekolah||k.appId||'Sekolah')} · Klik untuk lihat</div>
+            </div>
+            <button onclick="this.closest('div[style]').remove()" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:16px;line-height:1;flex-shrink:0;padding:0;">✕</button>
+        `;
+        // Klik notif → buka section kendala
+        notif.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            showSection('kendala');
+            notif.remove();
+        });
+        document.body.appendChild(notif);
+        // Auto hilang setelah 6 detik
+        setTimeout(() => { if (notif.parentNode) { notif.style.animation = 'fadeOut .3s ease forwards'; setTimeout(() => notif.remove(), 300); } }, 6000);
+    }
+
+    // Tambah CSS animasi notifikasi
+    if (!document.getElementById('notif-style')) {
+        const st = document.createElement('style');
+        st.id = 'notif-style';
+        st.textContent = `
+            @keyframes slideInRight{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:translateX(0)}}
+            @keyframes fadeOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(60px)}}
+        `;
+        document.head.appendChild(st);
+    }
+
+    window.loadKendala = function() {
+        // Hentikan listener lama jika ada
+        if (_kdUnsubscribe) { _kdUnsubscribe(); _kdUnsubscribe = null; }
+
+        const q = window.firestoreQuery
+            ? window.firestoreQuery(CK(), window.firestoreOrderBy('createdAt','desc'))
+            : CK();
+
+        _kdUnsubscribe = onSnapshot(CK(), (sn) => {
+            const incoming = [];
+            sn.forEach(d => incoming.push({id:d.id,...d.data()}));
+            incoming.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+
+            // Deteksi kendala baru (bukan load pertama)
+            if (_kdKnownIds !== null) {
+                const newOnes = incoming.filter(k => !_kdKnownIds.has(k.id));
+                newOnes.forEach(k => {
+                    showKendalaNotif(k);
+                    showToast('🔔', `Kendala baru: ${k.judul||'—'}`);
+                });
+            }
+
+            // Update set ID yang diketahui
+            _kdKnownIds = new Set(incoming.map(k => k.id));
+
+            KL = incoming;
+
+            // Badge: hitung yang statusnya 'baru' / belum dibaca
+            const jumlahBaru = KL.filter(k => !k.status || k.status === 'baru').length;
+            updateKendalaBadge(jumlahBaru);
+
             window.filterKendala();
             // Update stat cards
-            const baru=KL.filter(k=>k.status==='baru'||!k.status).length;
-            const proses=KL.filter(k=>k.status==='diproses').length;
-            const selesai=KL.filter(k=>k.status==='selesai').length;
-            document.getElementById('kd-stat-baru').textContent=baru;
-            document.getElementById('kd-stat-proses').textContent=proses;
-            document.getElementById('kd-stat-selesai').textContent=selesai;
-            document.getElementById('kd-stat-total').textContent=KL.length;
-        }catch(e){
+            const baru = KL.filter(k=>k.status==='baru'||!k.status).length;
+            const proses = KL.filter(k=>k.status==='diproses').length;
+            const selesai = KL.filter(k=>k.status==='selesai').length;
+            document.getElementById('kd-stat-baru').textContent = baru;
+            document.getElementById('kd-stat-proses').textContent = proses;
+            document.getElementById('kd-stat-selesai').textContent = selesai;
+            document.getElementById('kd-stat-total').textContent = KL.length;
+        }, (e) => {
             document.getElementById('tabel-kendala').innerHTML=`<tr><td colspan="7"><div class="empty" style="color:#dc2626;">⚠️ Gagal memuat: ${_e(e.message)}</div></td></tr>`;
-        }
+        });
     };
 
     function kdStatusBadge(s){
@@ -1159,17 +1202,39 @@
                 SL.push(row);
                 window._SL_MAP[row.appId]=row;
             });
-            // Hapus duplikat: jika ada sekolah dengan appId sama, utamakan yang docId == appId
-            const seen = {};
-            SL = SL.filter(s => {
+            // Merge duplikat: jika ada 2 dokumen dengan appId sama (auto-ID lama + appId baru),
+            // gabungkan datanya — utamakan docId==appId sebagai "base", tapi ambil field
+            // seperti lastAccess, lastExamSession, totalAccess dari dokumen manapun yang punya nilainya
+            const mergeMap = {};
+            SL.forEach(s => {
                 const key = s.appId;
-                if (!key) return true;
-                if (!seen[key]) { seen[key] = s; return true; }
-                // Sudah ada — utamakan docId == appId
-                if (s._docId === s.appId) { seen[key] = s; return true; }
-                return false;
+                if (!key) return;
+                if (!mergeMap[key]) {
+                    mergeMap[key] = { ...s };
+                } else {
+                    // Merge: untuk setiap field, ambil yang ada nilainya (tidak null/undefined/0)
+                    const existing = mergeMap[key];
+                    // Field-field dari dokumen lama yang perlu dipertahankan
+                    ['lastAccess','lastExamSession','totalAccess','totalExamSessions',
+                     'avgIntegrityScore','disqualifiedCount','lastSyncManual'].forEach(f => {
+                        if (!existing[f] && s[f]) existing[f] = s[f];
+                        else if (s[f] && existing[f] && s[f] > existing[f]) existing[f] = s[f];
+                    });
+                    // Utamakan docId == appId untuk referensi tulis
+                    if (s._docId === s.appId) {
+                        mergeMap[key] = { ...existing, ...s,
+                            lastAccess: existing.lastAccess||s.lastAccess,
+                            lastExamSession: existing.lastExamSession||s.lastExamSession,
+                            totalAccess: existing.totalAccess||s.totalAccess,
+                            totalExamSessions: Math.max(existing.totalExamSessions||0, s.totalExamSessions||0),
+                            avgIntegrityScore: existing.avgIntegrityScore||s.avgIntegrityScore,
+                            disqualifiedCount: Math.max(existing.disqualifiedCount||0, s.disqualifiedCount||0),
+                        };
+                    }
+                }
             });
-            // Rebuild _SL_MAP setelah dedup
+            SL = Object.values(mergeMap);
+            // Rebuild _SL_MAP setelah merge
             window._SL_MAP = {};
             SL.forEach(s => { if(s.appId) window._SL_MAP[s.appId] = s; });
             SL.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
@@ -1708,14 +1773,17 @@
         if(!VALID_SECTIONS.includes(n))n='dashboard';
         document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
-        document.querySelectorAll('.mob-nav-item').forEach(x=>x.classList.remove('active'));
         document.getElementById('section-'+n).classList.add('active');
         document.getElementById('nav-'+n).classList.add('active');
-        if(document.getElementById('mob-nav-'+n))document.getElementById('mob-nav-'+n).classList.add('active');
         const titles={dashboard:'Dashboard',sekolah:'Kelola Sekolah',admin:'Admin Sekolah',monitoring:'Monitoring Aktivitas',kendala:'Laporan Kendala'};
         const t=titles[n]||n;
         document.getElementById('topbar-title').textContent=t;
         if(document.getElementById('topbar-title-mob'))document.getElementById('topbar-title-mob').textContent=t;
+        // Hilangkan badge saat buka Laporan Kendala
+        if(n==='kendala'){
+            const badge=document.getElementById('badge-kendala');
+            if(badge) badge.style.display='none';
+        }
         // Simpan posisi menu di URL hash
         history.replaceState(null,'','#'+n);
     }
