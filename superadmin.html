@@ -1141,14 +1141,43 @@
             const sn=await getDocs(CS());
             SL=[];
             window._SL_MAP={};
-            sn.forEach(d=>{
+
+            // ── AUTO-CLEANUP DUPLIKAT ──────────────────────────────────────────
+            // Dokumen duplikat = dokumen yang docId-nya == appId (dibuat syncManual lama).
+            // Dokumen asli = auto-ID dari addDoc. Hapus duplikat otomatis.
+            const allDocs=[];
+            sn.forEach(d=>allDocs.push({id:d.id,data:d.data()}));
+            const byAppId={};
+            allDocs.forEach(d=>{
+                const aid=d.data.appId;
+                if(!aid&&!d.data.nama) return; // dokumen hantu, skip
+                if(!aid) return;
+                if(!byAppId[aid]) byAppId[aid]=[];
+                byAppId[aid].push(d);
+            });
+            for(const aid of Object.keys(byAppId)){
+                const group=byAppId[aid];
+                if(group.length>1){
+                    // Hapus semua dokumen yang docId == appId (duplikat dari syncManual lama)
+                    for(const dup of group.filter(d=>d.id===aid)){
+                        try{
+                            await deleteDoc(doc(db,SA,'data','schools',dup.id));
+                            console.log('[loadSK] Hapus duplikat:',dup.id);
+                        }catch(e2){console.warn('[loadSK] Gagal hapus duplikat:',e2.message);}
+                    }
+                }
+            }
+            // Re-load setelah cleanup
+            const sn2=await getDocs(CS());
+            sn2.forEach(d=>{
                 const data=d.data();
-                // Lewati dokumen hantu yang tidak punya field appId/nama (misal dokumen _init)
-                if(!data.appId && !data.nama) return;
+                if(!data.appId&&!data.nama) return;
                 const row={_docId:d.id,id:d.id,...data};
                 SL.push(row);
                 window._SL_MAP[row.appId]=row;
             });
+            // ─────────────────────────────────────────────────────────────────
+
             SL.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
             renderSK(SL);
             if(window.filterMonitoring)window.filterMonitoring();
@@ -1801,40 +1830,19 @@ function fmtIntDetail(v){
 }
 
 window.openDetailSekolah = async function(schoolDocId, schoolData) {
-    // schoolDocId bisa berupa appId (e.g. 'ukktkj') atau Firestore auto-ID
-    // Kita selalu ambil data terbaru dari Firestore supaya stat cards akurat
-    const appIdToUse = schoolData.appId || schoolDocId || null;
-
-    // Tentukan docId yang benar: pakai appId sebagai docId jika dokumen dengan appId ada
-    // (karena sekolah yang dibuat via form simpanSekolah pakai addDoc → auto-ID,
-    //  tapi syncManual perlu tahu docId yang benar)
+    // schoolDocId adalah Firestore auto-ID asli (dari addDoc). JANGAN diganti dengan appId.
     let resolvedDocId = schoolDocId;
     let freshData = { ...schoolData };
 
     try {
-        // Coba baca langsung pakai schoolDocId
         const snap = await window.getDoc(window.doc(window.db, 'superadmin', 'data', 'schools', schoolDocId));
         if (snap.exists()) {
             const d = snap.data();
-            // Jika dokumen ini hanya punya _init (dokumen hantu), coba cari yang benar via appId
-            if (!d.appId && !d.nama && appIdToUse) {
-                const appSnap = await window.getDoc(window.doc(window.db, 'superadmin', 'data', 'schools', appIdToUse));
-                if (appSnap.exists()) {
-                    resolvedDocId = appIdToUse;
-                    freshData = { _docId: appIdToUse, id: appIdToUse, ...appSnap.data() };
-                }
-            } else {
+            if (d.appId || d.nama) {
                 freshData = { _docId: schoolDocId, id: schoolDocId, ...d };
-                resolvedDocId = schoolDocId;
-            }
-        } else if (appIdToUse && appIdToUse !== schoolDocId) {
-            // Coba dengan appId sebagai docId
-            const appSnap = await window.getDoc(window.doc(window.db, 'superadmin', 'data', 'schools', appIdToUse));
-            if (appSnap.exists()) {
-                resolvedDocId = appIdToUse;
-                freshData = { _docId: appIdToUse, id: appIdToUse, ...appSnap.data() };
             }
         }
+        // Tidak ada fallback ke appId-as-docId — itu penyebab dokumen duplikat
     } catch(e) {
         console.warn('[openDetailSekolah] gagal baca Firestore:', e.message);
     }
@@ -1872,16 +1880,10 @@ window.openDetailSekolah = async function(schoolDocId, schoolData) {
     document.getElementById('ds-empty').style.display = 'none';
 
     try {
-        // Coba baca dari resolvedDocId, fallback ke appId jika kosong
+        // Baca exam_sessions dari resolvedDocId (ID asli Firestore)
         let sessSnap = await getDocs(
             collection(db, 'superadmin', 'data', 'schools', resolvedDocId, 'exam_sessions')
         );
-        if (sessSnap.empty && freshData.appId && freshData.appId !== resolvedDocId) {
-            const altSnap = await getDocs(
-                collection(db, 'superadmin', 'data', 'schools', freshData.appId, 'exam_sessions')
-            );
-            if (!altSnap.empty) sessSnap = altSnap;
-        }
         const rows = [];
         sessSnap.forEach(d => rows.push(d.data()));
 
@@ -1928,8 +1930,8 @@ window.syncManual = async function() {
     const appId       = window._dsActiveAppId;
     const schoolDocId = window._dsActiveDocId;
     if (!appId || !schoolDocId) { alert('Data sekolah tidak ditemukan'); return; }
-    // Selalu tulis ke dokumen dengan appId sebagai docId (konsisten, hindari dokumen hantu)
-    const targetDocId = appId;
+    // Selalu tulis ke docId ASLI Firestore (schoolDocId), bukan appId — mencegah dokumen duplikat
+    const targetDocId = schoolDocId;
 
     const btn      = document.getElementById('btn-sync-manual');
     const icon     = document.getElementById('sync-icon');
@@ -1966,26 +1968,22 @@ window.syncManual = async function() {
 
         // Agregasi per (kelas × sesi)
         const sessions = {};
-        // Untuk agregat sekolah: hitung unik per siswa (hindari double-count)
         let totalSiswaGlobal = 0;
         let sumIntGlobal = 0;
         let totalDQGlobal = 0;
-        let lastExamSessionTs = 0; // timestamp ujian terakhir selesai
-        let lastAccessTs = 0;      // timestamp akses terakhir
+        let lastExamSessionTs = 0;
+        let lastAccessTs = 0;
 
         resultsSnap.forEach(d => {
             const r = d.data();
-
-            // Cari timestamp akses terakhir dari SEMUA record (termasuk yang sedang ujian)
-            const recTs = r.submittedAt || r.finishedAt || r.updatedAt || r.startTime || r.createdAt || 0;
-            if (recTs > lastAccessTs) lastAccessTs = recTs;
-
+            // Timestamp akses dari semua record
+            const recTs = r.submittedAt||r.finishedAt||r.updatedAt||r.startTime||r.createdAt||0;
+            if(recTs > lastAccessTs) lastAccessTs = recTs;
             // Hanya siswa yang sudah selesai
             if (!r.status || r.status === 'sedang_ujian') return;
-
-            // Cari timestamp ujian terakhir selesai
-            const finTs = r.submittedAt || r.finishedAt || r.updatedAt || recTs || 0;
-            if (finTs > lastExamSessionTs) lastExamSessionTs = finTs;
+            // Timestamp ujian selesai
+            const finTs = r.submittedAt||r.finishedAt||r.updatedAt||recTs||0;
+            if(finTs > lastExamSessionTs) lastExamSessionTs = finTs;
             const kelas    = (r.className || 'Tidak Diketahui').trim();
             const sesiId   = r.sesiId  || r.jadwalId || 'tanpa-jadwal';
             const sesiName = r.sesiName || r.paketNama || 'Ujian';
@@ -2039,10 +2037,9 @@ window.syncManual = async function() {
             written++;
         }
 
-        // Hitung avgIntegrity keseluruhan dari total peserta (bukan rata-rata sesi)
         const avgIntGlobal = Math.round(sumIntGlobal / Math.max(totalSiswaGlobal, 1));
 
-        // Update stat agregat di dokumen sekolah
+        // Update stat agregat + lastExamSession + lastAccess ke dokumen sekolah (ID asli)
         const schoolUpdate = {
             appId             : appId,
             totalExamSessions : totalSiswaGlobal,
@@ -2050,9 +2047,8 @@ window.syncManual = async function() {
             disqualifiedCount : totalDQGlobal,
             lastSyncManual    : Date.now()
         };
-        // Isi lastExamSession dan lastAccess dari data exam_results jika ditemukan
-        if (lastExamSessionTs > 0) schoolUpdate.lastExamSession = lastExamSessionTs;
-        if (lastAccessTs > 0)      schoolUpdate.lastAccess      = lastAccessTs;
+        if(lastExamSessionTs > 0) schoolUpdate.lastExamSession = lastExamSessionTs;
+        if(lastAccessTs > 0)      schoolUpdate.lastAccess      = lastAccessTs;
         await setDoc(doc(db, 'superadmin', 'data', 'schools', targetDocId), schoolUpdate, { merge: true });
 
         statusEl.textContent = `✅ Sync selesai — ${written} sesi, ${totalSiswaGlobal} peserta`;
