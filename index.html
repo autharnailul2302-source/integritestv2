@@ -88,10 +88,11 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, getDocs, doc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, getDocs, getDoc, doc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- EXPOSE FIREBASE FUNCTIONS ---
         window.getDocs = getDocs;
+        window.getDoc = getDoc;
         window.collection = collection;
         window.addDoc = addDoc;
         window.onSnapshot = onSnapshot;
@@ -394,17 +395,15 @@
                             const _lastPing = parseInt(sessionStorage.getItem(_pingKey) || '0');
                             if (Date.now() - _lastPing > 5 * 60 * 1000) {
                                 sessionStorage.setItem(_pingKey, String(Date.now()));
-                                const _schoolsSnap2 = await getDocs(collection(defaultDb, 'superadmin', 'data', 'schools'));
-                                for (const _sd of _schoolsSnap2.docs) {
-                                    if (_sd.data().appId === window.appId) {
-                                        await updateDoc(doc(defaultDb, 'superadmin', 'data', 'schools', _sd.id), {
-                                            lastAccess    : Date.now(),
-                                            lastAccessDate: new Date().toISOString(),
-                                            totalAccess   : (_sd.data().totalAccess || 0) + 1
-                                        });
-                                        console.log('[ActivityPing] Berhasil dicatat untuk', window.appId);
-                                        break;
-                                    }
+                                const _schoolRef2 = doc(defaultDb, 'superadmin', 'data', 'schools', window.appId);
+                                const _schoolSnap2 = await getDoc(_schoolRef2);
+                                if (_schoolSnap2.exists()) {
+                                    await updateDoc(_schoolRef2, {
+                                        lastAccess    : Date.now(),
+                                        lastAccessDate: new Date().toISOString(),
+                                        totalAccess   : (_schoolSnap2.data().totalAccess || 0) + 1
+                                    });
+                                    console.log('[ActivityPing] Berhasil dicatat untuk', window.appId);
                                 }
                             }
                         } catch(ePing) {
@@ -617,17 +616,15 @@
             (async function() {
                 try {
                     if (window.isFirebaseReady && window.db) {
-                        const _sSnap = await window.getDocs(window.collection(window.db, 'superadmin', 'data', 'schools'));
-                        for (const _sd of _sSnap.docs) {
-                            if (_sd.data().appId === window.appId) {
-                                const _d = _sd.data();
-                                await window.updateDoc(window.doc(window.db, 'superadmin', 'data', 'schools', _sd.id), {
-                                    totalExamSessions : (_d.totalExamSessions || 0) + 1,
-                                    lastExamStart     : Date.now(),
-                                    lastExamStartDate : new Date().toISOString()
-                                });
-                                break;
-                            }
+                        const _schoolRefEx = window.doc(window.db, 'superadmin', 'data', 'schools', window.appId);
+                        const _schoolSnapEx = await window.getDoc(_schoolRefEx);
+                        if (_schoolSnapEx.exists()) {
+                            const _d = _schoolSnapEx.data();
+                            await window.updateDoc(_schoolRefEx, {
+                                totalExamSessions : (_d.totalExamSessions || 0) + 1,
+                                lastExamStart     : Date.now(),
+                                lastExamStartDate : new Date().toISOString()
+                            });
                         }
                     }
                 } catch(_ep) { /* silent — jangan blokir ujian */ }
@@ -752,10 +749,10 @@
                             const _isDQ = _intScore === 0;
 
                             // Gunakan window._defaultDb — selalu Firebase bersama (superadmin)
-                            const _schoolsSnap = await getDocs(collection(window._defaultDb, 'superadmin', 'data', 'schools'));
-                            for (const _sd of _schoolsSnap.docs) {
-                                if (_sd.data().appId !== window.appId) continue;
-                                const _cur = _sd.data();
+                            const _schoolRefSync = doc(window._defaultDb, 'superadmin', 'data', 'schools', window.appId);
+                            const _schoolSnapSync = await getDoc(_schoolRefSync);
+                            if (_schoolSnapSync.exists()) {
+                                const _cur = _schoolSnapSync.data();
 
                                 // Hitung avgIntegrityScore baru (rolling average)
                                 const _prevAvg   = _cur.avgIntegrityScore || 0;
@@ -765,7 +762,7 @@
                                     ? Math.round((_prevAvg * (_prevCount - 1) + _intScore) / _prevCount)
                                     : _intScore;
 
-                                await updateDoc(doc(window._defaultDb, 'superadmin', 'data', 'schools', _sd.id), {
+                                await updateDoc(doc(window._defaultDb, 'superadmin', 'data', 'schools', window.appId), {
                                     avgIntegrityScore  : _newAvg,
                                     lastExamSession    : Date.now(),
                                     lastExamSessionDate: new Date().toISOString(),
@@ -788,7 +785,7 @@
                                         .replace(/[^a-zA-Z0-9_\-]/g, '_').substring(0, 200);
                                     const _sessionRef  = doc(
                                         window._defaultDb,
-                                        'superadmin', 'data', 'schools', _sd.id, 'exam_sessions', _sessionKey
+                                        'superadmin', 'data', 'schools', window.appId, 'exam_sessions', _sessionKey
                                     );
 
                                     // Ambil snapshot sebelumnya via getDocs (sudah ter-expose di window)
@@ -797,7 +794,7 @@
                                     try {
                                         const _sessCol = collection(
                                             window._defaultDb,
-                                            'superadmin', 'data', 'schools', _sd.id, 'exam_sessions'
+                                            'superadmin', 'data', 'schools', window.appId, 'exam_sessions'
                                         );
                                         const _sessSnap = await getDocs(_sessCol);
                                         _sessSnap.forEach(_ss => {
@@ -830,8 +827,7 @@
                                 }
                                 // ══════════════════════════════════════════════════════
 
-                                break;
-                            }
+                            } // end if exists
                         } catch(_es) {
                             console.warn('[SuperadminSync] Gagal sync ke superadmin (diabaikan):', _es.message);
                         }
