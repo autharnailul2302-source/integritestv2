@@ -307,6 +307,14 @@
         .theme-btn:hover{border-color:#94a3b8;color:#0f172a;}
         body.dark .theme-btn{background:#334155;border-color:#475569;color:#94a3b8;}
         body.dark .theme-btn:hover{background:#475569;color:#f1f5f9;}
+
+        /* ── WILAYAH AUTOCOMPLETE ── */
+        .ac-wrap{position:relative;}
+        .ac-list{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid #bfdbfe;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:9999;max-height:200px;overflow-y:auto;display:none;}
+        .ac-list.show{display:block;}
+        .ac-item{padding:9px 13px;font-size:12.5px;cursor:pointer;color:#0f172a;transition:background .1s;}
+        .ac-item:hover,.ac-item.ac-active{background:#eff6ff;color:#1d4ed8;}
+        .ac-item .ac-sub{font-size:10.5px;color:#94a3b8;margin-left:6px;}
     </style>
 </head>
 <body>
@@ -629,8 +637,8 @@
         <div class="modal-body">
             <div class="fwrap"><label class="flabel">Nama Sekolah *</label><input id="s-nama" class="inp" placeholder="SMAN 1 Surabaya" oninput="autoGenAppId(this.value);previewLink()"></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                <div class="fwrap"><label class="flabel">Kota / Kab *</label><input id="s-kota" class="inp" placeholder="Surabaya"></div>
-                <div class="fwrap"><label class="flabel">Provinsi</label><input id="s-provinsi" class="inp" placeholder="Jawa Timur"></div>
+                <div class="fwrap ac-wrap"><label class="flabel">Kota / Kab *</label><input id="s-kota" class="inp" placeholder="Ketik kota/kabupaten..." autocomplete="off" oninput="acKota(this,'s-provinsi','ac-s-kota')" onkeydown="acKey(event,'ac-s-kota')" onfocus="acKota(this,'s-provinsi','ac-s-kota')"><div class="ac-list" id="ac-s-kota"></div></div>
+                <div class="fwrap ac-wrap"><label class="flabel">Provinsi</label><input id="s-provinsi" class="inp" placeholder="Provinsi (otomatis)" autocomplete="off" readonly style="background:#f1f5f9;cursor:default;"></div>
             </div>
             <div class="fwrap">
                 <label class="flabel">Kode / App ID * <span style="font-weight:400;text-transform:none;letter-spacing:0;">(huruf kecil & angka, otomatis dari nama)</span></label>
@@ -730,8 +738,8 @@
             <input type="hidden" id="es-old-appid">
             <div class="fwrap"><label class="flabel">Nama Sekolah *</label><input id="es-nama" class="inp" placeholder="SMK Negeri 1 Brondong"></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                <div class="fwrap"><label class="flabel">Kota / Kab *</label><input id="es-kota" class="inp" placeholder="Lamongan"></div>
-                <div class="fwrap"><label class="flabel">Provinsi</label><input id="es-provinsi" class="inp" placeholder="Jawa Timur"></div>
+                <div class="fwrap ac-wrap"><label class="flabel">Kota / Kab *</label><input id="es-kota" class="inp" placeholder="Ketik kota/kabupaten..." autocomplete="off" oninput="acKota(this,'es-provinsi','ac-es-kota')" onkeydown="acKey(event,'ac-es-kota')" onfocus="acKota(this,'es-provinsi','ac-es-kota')"><div class="ac-list" id="ac-es-kota"></div></div>
+                <div class="fwrap ac-wrap"><label class="flabel">Provinsi</label><input id="es-provinsi" class="inp" placeholder="Provinsi (otomatis)" autocomplete="off" readonly style="background:#f1f5f9;cursor:default;"></div>
             </div>
             <div class="fwrap">
                 <label class="flabel">Kode / App ID * <span style="font-weight:400;text-transform:none;letter-spacing:0;">(huruf kecil & angka)</span></label>
@@ -1141,43 +1149,14 @@
             const sn=await getDocs(CS());
             SL=[];
             window._SL_MAP={};
-
-            // ── AUTO-CLEANUP DUPLIKAT ──────────────────────────────────────────
-            // Dokumen duplikat = dokumen yang docId-nya == appId (dibuat syncManual lama).
-            // Dokumen asli = auto-ID dari addDoc. Hapus duplikat otomatis.
-            const allDocs=[];
-            sn.forEach(d=>allDocs.push({id:d.id,data:d.data()}));
-            const byAppId={};
-            allDocs.forEach(d=>{
-                const aid=d.data.appId;
-                if(!aid&&!d.data.nama) return; // dokumen hantu, skip
-                if(!aid) return;
-                if(!byAppId[aid]) byAppId[aid]=[];
-                byAppId[aid].push(d);
-            });
-            for(const aid of Object.keys(byAppId)){
-                const group=byAppId[aid];
-                if(group.length>1){
-                    // Hapus semua dokumen yang docId == appId (duplikat dari syncManual lama)
-                    for(const dup of group.filter(d=>d.id===aid)){
-                        try{
-                            await deleteDoc(doc(db,SA,'data','schools',dup.id));
-                            console.log('[loadSK] Hapus duplikat:',dup.id);
-                        }catch(e2){console.warn('[loadSK] Gagal hapus duplikat:',e2.message);}
-                    }
-                }
-            }
-            // Re-load setelah cleanup
-            const sn2=await getDocs(CS());
-            sn2.forEach(d=>{
+            sn.forEach(d=>{
                 const data=d.data();
-                if(!data.appId&&!data.nama) return;
+                // Lewati dokumen hantu yang tidak punya field appId/nama (misal dokumen _init)
+                if(!data.appId && !data.nama) return;
                 const row={_docId:d.id,id:d.id,...data};
                 SL.push(row);
                 window._SL_MAP[row.appId]=row;
             });
-            // ─────────────────────────────────────────────────────────────────
-
             SL.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
             renderSK(SL);
             if(window.filterMonitoring)window.filterMonitoring();
@@ -1830,19 +1809,40 @@ function fmtIntDetail(v){
 }
 
 window.openDetailSekolah = async function(schoolDocId, schoolData) {
-    // schoolDocId adalah Firestore auto-ID asli (dari addDoc). JANGAN diganti dengan appId.
+    // schoolDocId bisa berupa appId (e.g. 'ukktkj') atau Firestore auto-ID
+    // Kita selalu ambil data terbaru dari Firestore supaya stat cards akurat
+    const appIdToUse = schoolData.appId || schoolDocId || null;
+
+    // Tentukan docId yang benar: pakai appId sebagai docId jika dokumen dengan appId ada
+    // (karena sekolah yang dibuat via form simpanSekolah pakai addDoc → auto-ID,
+    //  tapi syncManual perlu tahu docId yang benar)
     let resolvedDocId = schoolDocId;
     let freshData = { ...schoolData };
 
     try {
+        // Coba baca langsung pakai schoolDocId
         const snap = await window.getDoc(window.doc(window.db, 'superadmin', 'data', 'schools', schoolDocId));
         if (snap.exists()) {
             const d = snap.data();
-            if (d.appId || d.nama) {
+            // Jika dokumen ini hanya punya _init (dokumen hantu), coba cari yang benar via appId
+            if (!d.appId && !d.nama && appIdToUse) {
+                const appSnap = await window.getDoc(window.doc(window.db, 'superadmin', 'data', 'schools', appIdToUse));
+                if (appSnap.exists()) {
+                    resolvedDocId = appIdToUse;
+                    freshData = { _docId: appIdToUse, id: appIdToUse, ...appSnap.data() };
+                }
+            } else {
                 freshData = { _docId: schoolDocId, id: schoolDocId, ...d };
+                resolvedDocId = schoolDocId;
+            }
+        } else if (appIdToUse && appIdToUse !== schoolDocId) {
+            // Coba dengan appId sebagai docId
+            const appSnap = await window.getDoc(window.doc(window.db, 'superadmin', 'data', 'schools', appIdToUse));
+            if (appSnap.exists()) {
+                resolvedDocId = appIdToUse;
+                freshData = { _docId: appIdToUse, id: appIdToUse, ...appSnap.data() };
             }
         }
-        // Tidak ada fallback ke appId-as-docId — itu penyebab dokumen duplikat
     } catch(e) {
         console.warn('[openDetailSekolah] gagal baca Firestore:', e.message);
     }
@@ -1880,10 +1880,16 @@ window.openDetailSekolah = async function(schoolDocId, schoolData) {
     document.getElementById('ds-empty').style.display = 'none';
 
     try {
-        // Baca exam_sessions dari resolvedDocId (ID asli Firestore)
+        // Coba baca dari resolvedDocId, fallback ke appId jika kosong
         let sessSnap = await getDocs(
             collection(db, 'superadmin', 'data', 'schools', resolvedDocId, 'exam_sessions')
         );
+        if (sessSnap.empty && freshData.appId && freshData.appId !== resolvedDocId) {
+            const altSnap = await getDocs(
+                collection(db, 'superadmin', 'data', 'schools', freshData.appId, 'exam_sessions')
+            );
+            if (!altSnap.empty) sessSnap = altSnap;
+        }
         const rows = [];
         sessSnap.forEach(d => rows.push(d.data()));
 
@@ -1930,8 +1936,8 @@ window.syncManual = async function() {
     const appId       = window._dsActiveAppId;
     const schoolDocId = window._dsActiveDocId;
     if (!appId || !schoolDocId) { alert('Data sekolah tidak ditemukan'); return; }
-    // Selalu tulis ke docId ASLI Firestore (schoolDocId), bukan appId — mencegah dokumen duplikat
-    const targetDocId = schoolDocId;
+    // Selalu tulis ke dokumen dengan appId sebagai docId (konsisten, hindari dokumen hantu)
+    const targetDocId = appId;
 
     const btn      = document.getElementById('btn-sync-manual');
     const icon     = document.getElementById('sync-icon');
@@ -1968,22 +1974,15 @@ window.syncManual = async function() {
 
         // Agregasi per (kelas × sesi)
         const sessions = {};
+        // Untuk agregat sekolah: hitung unik per siswa (hindari double-count)
         let totalSiswaGlobal = 0;
         let sumIntGlobal = 0;
         let totalDQGlobal = 0;
-        let lastExamSessionTs = 0;
-        let lastAccessTs = 0;
 
         resultsSnap.forEach(d => {
             const r = d.data();
-            // Timestamp akses dari semua record
-            const recTs = r.submittedAt||r.finishedAt||r.updatedAt||r.startTime||r.createdAt||0;
-            if(recTs > lastAccessTs) lastAccessTs = recTs;
             // Hanya siswa yang sudah selesai
             if (!r.status || r.status === 'sedang_ujian') return;
-            // Timestamp ujian selesai
-            const finTs = r.submittedAt||r.finishedAt||r.updatedAt||recTs||0;
-            if(finTs > lastExamSessionTs) lastExamSessionTs = finTs;
             const kelas    = (r.className || 'Tidak Diketahui').trim();
             const sesiId   = r.sesiId  || r.jadwalId || 'tanpa-jadwal';
             const sesiName = r.sesiName || r.paketNama || 'Ujian';
@@ -2037,19 +2036,17 @@ window.syncManual = async function() {
             written++;
         }
 
+        // Hitung avgIntegrity keseluruhan dari total peserta (bukan rata-rata sesi)
         const avgIntGlobal = Math.round(sumIntGlobal / Math.max(totalSiswaGlobal, 1));
 
-        // Update stat agregat + lastExamSession + lastAccess ke dokumen sekolah (ID asli)
-        const schoolUpdate = {
+        // Update stat agregat di dokumen sekolah (targetDocId = appId, sudah dideklarasi di atas)
+        await setDoc(doc(db, 'superadmin', 'data', 'schools', targetDocId), {
             appId             : appId,
             totalExamSessions : totalSiswaGlobal,
             avgIntegrityScore : avgIntGlobal,
             disqualifiedCount : totalDQGlobal,
             lastSyncManual    : Date.now()
-        };
-        if(lastExamSessionTs > 0) schoolUpdate.lastExamSession = lastExamSessionTs;
-        if(lastAccessTs > 0)      schoolUpdate.lastAccess      = lastAccessTs;
-        await setDoc(doc(db, 'superadmin', 'data', 'schools', targetDocId), schoolUpdate, { merge: true });
+        }, { merge: true });
 
         statusEl.textContent = `✅ Sync selesai — ${written} sesi, ${totalSiswaGlobal} peserta`;
         statusEl.style.cssText = 'display:block;font-size:11px;padding:5px 10px;border-radius:8px;font-weight:600;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;';
@@ -2088,6 +2085,344 @@ window.closeDetailSekolah = function() {
     document.getElementById('modal-detail-sekolah').style.display = 'none';
     document.body.style.overflow = '';
 };
+</script>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  DATA WILAYAH INDONESIA — Kab/Kota + Provinsi
+// ══════════════════════════════════════════════════════
+const WILAYAH_ID = [
+  // ACEH
+  ["Kota Banda Aceh","Aceh"],["Kab. Aceh Besar","Aceh"],["Kab. Pidie","Aceh"],
+  ["Kab. Pidie Jaya","Aceh"],["Kab. Bireuen","Aceh"],["Kota Lhokseumawe","Aceh"],
+  ["Kab. Aceh Utara","Aceh"],["Kab. Aceh Timur","Aceh"],["Kota Langsa","Aceh"],
+  ["Kab. Aceh Tamiang","Aceh"],["Kab. Gayo Lues","Aceh"],["Kab. Aceh Tengah","Aceh"],
+  ["Kota Sabang","Aceh"],["Kab. Aceh Barat","Aceh"],["Kab. Nagan Raya","Aceh"],
+  ["Kab. Aceh Barat Daya","Aceh"],["Kab. Aceh Selatan","Aceh"],["Kab. Aceh Singkil","Aceh"],
+  ["Kab. Simeulue","Aceh"],["Kab. Aceh Jaya","Aceh"],["Kota Subulussalam","Aceh"],
+  ["Kab. Bener Meriah","Aceh"],
+  // SUMATERA UTARA
+  ["Kota Medan","Sumatera Utara"],["Kota Binjai","Sumatera Utara"],["Kab. Deli Serdang","Sumatera Utara"],
+  ["Kab. Langkat","Sumatera Utara"],["Kab. Karo","Sumatera Utara"],["Kota Pematangsiantar","Sumatera Utara"],
+  ["Kab. Simalungun","Sumatera Utara"],["Kab. Asahan","Sumatera Utara"],["Kota Tanjungbalai","Sumatera Utara"],
+  ["Kab. Batu Bara","Sumatera Utara"],["Kab. Labuhanbatu","Sumatera Utara"],["Kab. Labuhanbatu Selatan","Sumatera Utara"],
+  ["Kab. Labuhanbatu Utara","Sumatera Utara"],["Kab. Tapanuli Selatan","Sumatera Utara"],
+  ["Kota Padangsidimpuan","Sumatera Utara"],["Kab. Mandailing Natal","Sumatera Utara"],
+  ["Kab. Tapanuli Tengah","Sumatera Utara"],["Kota Sibolga","Sumatera Utara"],
+  ["Kab. Tapanuli Utara","Sumatera Utara"],["Kab. Toba","Sumatera Utara"],
+  ["Kab. Humbang Hasundutan","Sumatera Utara"],["Kab. Dairi","Sumatera Utara"],
+  ["Kab. Pakpak Bharat","Sumatera Utara"],["Kab. Samosir","Sumatera Utara"],
+  ["Kab. Nias","Sumatera Utara"],["Kota Gunungsitoli","Sumatera Utara"],
+  ["Kab. Nias Utara","Sumatera Utara"],["Kab. Nias Barat","Sumatera Utara"],
+  ["Kab. Nias Selatan","Sumatera Utara"],["Kab. Padang Lawas","Sumatera Utara"],
+  ["Kab. Padang Lawas Utara","Sumatera Utara"],["Kab. Serdang Bedagai","Sumatera Utara"],
+  // SUMATERA BARAT
+  ["Kota Padang","Sumatera Barat"],["Kota Bukittinggi","Sumatera Barat"],["Kota Payakumbuh","Sumatera Barat"],
+  ["Kota Padang Panjang","Sumatera Barat"],["Kota Solok","Sumatera Barat"],["Kota Sawahlunto","Sumatera Barat"],
+  ["Kota Pariaman","Sumatera Barat"],["Kab. Agam","Sumatera Barat"],["Kab. Tanah Datar","Sumatera Barat"],
+  ["Kab. Lima Puluh Kota","Sumatera Barat"],["Kab. Sijunjung","Sumatera Barat"],
+  ["Kab. Dharmasraya","Sumatera Barat"],["Kab. Solok","Sumatera Barat"],
+  ["Kab. Solok Selatan","Sumatera Barat"],["Kab. Pesisir Selatan","Sumatera Barat"],
+  ["Kab. Padang Pariaman","Sumatera Barat"],["Kab. Pasaman","Sumatera Barat"],
+  ["Kab. Pasaman Barat","Sumatera Barat"],["Kab. Kepulauan Mentawai","Sumatera Barat"],
+  // RIAU
+  ["Kota Pekanbaru","Riau"],["Kota Dumai","Riau"],["Kab. Kampar","Riau"],
+  ["Kab. Pelalawan","Riau"],["Kab. Siak","Riau"],["Kab. Bengkalis","Riau"],
+  ["Kab. Kepulauan Meranti","Riau"],["Kab. Rokan Hulu","Riau"],["Kab. Rokan Hilir","Riau"],
+  ["Kab. Indragiri Hulu","Riau"],["Kab. Indragiri Hilir","Riau"],["Kab. Kuantan Singingi","Riau"],
+  // KEPULAUAN RIAU
+  ["Kota Batam","Kepulauan Riau"],["Kota Tanjungpinang","Kepulauan Riau"],
+  ["Kab. Bintan","Kepulauan Riau"],["Kab. Karimun","Kepulauan Riau"],
+  ["Kab. Lingga","Kepulauan Riau"],["Kab. Natuna","Kepulauan Riau"],
+  ["Kab. Kepulauan Anambas","Kepulauan Riau"],
+  // JAMBI
+  ["Kota Jambi","Jambi"],["Kab. Muaro Jambi","Jambi"],["Kab. Batanghari","Jambi"],
+  ["Kab. Tebo","Jambi"],["Kab. Bungo","Jambi"],["Kab. Sarolangun","Jambi"],
+  ["Kab. Merangin","Jambi"],["Kab. Kerinci","Jambi"],["Kota Sungai Penuh","Jambi"],
+  ["Kab. Tanjung Jabung Barat","Jambi"],["Kab. Tanjung Jabung Timur","Jambi"],
+  // SUMATERA SELATAN
+  ["Kota Palembang","Sumatera Selatan"],["Kota Prabumulih","Sumatera Selatan"],
+  ["Kota Pagaralam","Sumatera Selatan"],["Kota Lubuklinggau","Sumatera Selatan"],
+  ["Kab. Banyuasin","Sumatera Selatan"],["Kab. Musi Banyuasin","Sumatera Selatan"],
+  ["Kab. Musi Rawas","Sumatera Selatan"],["Kab. Musi Rawas Utara","Sumatera Selatan"],
+  ["Kab. Muara Enim","Sumatera Selatan"],["Kab. Penukal Abab Lematang Ilir","Sumatera Selatan"],
+  ["Kab. Lahat","Sumatera Selatan"],["Kab. Empat Lawang","Sumatera Selatan"],
+  ["Kab. Ogan Komering Ulu","Sumatera Selatan"],["Kab. OKU Selatan","Sumatera Selatan"],
+  ["Kab. OKU Timur","Sumatera Selatan"],["Kab. Ogan Komering Ilir","Sumatera Selatan"],
+  ["Kab. Ogan Ilir","Sumatera Selatan"],
+  // BANGKA BELITUNG
+  ["Kota Pangkalpinang","Bangka Belitung"],["Kab. Bangka","Bangka Belitung"],
+  ["Kab. Bangka Barat","Bangka Belitung"],["Kab. Bangka Tengah","Bangka Belitung"],
+  ["Kab. Bangka Selatan","Bangka Belitung"],["Kab. Belitung","Bangka Belitung"],
+  ["Kab. Belitung Timur","Bangka Belitung"],
+  // BENGKULU
+  ["Kota Bengkulu","Bengkulu"],["Kab. Bengkulu Utara","Bengkulu"],["Kab. Bengkulu Tengah","Bengkulu"],
+  ["Kab. Bengkulu Selatan","Bengkulu"],["Kab. Seluma","Bengkulu"],["Kab. Kaur","Bengkulu"],
+  ["Kab. Kepahiang","Bengkulu"],["Kab. Rejang Lebong","Bengkulu"],["Kab. Lebong","Bengkulu"],
+  ["Kab. Mukomuko","Bengkulu"],
+  // LAMPUNG
+  ["Kota Bandar Lampung","Lampung"],["Kota Metro","Lampung"],["Kab. Lampung Selatan","Lampung"],
+  ["Kab. Lampung Utara","Lampung"],["Kab. Lampung Barat","Lampung"],["Kab. Lampung Tengah","Lampung"],
+  ["Kab. Lampung Timur","Lampung"],["Kab. Tanggamus","Lampung"],["Kab. Pringsewu","Lampung"],
+  ["Kab. Pesawaran","Lampung"],["Kab. Way Kanan","Lampung"],["Kab. Tulangbawang","Lampung"],
+  ["Kab. Tulangbawang Barat","Lampung"],["Kab. Mesuji","Lampung"],["Kab. Pesisir Barat","Lampung"],
+  // BANTEN
+  ["Kota Serang","Banten"],["Kota Cilegon","Banten"],["Kota Tangerang","Banten"],
+  ["Kota Tangerang Selatan","Banten"],["Kab. Serang","Banten"],["Kab. Pandeglang","Banten"],
+  ["Kab. Lebak","Banten"],["Kab. Tangerang","Banten"],
+  // DKI JAKARTA
+  ["Kota Jakarta Pusat","DKI Jakarta"],["Kota Jakarta Utara","DKI Jakarta"],
+  ["Kota Jakarta Barat","DKI Jakarta"],["Kota Jakarta Selatan","DKI Jakarta"],
+  ["Kota Jakarta Timur","DKI Jakarta"],["Kab. Kepulauan Seribu","DKI Jakarta"],
+  // JAWA BARAT
+  ["Kota Bandung","Jawa Barat"],["Kota Bekasi","Jawa Barat"],["Kota Depok","Jawa Barat"],
+  ["Kota Bogor","Jawa Barat"],["Kota Cimahi","Jawa Barat"],["Kota Sukabumi","Jawa Barat"],
+  ["Kota Cirebon","Jawa Barat"],["Kota Tasikmalaya","Jawa Barat"],["Kota Banjar","Jawa Barat"],
+  ["Kab. Bandung","Jawa Barat"],["Kab. Bandung Barat","Jawa Barat"],["Kab. Bekasi","Jawa Barat"],
+  ["Kab. Bogor","Jawa Barat"],["Kab. Cianjur","Jawa Barat"],["Kab. Sukabumi","Jawa Barat"],
+  ["Kab. Purwakarta","Jawa Barat"],["Kab. Karawang","Jawa Barat"],["Kab. Subang","Jawa Barat"],
+  ["Kab. Indramayu","Jawa Barat"],["Kab. Majalengka","Jawa Barat"],["Kab. Sumedang","Jawa Barat"],
+  ["Kab. Cirebon","Jawa Barat"],["Kab. Kuningan","Jawa Barat"],["Kab. Garut","Jawa Barat"],
+  ["Kab. Tasikmalaya","Jawa Barat"],["Kab. Ciamis","Jawa Barat"],["Kab. Pangandaran","Jawa Barat"],
+  // JAWA TENGAH
+  ["Kota Semarang","Jawa Tengah"],["Kota Solo","Jawa Tengah"],["Kota Salatiga","Jawa Tengah"],
+  ["Kota Magelang","Jawa Tengah"],["Kota Pekalongan","Jawa Tengah"],["Kota Tegal","Jawa Tengah"],
+  ["Kab. Semarang","Jawa Tengah"],["Kab. Kendal","Jawa Tengah"],["Kab. Demak","Jawa Tengah"],
+  ["Kab. Grobogan","Jawa Tengah"],["Kab. Blora","Jawa Tengah"],["Kab. Rembang","Jawa Tengah"],
+  ["Kab. Pati","Jawa Tengah"],["Kab. Kudus","Jawa Tengah"],["Kab. Jepara","Jawa Tengah"],
+  ["Kab. Purwodadi","Jawa Tengah"],["Kab. Boyolali","Jawa Tengah"],["Kab. Klaten","Jawa Tengah"],
+  ["Kab. Sukoharjo","Jawa Tengah"],["Kab. Wonogiri","Jawa Tengah"],["Kab. Karanganyar","Jawa Tengah"],
+  ["Kab. Sragen","Jawa Tengah"],["Kab. Magelang","Jawa Tengah"],["Kab. Purworejo","Jawa Tengah"],
+  ["Kab. Wonosobo","Jawa Tengah"],["Kab. Temanggung","Jawa Tengah"],["Kab. Kebumen","Jawa Tengah"],
+  ["Kab. Cilacap","Jawa Tengah"],["Kab. Banyumas","Jawa Tengah"],["Kab. Purbalingga","Jawa Tengah"],
+  ["Kab. Banjarnegara","Jawa Tengah"],["Kab. Pemalang","Jawa Tengah"],["Kab. Pekalongan","Jawa Tengah"],
+  ["Kab. Batang","Jawa Tengah"],["Kab. Tegal","Jawa Tengah"],["Kab. Brebes","Jawa Tengah"],
+  // DI YOGYAKARTA
+  ["Kota Yogyakarta","DI Yogyakarta"],["Kab. Sleman","DI Yogyakarta"],
+  ["Kab. Bantul","DI Yogyakarta"],["Kab. Kulonprogo","DI Yogyakarta"],
+  ["Kab. Gunungkidul","DI Yogyakarta"],
+  // JAWA TIMUR
+  ["Kota Surabaya","Jawa Timur"],["Kota Malang","Jawa Timur"],["Kota Kediri","Jawa Timur"],
+  ["Kota Blitar","Jawa Timur"],["Kota Madiun","Jawa Timur"],["Kota Mojokerto","Jawa Timur"],
+  ["Kota Pasuruan","Jawa Timur"],["Kota Probolinggo","Jawa Timur"],["Kota Batu","Jawa Timur"],
+  ["Kab. Gresik","Jawa Timur"],["Kab. Sidoarjo","Jawa Timur"],["Kab. Mojokerto","Jawa Timur"],
+  ["Kab. Jombang","Jawa Timur"],["Kab. Nganjuk","Jawa Timur"],["Kab. Madiun","Jawa Timur"],
+  ["Kab. Magetan","Jawa Timur"],["Kab. Ngawi","Jawa Timur"],["Kab. Bojonegoro","Jawa Timur"],
+  ["Kab. Tuban","Jawa Timur"],["Kab. Lamongan","Jawa Timur"],["Kab. Bangkalan","Jawa Timur"],
+  ["Kab. Sampang","Jawa Timur"],["Kab. Pamekasan","Jawa Timur"],["Kab. Sumenep","Jawa Timur"],
+  ["Kab. Kediri","Jawa Timur"],["Kab. Tulungagung","Jawa Timur"],["Kab. Blitar","Jawa Timur"],
+  ["Kab. Malang","Jawa Timur"],["Kab. Pasuruan","Jawa Timur"],["Kab. Probolinggo","Jawa Timur"],
+  ["Kab. Lumajang","Jawa Timur"],["Kab. Jember","Jawa Timur"],["Kab. Bondowoso","Jawa Timur"],
+  ["Kab. Situbondo","Jawa Timur"],["Kab. Banyuwangi","Jawa Timur"],["Kab. Ponorogo","Jawa Timur"],
+  ["Kab. Trenggalek","Jawa Timur"],["Kab. Pacitan","Jawa Timur"],
+  // BALI
+  ["Kota Denpasar","Bali"],["Kab. Badung","Bali"],["Kab. Gianyar","Bali"],
+  ["Kab. Tabanan","Jawa Timur"],["Kab. Tabanan","Bali"],["Kab. Jembrana","Bali"],
+  ["Kab. Buleleng","Bali"],["Kab. Bangli","Bali"],["Kab. Klungkung","Bali"],
+  ["Kab. Karangasem","Bali"],
+  // NUSA TENGGARA BARAT
+  ["Kota Mataram","NTB"],["Kota Bima","NTB"],["Kab. Lombok Barat","NTB"],
+  ["Kab. Lombok Tengah","NTB"],["Kab. Lombok Timur","NTB"],["Kab. Lombok Utara","NTB"],
+  ["Kab. Sumbawa","NTB"],["Kab. Sumbawa Barat","NTB"],["Kab. Dompu","NTB"],
+  ["Kab. Bima","NTB"],
+  // NUSA TENGGARA TIMUR
+  ["Kota Kupang","NTT"],["Kab. Kupang","NTT"],["Kab. Timor Tengah Selatan","NTT"],
+  ["Kab. Timor Tengah Utara","NTT"],["Kab. Belu","NTT"],["Kab. Malaka","NTT"],
+  ["Kab. Alor","NTT"],["Kab. Flores Timur","NTT"],["Kab. Sikka","NTT"],
+  ["Kab. Ende","NTT"],["Kab. Ngada","NTT"],["Kab. Nagekeo","NTT"],
+  ["Kab. Manggarai","NTT"],["Kab. Manggarai Barat","NTT"],["Kab. Manggarai Timur","NTT"],
+  ["Kab. Sumba Timur","NTT"],["Kab. Sumba Barat","NTT"],["Kab. Sumba Barat Daya","NTT"],
+  ["Kab. Sumba Tengah","NTT"],["Kab. Lembata","NTT"],["Kab. Rote Ndao","NTT"],
+  ["Kab. Sabu Raijua","NTT"],
+  // KALIMANTAN BARAT
+  ["Kota Pontianak","Kalimantan Barat"],["Kota Singkawang","Kalimantan Barat"],
+  ["Kab. Kubu Raya","Kalimantan Barat"],["Kab. Mempawah","Kalimantan Barat"],
+  ["Kab. Sambas","Kalimantan Barat"],["Kab. Bengkayang","Kalimantan Barat"],
+  ["Kab. Landak","Kalimantan Barat"],["Kab. Sanggau","Kalimantan Barat"],
+  ["Kab. Sekadau","Kalimantan Barat"],["Kab. Sintang","Kalimantan Barat"],
+  ["Kab. Melawi","Kalimantan Barat"],["Kab. Kapuas Hulu","Kalimantan Barat"],
+  ["Kab. Kayong Utara","Kalimantan Barat"],["Kab. Ketapang","Kalimantan Barat"],
+  // KALIMANTAN TENGAH
+  ["Kota Palangka Raya","Kalimantan Tengah"],["Kab. Kotawaringin Barat","Kalimantan Tengah"],
+  ["Kab. Kotawaringin Timur","Kalimantan Tengah"],["Kab. Seruyan","Kalimantan Tengah"],
+  ["Kab. Lamandau","Kalimantan Tengah"],["Kab. Sukamara","Kalimantan Tengah"],
+  ["Kab. Kapuas","Kalimantan Tengah"],["Kab. Pulang Pisau","Kalimantan Tengah"],
+  ["Kab. Katingan","Kalimantan Tengah"],["Kab. Gunung Mas","Kalimantan Tengah"],
+  ["Kab. Barito Selatan","Kalimantan Tengah"],["Kab. Barito Timur","Kalimantan Tengah"],
+  ["Kab. Barito Utara","Kalimantan Tengah"],["Kab. Murung Raya","Kalimantan Tengah"],
+  // KALIMANTAN SELATAN
+  ["Kota Banjarmasin","Kalimantan Selatan"],["Kota Banjarbaru","Kalimantan Selatan"],
+  ["Kab. Banjar","Kalimantan Selatan"],["Kab. Barito Kuala","Kalimantan Selatan"],
+  ["Kab. Tapin","Kalimantan Selatan"],["Kab. Hulu Sungai Selatan","Kalimantan Selatan"],
+  ["Kab. Hulu Sungai Tengah","Kalimantan Selatan"],["Kab. Hulu Sungai Utara","Kalimantan Selatan"],
+  ["Kab. Balangan","Kalimantan Selatan"],["Kab. Tabalong","Kalimantan Selatan"],
+  ["Kab. Kotabaru","Kalimantan Selatan"],["Kab. Tanah Laut","Kalimantan Selatan"],
+  ["Kab. Tanah Bumbu","Kalimantan Selatan"],
+  // KALIMANTAN TIMUR
+  ["Kota Samarinda","Kalimantan Timur"],["Kota Balikpapan","Kalimantan Timur"],
+  ["Kota Bontang","Kalimantan Timur"],["Kab. Kutai Kartanegara","Kalimantan Timur"],
+  ["Kab. Kutai Barat","Kalimantan Timur"],["Kab. Kutai Timur","Kalimantan Timur"],
+  ["Kab. Berau","Kalimantan Timur"],["Kab. Paser","Kalimantan Timur"],
+  ["Kab. Penajam Paser Utara","Kalimantan Timur"],["Kab. Mahakam Ulu","Kalimantan Timur"],
+  // KALIMANTAN UTARA
+  ["Kota Tarakan","Kalimantan Utara"],["Kab. Bulungan","Kalimantan Utara"],
+  ["Kab. Malinau","Kalimantan Utara"],["Kab. Nunukan","Kalimantan Utara"],
+  ["Kab. Tana Tidung","Kalimantan Utara"],
+  // SULAWESI UTARA
+  ["Kota Manado","Sulawesi Utara"],["Kota Bitung","Sulawesi Utara"],
+  ["Kota Tomohon","Sulawesi Utara"],["Kota Kotamobagu","Sulawesi Utara"],
+  ["Kab. Minahasa","Sulawesi Utara"],["Kab. Minahasa Utara","Sulawesi Utara"],
+  ["Kab. Minahasa Selatan","Sulawesi Utara"],["Kab. Minahasa Tenggara","Sulawesi Utara"],
+  ["Kab. Kepulauan Sangihe","Sulawesi Utara"],["Kab. Kepulauan Talaud","Sulawesi Utara"],
+  ["Kab. Kepulauan Sitaro","Sulawesi Utara"],["Kab. Bolaang Mongondow","Sulawesi Utara"],
+  ["Kab. Bolaang Mongondow Utara","Sulawesi Utara"],["Kab. Bolaang Mongondow Timur","Sulawesi Utara"],
+  ["Kab. Bolaang Mongondow Selatan","Sulawesi Utara"],
+  // GORONTALO
+  ["Kota Gorontalo","Gorontalo"],["Kab. Gorontalo","Gorontalo"],
+  ["Kab. Gorontalo Utara","Gorontalo"],["Kab. Boalemo","Gorontalo"],
+  ["Kab. Bone Bolango","Gorontalo"],["Kab. Pohuwato","Gorontalo"],
+  // SULAWESI TENGAH
+  ["Kota Palu","Sulawesi Tengah"],["Kab. Donggala","Sulawesi Tengah"],
+  ["Kab. Sigi","Sulawesi Tengah"],["Kab. Parigi Moutong","Sulawesi Tengah"],
+  ["Kab. Poso","Sulawesi Tengah"],["Kab. Tojo Una-Una","Sulawesi Tengah"],
+  ["Kab. Banggai","Sulawesi Tengah"],["Kab. Banggai Laut","Sulawesi Tengah"],
+  ["Kab. Banggai Kepulauan","Sulawesi Tengah"],["Kab. Touna","Sulawesi Tengah"],
+  ["Kab. Morowali","Sulawesi Tengah"],["Kab. Morowali Utara","Sulawesi Tengah"],
+  ["Kab. Buol","Sulawesi Tengah"],["Kab. Tolitoli","Sulawesi Tengah"],
+  // SULAWESI BARAT
+  ["Kab. Mamuju","Sulawesi Barat"],["Kab. Mamuju Tengah","Sulawesi Barat"],
+  ["Kab. Mamuju Utara","Sulawesi Barat"],["Kab. Majene","Sulawesi Barat"],
+  ["Kab. Polewali Mandar","Sulawesi Barat"],["Kab. Mamasa","Sulawesi Barat"],
+  // SULAWESI SELATAN
+  ["Kota Makassar","Sulawesi Selatan"],["Kota Parepare","Sulawesi Selatan"],
+  ["Kota Palopo","Sulawesi Selatan"],["Kab. Gowa","Sulawesi Selatan"],
+  ["Kab. Maros","Sulawesi Selatan"],["Kab. Pangkajene dan Kepulauan","Sulawesi Selatan"],
+  ["Kab. Barru","Sulawesi Selatan"],["Kab. Bone","Sulawesi Selatan"],
+  ["Kab. Soppeng","Sulawesi Selatan"],["Kab. Wajo","Sulawesi Selatan"],
+  ["Kab. Sinjai","Sulawesi Selatan"],["Kab. Bulukumba","Sulawesi Selatan"],
+  ["Kab. Selayar","Sulawesi Selatan"],["Kab. Bantaeng","Sulawesi Selatan"],
+  ["Kab. Jeneponto","Sulawesi Selatan"],["Kab. Takalar","Sulawesi Selatan"],
+  ["Kab. Enrekang","Sulawesi Selatan"],["Kab. Sidrap","Sulawesi Selatan"],
+  ["Kab. Pinrang","Sulawesi Selatan"],["Kab. Luwu","Sulawesi Selatan"],
+  ["Kab. Luwu Utara","Sulawesi Selatan"],["Kab. Luwu Timur","Sulawesi Selatan"],
+  ["Kab. Toraja Utara","Sulawesi Selatan"],["Kab. Tana Toraja","Sulawesi Selatan"],
+  // SULAWESI TENGGARA
+  ["Kota Kendari","Sulawesi Tenggara"],["Kota Baubau","Sulawesi Tenggara"],
+  ["Kab. Konawe","Sulawesi Tenggara"],["Kab. Konawe Selatan","Sulawesi Tenggara"],
+  ["Kab. Konawe Utara","Sulawesi Tenggara"],["Kab. Konawe Kepulauan","Sulawesi Tenggara"],
+  ["Kab. Kolaka","Sulawesi Tenggara"],["Kab. Kolaka Utara","Sulawesi Tenggara"],
+  ["Kab. Kolaka Timur","Sulawesi Tenggara"],["Kab. Bombana","Sulawesi Tenggara"],
+  ["Kab. Buton","Sulawesi Tenggara"],["Kab. Buton Utara","Sulawesi Tenggara"],
+  ["Kab. Buton Tengah","Sulawesi Tenggara"],["Kab. Buton Selatan","Sulawesi Tenggara"],
+  ["Kab. Muna","Sulawesi Tenggara"],["Kab. Muna Barat","Sulawesi Tenggara"],
+  ["Kab. Wakatobi","Sulawesi Tenggara"],
+  // MALUKU
+  ["Kota Ambon","Maluku"],["Kota Tual","Maluku"],["Kab. Maluku Tengah","Maluku"],
+  ["Kab. Maluku Tenggara","Maluku"],["Kab. Maluku Tenggara Barat","Maluku"],
+  ["Kab. Maluku Barat Daya","Maluku"],["Kab. Buru","Maluku"],["Kab. Buru Selatan","Maluku"],
+  ["Kab. Kepulauan Aru","Maluku"],["Kab. Seram Bagian Barat","Maluku"],
+  ["Kab. Seram Bagian Timur","Maluku"],["Kab. Kepulauan Tanimbar","Maluku"],
+  // MALUKU UTARA
+  ["Kota Ternate","Maluku Utara"],["Kota Tidore Kepulauan","Maluku Utara"],
+  ["Kab. Halmahera Barat","Maluku Utara"],["Kab. Halmahera Utara","Maluku Utara"],
+  ["Kab. Halmahera Timur","Maluku Utara"],["Kab. Halmahera Selatan","Maluku Utara"],
+  ["Kab. Halmahera Tengah","Maluku Utara"],["Kab. Kepulauan Sula","Maluku Utara"],
+  ["Kab. Pulau Morotai","Maluku Utara"],["Kab. Pulau Taliabu","Maluku Utara"],
+  // PAPUA BARAT
+  ["Kota Sorong","Papua Barat"],["Kab. Sorong","Papua Barat"],["Kab. Sorong Selatan","Papua Barat"],
+  ["Kab. Raja Ampat","Papua Barat"],["Kab. Tambrauw","Papua Barat"],["Kab. Maybrat","Papua Barat"],
+  ["Kab. Manokwari","Papua Barat"],["Kab. Manokwari Selatan","Papua Barat"],
+  ["Kab. Pegunungan Arfak","Papua Barat"],["Kab. Teluk Bintuni","Papua Barat"],
+  ["Kab. Teluk Wondama","Papua Barat"],["Kab. Kaimana","Papua Barat"],["Kab. Fakfak","Papua Barat"],
+  // PAPUA BARAT DAYA
+  ["Kota Sorong","Papua Barat Daya"],["Kab. Sorong","Papua Barat Daya"],
+  ["Kab. Sorong Selatan","Papua Barat Daya"],["Kab. Raja Ampat","Papua Barat Daya"],
+  ["Kab. Tambrauw","Papua Barat Daya"],["Kab. Maybrat","Papua Barat Daya"],
+  // PAPUA
+  ["Kota Jayapura","Papua"],["Kab. Jayapura","Papua"],["Kab. Keerom","Papua"],
+  ["Kab. Sarmi","Papua"],["Kab. Biak Numfor","Papua"],["Kab. Kepulauan Yapen","Papua"],
+  ["Kab. Waropen","Papua"],["Kab. Mamberamo Raya","Papua"],["Kab. Nabire","Papua"],
+  ["Kab. Merauke","Papua"],["Kab. Boven Digoel","Papua"],["Kab. Mappi","Papua"],
+  ["Kab. Asmat","Papua"],["Kab. Mimika","Papua"],
+  // PAPUA SELATAN
+  ["Kab. Merauke","Papua Selatan"],["Kab. Boven Digoel","Papua Selatan"],
+  ["Kab. Mappi","Papua Selatan"],["Kab. Asmat","Papua Selatan"],
+  // PAPUA TENGAH
+  ["Kab. Nabire","Papua Tengah"],["Kab. Puncak Jaya","Papua Tengah"],
+  ["Kab. Puncak","Papua Tengah"],["Kab. Paniai","Papua Tengah"],
+  ["Kab. Dogiyai","Papua Tengah"],["Kab. Intan Jaya","Papua Tengah"],
+  ["Kab. Deiyai","Papua Tengah"],
+  // PAPUA PEGUNUNGAN
+  ["Kab. Jayawijaya","Papua Pegunungan"],["Kab. Pegunungan Bintang","Papua Pegunungan"],
+  ["Kab. Tolikara","Papua Pegunungan"],["Kab. Lanny Jaya","Papua Pegunungan"],
+  ["Kab. Mamberamo Tengah","Papua Pegunungan"],["Kab. Nduga","Papua Pegunungan"],
+  ["Kab. Yalimo","Papua Pegunungan"],["Kab. Yahukimo","Papua Pegunungan"],
+];
+
+// Hapus duplikat (karena Bali punya "Kab. Tabanan" dua kali dari typo di atas)
+const _seen = new Set();
+const WILAYAH = WILAYAH_ID.filter(([k,p]) => {
+  const key = k+'|'+p;
+  if(_seen.has(key)) return false;
+  _seen.add(key); return true;
+});
+
+let _acIdx = -1;
+
+function acKota(inp, provId, listId) {
+  const q = inp.value.trim().toLowerCase();
+  const list = document.getElementById(listId);
+  _acIdx = -1;
+  if (!q) { list.classList.remove('show'); return; }
+  const matches = WILAYAH.filter(([k]) => k.toLowerCase().includes(q)).slice(0, 50);
+  if (!matches.length) { list.classList.remove('show'); return; }
+  list.innerHTML = matches.map(([k,p], i) =>
+    `<div class="ac-item" data-kota="${k}" data-prov="${p}" data-idx="${i}"
+      onmousedown="acPilih(event,'${listId}','${provId}')">${k}<span class="ac-sub">${p}</span></div>`
+  ).join('');
+  list.classList.add('show');
+}
+
+function acPilih(e, listId, provId) {
+  e.preventDefault();
+  const item = e.currentTarget;
+  const list = document.getElementById(listId);
+  // Cari input kota berdasarkan list id
+  const inpId = listId.replace('ac-','');
+  const kotaInp = document.getElementById(inpId);
+  if (kotaInp) kotaInp.value = item.dataset.kota;
+  const provInp = document.getElementById(provId);
+  if (provInp) provInp.value = item.dataset.prov;
+  list.classList.remove('show');
+}
+
+function acKey(e, listId) {
+  const list = document.getElementById(listId);
+  const items = list.querySelectorAll('.ac-item');
+  if (!items.length) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    _acIdx = Math.min(_acIdx + 1, items.length - 1);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    _acIdx = Math.max(_acIdx - 1, 0);
+  } else if (e.key === 'Enter' && _acIdx >= 0) {
+    e.preventDefault();
+    items[_acIdx].dispatchEvent(new MouseEvent('mousedown', {bubbles:true}));
+    return;
+  } else if (e.key === 'Escape') {
+    list.classList.remove('show'); return;
+  }
+  items.forEach((it,i) => it.classList.toggle('ac-active', i === _acIdx));
+  if (_acIdx >= 0) items[_acIdx].scrollIntoView({block:'nearest'});
+}
+
+// Tutup dropdown kalau klik di luar
+document.addEventListener('click', e => {
+  if (!e.target.closest('.ac-wrap')) {
+    document.querySelectorAll('.ac-list').forEach(l => l.classList.remove('show'));
+  }
+});
 </script>
 </body>
 </html>
