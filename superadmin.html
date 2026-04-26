@@ -296,6 +296,16 @@
         body.dark .theme-btn{background:#334155;border-color:#475569;color:#94a3b8;}
         body.dark .theme-btn:hover{background:#475569;color:#f1f5f9;}
 
+        /* ── FIREBASE MODE TOGGLE ── */
+        .fb-mode-btn{border-radius:12px;padding:14px 12px;text-align:center;cursor:pointer;transition:all .15s;border:2px solid transparent;user-select:none;}
+        .fb-mode-btn-active{border-color:#3b82f6;background:#eff6ff;color:#1d4ed8;}
+        .fb-mode-btn-inactive{border-color:#e2e8f0;background:#f8fafc;color:#64748b;}
+        .fb-mode-btn:hover{transform:translateY(-1px);}
+        body.dark .fb-mode-btn-active{border-color:#3b82f6;background:#1e3a5f;color:#60a5fa;}
+        body.dark .fb-mode-btn-inactive{border-color:#334155;background:#0f172a;color:#475569;}
+        body.dark #s-fb-info-shared,body.dark #es-fb-info-shared{background:#1e3a5f;border-color:#1d4ed8;color:#93c5fd;}
+        body.dark #s-fb-info-custom,body.dark #es-fb-info-custom{background:#2e1a5e;border-color:#7c3aed;color:#c4b5fd;}
+
         /* ── WILAYAH AUTOCOMPLETE ── */
         .ac-wrap{position:relative;}
         .ac-list{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid #bfdbfe;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:9999;max-height:200px;overflow-y:auto;display:none;}
@@ -482,7 +492,7 @@
                         <button onclick="openModal('modal-sekolah')" class="btn-primary" style="width:auto;padding:10px 16px;font-size:13px;white-space:nowrap;">+ Tambah Sekolah</button>
                     </div>
                     <div class="sw"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="inp" id="search-sekolah" oninput="filterSekolah()" placeholder="Cari nama, kota, atau kode sekolah..."></div>
-                    <div class="card"><div class="tbl-wrap"><table><thead><tr><th>#</th><th>Nama Sekolah</th><th>Kode</th><th>Link Akses</th><th>Status</th><th>Akses Terakhir</th><th>Ujian</th><th>Tanggal Daftar</th><th>Aksi</th></tr></thead><tbody id="tabel-sekolah"><tr><td colspan="7"><div class="empty">Memuat...</div></td></tr></tbody></table></div><div class="pg-wrap" id="pg-sekolah-wrap" style="display:none;"><span class="pg-info" id="pg-sekolah-info"></span><div class="pg-btns" id="pg-sekolah-btns"></div></div></div>
+                    <div class="card"><div class="tbl-wrap"><table><thead><tr><th>#</th><th>Nama Sekolah</th><th>Kode</th><th>Link Akses</th><th>Firebase</th><th>Status</th><th>Akses Terakhir</th><th>Ujian</th><th>Tanggal Daftar</th><th>Aksi</th></tr></thead><tbody id="tabel-sekolah"><tr><td colspan="8"><div class="empty">Memuat...</div></td></tr></tbody></table></div><div class="pg-wrap" id="pg-sekolah-wrap" style="display:none;"><span class="pg-info" id="pg-sekolah-info"></span><div class="pg-btns" id="pg-sekolah-btns"></div></div></div>
                 </div>
 
                 <!-- ADMIN -->
@@ -648,30 +658,39 @@
             <div class="fwrap"><label class="flabel">Kontak / Email PIC</label><input id="s-kontak" class="inp" placeholder="admin@sman1.sch.id"></div>
             <!-- Firebase Config -->
             <div class="fwrap" style="margin-top:4px;">
-                <label class="flabel">Firebase</label>
-                <div style="display:flex;gap:8px;">
+                <label class="flabel">Mode Firebase <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#94a3b8;">— pilih sesuai kebutuhan sekolah</span></label>
+                <div style="display:flex;gap:8px;margin-bottom:8px;">
                     <label style="flex:1;cursor:pointer;">
-                        <input type="radio" name="s-firebase-mode" value="shared" checked onchange="toggleFirebaseInput('s')">
-                        <div id="s-fb-shared-btn" style="border:2px solid #3b82f6;background:#eff6ff;border-radius:10px;padding:10px 12px;text-align:center;">
-                            <div style="font-size:12px;font-weight:800;color:#1d4ed8;">🔗 Firebase Bersama</div>
-                            <div style="font-size:10px;color:#3b82f6;margin-top:2px;">Pakai project default</div>
+                        <input type="radio" name="s-firebase-mode" value="shared" checked onchange="toggleFirebaseInput('s')" style="display:none;">
+                        <div id="s-fb-shared-btn" class="fb-mode-btn fb-mode-btn-active" onclick="document.querySelector('input[name=s-firebase-mode][value=shared]').checked=true;toggleFirebaseInput('s')">
+                            <div style="font-size:18px;margin-bottom:4px;">🔗</div>
+                            <div style="font-size:12px;font-weight:800;">Firebase Bersama</div>
+                            <div style="font-size:10px;margin-top:2px;opacity:.8;">Pakai project INTEGRITEST</div>
                         </div>
                     </label>
                     <label style="flex:1;cursor:pointer;">
-                        <input type="radio" name="s-firebase-mode" value="custom" onchange="toggleFirebaseInput('s')">
-                        <div id="s-fb-custom-btn" style="border:2px solid #e2e8f0;background:#f8fafc;border-radius:10px;padding:10px 12px;text-align:center;">
-                            <div style="font-size:12px;font-weight:800;color:#475569;">🔒 Firebase Sendiri</div>
-                            <div style="font-size:10px;color:#94a3b8;margin-top:2px;">Project Firebase khusus</div>
+                        <input type="radio" name="s-firebase-mode" value="custom" onchange="toggleFirebaseInput('s')" style="display:none;">
+                        <div id="s-fb-custom-btn" class="fb-mode-btn fb-mode-btn-inactive" onclick="document.querySelector('input[name=s-firebase-mode][value=custom]').checked=true;toggleFirebaseInput('s')">
+                            <div style="font-size:18px;margin-bottom:4px;">🔒</div>
+                            <div style="font-size:12px;font-weight:800;">Firebase Sendiri</div>
+                            <div style="font-size:10px;margin-top:2px;opacity:.8;">Project Firebase sekolah</div>
                         </div>
                     </label>
+                </div>
+                <!-- Info box perbedaan -->
+                <div id="s-fb-info-shared" style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:10px 13px;font-size:11px;color:#1e40af;line-height:1.6;">
+                    <strong>🔗 Firebase Bersama</strong> — Data sekolah disimpan di project Firebase utama INTEGRITEST (<span style="font-family:monospace;">waliq-ded98</span>), dipisahkan per sekolah menggunakan <code>appId</code> sebagai namespace. Cocok untuk sekolah yang ingin langsung pakai tanpa konfigurasi tambahan. <strong>Gratis, tidak perlu akun Firebase sendiri.</strong>
+                </div>
+                <div id="s-fb-info-custom" style="display:none;background:#f5f3ff;border:1.5px solid #c4b5fd;border-radius:10px;padding:10px 13px;font-size:11px;color:#5b21b6;line-height:1.6;">
+                    <strong>🔒 Firebase Sendiri</strong> — Data sekolah disimpan di project Firebase milik sekolah sendiri. Cocok untuk sekolah yang ingin data benar-benar terpisah &amp; dikelola mandiri. <strong>Perlu akun Firebase &amp; konfigurasi sendiri.</strong> Salin JSON config dari: Firebase Console → Project Settings → Your apps → SDK setup.
                 </div>
                 <input type="hidden" id="s-firebase-mode-val" value="shared">
             </div>
             <div id="s-firebase-config-wrap" style="display:none;">
                 <div class="fwrap">
-                    <label class="flabel">Firebase Config JSON *</label>
-                    <textarea id="s-firebase-config" class="inp mono" rows="6" style="font-size:10px;resize:vertical;" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'></textarea>
-                    <div style="font-size:10px;color:#94a3b8;margin-top:4px;">Paste JSON dari Firebase Console → Project Settings → Your apps</div>
+                    <label class="flabel">Firebase Config JSON <span style="color:#dc2626;">*</span></label>
+                    <textarea id="s-firebase-config" class="inp mono" rows="6" style="font-size:10px;resize:vertical;" placeholder='{"apiKey":"AIza...","authDomain":"nama-project.firebaseapp.com","projectId":"nama-project","storageBucket":"nama-project.appspot.com","messagingSenderId":"123456789","appId":"1:123:web:abc123"}'></textarea>
+                    <div style="font-size:10px;color:#94a3b8;margin-top:4px;">📌 Firebase Console → Project Settings → Your apps → Config → copy seluruh objek JSON</div>
                 </div>
             </div>
             <div id="modal-sekolah-err" class="err-box"></div>
@@ -748,30 +767,38 @@
             <div class="fwrap"><label class="flabel">Kontak / Email PIC</label><input id="es-kontak" class="inp" placeholder="admin@smkn1brondong.sch.id"></div>
             <!-- Firebase Config -->
             <div class="fwrap" style="margin-top:4px;">
-                <label class="flabel">Firebase</label>
-                <div style="display:flex;gap:8px;">
+                <label class="flabel">Mode Firebase <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#94a3b8;">— pilih sesuai kebutuhan sekolah</span></label>
+                <div style="display:flex;gap:8px;margin-bottom:8px;">
                     <label style="flex:1;cursor:pointer;">
-                        <input type="radio" name="es-firebase-mode" value="shared" checked onchange="toggleFirebaseInput('es')">
-                        <div id="es-fb-shared-btn" style="border:2px solid #3b82f6;background:#eff6ff;border-radius:10px;padding:10px 12px;text-align:center;">
-                            <div style="font-size:12px;font-weight:800;color:#1d4ed8;">🔗 Firebase Bersama</div>
-                            <div style="font-size:10px;color:#3b82f6;margin-top:2px;">Pakai project default</div>
+                        <input type="radio" name="es-firebase-mode" value="shared" checked onchange="toggleFirebaseInput('es')" style="display:none;">
+                        <div id="es-fb-shared-btn" class="fb-mode-btn fb-mode-btn-active" onclick="document.querySelector('input[name=es-firebase-mode][value=shared]').checked=true;toggleFirebaseInput('es')">
+                            <div style="font-size:18px;margin-bottom:4px;">🔗</div>
+                            <div style="font-size:12px;font-weight:800;">Firebase Bersama</div>
+                            <div style="font-size:10px;margin-top:2px;opacity:.8;">Pakai project INTEGRITEST</div>
                         </div>
                     </label>
                     <label style="flex:1;cursor:pointer;">
-                        <input type="radio" name="es-firebase-mode" value="custom" onchange="toggleFirebaseInput('es')">
-                        <div id="es-fb-custom-btn" style="border:2px solid #e2e8f0;background:#f8fafc;border-radius:10px;padding:10px 12px;text-align:center;">
-                            <div style="font-size:12px;font-weight:800;color:#475569;">🔒 Firebase Sendiri</div>
-                            <div style="font-size:10px;color:#94a3b8;margin-top:2px;">Project Firebase khusus</div>
+                        <input type="radio" name="es-firebase-mode" value="custom" onchange="toggleFirebaseInput('es')" style="display:none;">
+                        <div id="es-fb-custom-btn" class="fb-mode-btn fb-mode-btn-inactive" onclick="document.querySelector('input[name=es-firebase-mode][value=custom]').checked=true;toggleFirebaseInput('es')">
+                            <div style="font-size:18px;margin-bottom:4px;">🔒</div>
+                            <div style="font-size:12px;font-weight:800;">Firebase Sendiri</div>
+                            <div style="font-size:10px;margin-top:2px;opacity:.8;">Project Firebase sekolah</div>
                         </div>
                     </label>
+                </div>
+                <div id="es-fb-info-shared" style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:10px 13px;font-size:11px;color:#1e40af;line-height:1.6;">
+                    <strong>🔗 Firebase Bersama</strong> — Data sekolah disimpan di project Firebase utama INTEGRITEST (<span style="font-family:monospace;">waliq-ded98</span>), dipisahkan per sekolah menggunakan <code>appId</code> sebagai namespace. Cocok untuk sekolah yang ingin langsung pakai tanpa konfigurasi tambahan. <strong>Gratis, tidak perlu akun Firebase sendiri.</strong>
+                </div>
+                <div id="es-fb-info-custom" style="display:none;background:#f5f3ff;border:1.5px solid #c4b5fd;border-radius:10px;padding:10px 13px;font-size:11px;color:#5b21b6;line-height:1.6;">
+                    <strong>🔒 Firebase Sendiri</strong> — Data sekolah disimpan di project Firebase milik sekolah sendiri. Cocok untuk sekolah yang ingin data benar-benar terpisah &amp; dikelola mandiri. <strong>Perlu akun Firebase &amp; konfigurasi sendiri.</strong> Salin JSON config dari: Firebase Console → Project Settings → Your apps → SDK setup.
                 </div>
                 <input type="hidden" id="es-firebase-mode-val" value="shared">
             </div>
             <div id="es-firebase-config-wrap" style="display:none;">
                 <div class="fwrap">
-                    <label class="flabel">Firebase Config JSON *</label>
-                    <textarea id="es-firebase-config" class="inp mono" rows="6" style="font-size:10px;resize:vertical;" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'></textarea>
-                    <div style="font-size:10px;color:#94a3b8;margin-top:4px;">Paste JSON dari Firebase Console → Project Settings → Your apps</div>
+                    <label class="flabel">Firebase Config JSON <span style="color:#dc2626;">*</span></label>
+                    <textarea id="es-firebase-config" class="inp mono" rows="6" style="font-size:10px;resize:vertical;" placeholder='{"apiKey":"AIza...","authDomain":"nama-project.firebaseapp.com","projectId":"nama-project","storageBucket":"nama-project.appspot.com","messagingSenderId":"123456789","appId":"1:123:web:abc123"}'></textarea>
+                    <div style="font-size:10px;color:#94a3b8;margin-top:4px;">📌 Firebase Console → Project Settings → Your apps → Config → copy seluruh objek JSON</div>
                 </div>
             </div>
             <div id="modal-edit-sekolah-err" class="err-box"></div>
@@ -1321,11 +1348,15 @@
         const offset=(PG.sk-1)*pp;
         tb.innerHTML=slice.map((s,i)=>{
             const lnk=bLink(s);const dl=s.shortlink||lnk;
+            const fbBadge=s.firebaseMode==='custom'
+                ?'<span style="background:#f5f3ff;border:1px solid #c4b5fd;color:#5b21b6;border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700;white-space:nowrap;">🔒 Sendiri</span>'
+                :'<span style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700;white-space:nowrap;">🔗 Bersama</span>';
             return`<tr data-id="${_e(s.id)}" data-nama="${_e(s.nama)}">
                 <td style="color:#94a3b8;font-size:12px;">${offset+i+1}</td>
                 <td><strong>${_e(s.nama)}</strong><br><span style="font-size:11px;color:#64748b;">${_e(s.kota||'')}${s.provinsi?' · '+_e(s.provinsi):''}</span></td>
                 <td><span class="badge bg-blue mono" style="font-size:11px;">${_e(s.appId)}</span></td>
                 <td style="max-width:180px;"><div style="display:flex;align-items:center;gap:5px;"><span class="mono" style="font-size:10px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;" title="${_e(dl)}">${_e(dl)}</span><button class="btn-sm btn-blue" onclick="copyText('${_e(dl)}')" style="padding:3px 8px;font-size:11px;">Salin</button></div></td>
+                <td>${fbBadge}</td>
                 <td>${sb(s.status)}</td>
                 <td style="font-size:11px;">${fmtAccess(s.lastAccess)}</td>
                 <td style="font-size:11px;color:#475569;font-weight:700;">${s.totalExamSessions||0}x</td>
@@ -1699,6 +1730,7 @@
         </div>
         ${admins.length?`<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:10px;"><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:8px;">Admin Terdaftar</div>${admins.map(a=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span class="mono" style="font-size:12px;font-weight:700;">${_e(a.username)}</span>${a.nama?`<span style="font-size:12px;color:#64748b;">· ${_e(a.nama)}</span>`:''}</div>`).join('')}</div>`:''}
         ${s.kontak?`<div style="font-size:12px;color:#64748b;margin-bottom:6px;">📧 ${_e(s.kontak)}</div>`:''}
+        <div style="margin-bottom:6px;">${(s.firebaseMode==='custom')?'<span style="background:#f5f3ff;border:1px solid #c4b5fd;color:#5b21b6;border-radius:8px;padding:3px 10px;font-size:11px;font-weight:700;">🔒 Firebase Sendiri</span>':'<span style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:8px;padding:3px 10px;font-size:11px;font-weight:700;">🔗 Firebase Bersama</span>'}</div>
         <div style="font-size:11px;color:#94a3b8;">Terdaftar: ${s.createdAt?new Date(s.createdAt).toLocaleString('id-ID'):'—'}</div>`;
         openModal('modal-detail');
     };
@@ -1759,22 +1791,34 @@
         let mode='shared';
         radios.forEach(r=>{if(r.checked)mode=r.value;});
         document.getElementById(`${prefix}-firebase-mode-val`).value=mode;
+
+        // Tampilkan/sembunyikan textarea config
         const wrap=document.getElementById(`${prefix}-firebase-config-wrap`);
         if(wrap) wrap.style.display=mode==='custom'?'block':'none';
-        // Update visual button
+
+        // Tampilkan/sembunyikan info box
+        const infoShared=document.getElementById(`${prefix}-fb-info-shared`);
+        const infoCustom=document.getElementById(`${prefix}-fb-info-custom`);
+        if(infoShared) infoShared.style.display=mode==='shared'?'block':'none';
+        if(infoCustom) infoCustom.style.display=mode==='custom'?'block':'none';
+
+        // Update visual button — pakai class
         const sharedBtn=document.getElementById(`${prefix}-fb-shared-btn`);
         const customBtn=document.getElementById(`${prefix}-fb-custom-btn`);
         if(sharedBtn&&customBtn){
             if(mode==='shared'){
-                sharedBtn.style.cssText='border:2px solid #3b82f6;background:#eff6ff;border-radius:10px;padding:10px 12px;text-align:center;';
-                sharedBtn.querySelector('div').style.color='#1d4ed8';
-                customBtn.style.cssText='border:2px solid #e2e8f0;background:#f8fafc;border-radius:10px;padding:10px 12px;text-align:center;';
-                customBtn.querySelector('div').style.color='#475569';
+                sharedBtn.className='fb-mode-btn fb-mode-btn-active';
+                customBtn.className='fb-mode-btn fb-mode-btn-inactive';
             } else {
-                customBtn.style.cssText='border:2px solid #7c3aed;background:#f5f3ff;border-radius:10px;padding:10px 12px;text-align:center;';
-                customBtn.querySelector('div').style.color='#7c3aed';
-                sharedBtn.style.cssText='border:2px solid #e2e8f0;background:#f8fafc;border-radius:10px;padding:10px 12px;text-align:center;';
-                sharedBtn.querySelector('div').style.color='#475569';
+                sharedBtn.className='fb-mode-btn fb-mode-btn-inactive';
+                customBtn.className='fb-mode-btn fb-mode-btn-active';
+                // Warna ungu untuk custom
+                customBtn.style.borderColor='#7c3aed';
+                customBtn.style.background='#f5f3ff';
+                customBtn.style.color='#5b21b6';
+                sharedBtn.style.borderColor='';
+                sharedBtn.style.background='';
+                sharedBtn.style.color='';
             }
         }
     };</script>
