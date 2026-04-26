@@ -377,6 +377,12 @@
                     </span>
                     <span id="badge-kendala" style="display:none;background:#ef4444;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:99px;display:none;align-items:center;justify-content:center;padding:0 5px;line-height:1;"></span>
                 </div>
+                <div class="nav-item" id="nav-requests" onclick="showSection('requests')" style="justify-content:space-between;">
+                    <span style="display:flex;align-items:center;gap:9px;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.8 19.8 0 01-8.63-3.07A19.5 19.5 0 015 12.84a19.8 19.8 0 01-3.07-8.67A2 2 0 013.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>Permintaan Masuk
+                    </span>
+                    <span id="badge-requests" style="display:none;background:#f59e0b;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:99px;align-items:center;justify-content:center;padding:0 5px;line-height:1;"></span>
+                </div>
             </nav>
             <div class="sb-footer">
                 <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;"><div class="status-dot"></div><span style="font-size:11px;font-weight:700;color:#16a34a;">Firebase Terhubung</span></div>
@@ -604,6 +610,129 @@
                     </div>
                 </div>
 
+            </div>
+
+                <!-- ══════════════════════════════════════
+                     PERMINTAAN MASUK (dari Landing Page)
+                ══════════════════════════════════════ -->
+                <div id="section-requests" class="section fi">
+                    <div class="ph" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                        <div>
+                            <div class="ph-title">📥 Permintaan Masuk</div>
+                            <div class="ph-sub">Permintaan penggunaan INTEGRITEST dari calon sekolah baru</div>
+                        </div>
+                    </div>
+
+                    <!-- Stats -->
+                    <div class="stats-grid" style="margin-bottom:20px;">
+                        <div class="stat-card sc-amber"><div class="stat-lbl">Menunggu</div><div class="stat-val" id="rq-stat-pending" style="color:#d97706;">—</div><div class="stat-desc">Belum diproses</div></div>
+                        <div class="stat-card sc-green"><div class="stat-lbl">Disetujui</div><div class="stat-val" id="rq-stat-approved" style="color:#16a34a;">—</div><div class="stat-desc">Sudah aktif</div></div>
+                        <div class="stat-card sc-red"><div class="stat-lbl">Ditolak</div><div class="stat-val" id="rq-stat-rejected" style="color:#dc2626;">—</div><div class="stat-desc">Tidak memenuhi syarat</div></div>
+                        <div class="stat-card sc-blue"><div class="stat-lbl">Total</div><div class="stat-val" id="rq-stat-total">—</div><div class="stat-desc">Semua permintaan</div></div>
+                    </div>
+
+                    <!-- Filter & Search -->
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+                        <div class="sw" style="flex:1;min-width:180px;margin:0;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input class="inp" id="rq-search" placeholder="Cari nama sekolah atau pemohon..." oninput="renderRequests()">
+                        </div>
+                        <select class="inp" id="rq-filter" style="width:160px;" onchange="renderRequests()">
+                            <option value="">Semua Status</option>
+                            <option value="pending">Menunggu</option>
+                            <option value="approved">Disetujui</option>
+                            <option value="rejected">Ditolak</option>
+                        </select>
+                    </div>
+
+                    <!-- Table -->
+                    <div class="card">
+                        <div class="tbl-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Nama Sekolah</th>
+                                        <th>Pemohon</th>
+                                        <th>Kontak</th>
+                                        <th>Paket</th>
+                                        <th>Siswa</th>
+                                        <th>Masuk</th>
+                                        <th>Status</th>
+                                        <th>Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabel-requests">
+                                    <tr><td colspan="9"><div class="empty">Memuat...</div></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="pg-wrap" id="pg-requests-wrap" style="display:none;">
+                            <span class="pg-info" id="pg-requests-info"></span>
+                            <div class="pg-btns" id="pg-requests-btns"></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- /PERMINTAAN MASUK -->
+
+        </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DETAIL PERMINTAAN -->
+<div id="modal-request-detail" class="modal-ov" onclick="if(event.target===this)closeModal('modal-request-detail')">
+    <div class="modal-box" style="max-width:580px;">
+        <div class="modal-hdr">
+            <div><div class="modal-title" id="rq-detail-judul">Detail Permintaan</div><div class="modal-sub" id="rq-detail-sub">—</div></div>
+            <button class="close-btn" onclick="closeModal('modal-request-detail')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="modal-body" id="rq-detail-body" style="max-height:60vh;overflow-y:auto;"></div>
+        <div class="modal-foot" style="flex-direction:column;gap:12px;">
+            <!-- Approval form -->
+            <div id="rq-approve-form" style="width:100%;display:none;">
+                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px 16px;margin-bottom:14px;">
+                    <div style="font-size:12px;font-weight:800;color:#16a34a;margin-bottom:10px;">✅ Isi Info Persetujuan</div>
+                    <div class="fwrap">
+                        <label class="flabel">Link Tenant / URL Platform *</label>
+                        <input id="rq-tenant-link" class="inp" placeholder="https://app.integritest.id/?s=namaSekolah">
+                    </div>
+                    <div class="fwrap">
+                        <label class="flabel">Username Login Admin Sekolah *</label>
+                        <input id="rq-admin-username" class="inp" placeholder="admin_sman1surabaya">
+                    </div>
+                    <div class="fwrap">
+                        <label class="flabel">Password Login Admin Sekolah *</label>
+                        <input id="rq-admin-password" class="inp" placeholder="Password123!" type="text">
+                    </div>
+                    <div class="fwrap" style="margin-bottom:0;">
+                        <label class="flabel">Pesan Tambahan untuk Pemohon</label>
+                        <textarea id="rq-approve-msg" class="inp" rows="2" placeholder="Selamat! Platform Anda sudah siap..."></textarea>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn-sm btn-green" onclick="approveRequest()" style="flex:1;padding:10px;font-size:13px;">✅ Konfirmasi Setujui & Kirim Info</button>
+                    <button class="btn-sm btn-outline" onclick="document.getElementById('rq-approve-form').style.display='none'">Batal</button>
+                </div>
+            </div>
+            <!-- Rejection form -->
+            <div id="rq-reject-form" style="width:100%;display:none;">
+                <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:14px 16px;margin-bottom:14px;">
+                    <div style="font-size:12px;font-weight:800;color:#dc2626;margin-bottom:10px;">❌ Alasan Penolakan</div>
+                    <div class="fwrap" style="margin-bottom:0;">
+                        <textarea id="rq-reject-reason" class="inp" rows="3" placeholder="Tuliskan alasan penolakan yang akan dikirim ke pemohon..."></textarea>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn-sm btn-red" onclick="rejectRequest()" style="flex:1;padding:10px;font-size:13px;">❌ Konfirmasi Tolak</button>
+                    <button class="btn-sm btn-outline" onclick="document.getElementById('rq-reject-form').style.display='none'">Batal</button>
+                </div>
+            </div>
+            <!-- Action buttons (shown when no form is open) -->
+            <div id="rq-action-btns" style="display:flex;gap:8px;flex-wrap:wrap;width:100%;">
+                <button class="btn-sm btn-green" id="btn-rq-approve" onclick="showApproveForm()" style="flex:1;padding:10px;font-size:13px;">✅ Setujui & Kirim Akses</button>
+                <button class="btn-sm btn-red" id="btn-rq-reject" onclick="showRejectForm()" style="padding:10px;font-size:13px;">❌ Tolak</button>
+                <button class="btn-sm btn-red" id="btn-rq-hapus" onclick="hapusRequest()" style="margin-left:auto;">🗑 Hapus</button>
             </div>
         </div>
     </div>
@@ -851,7 +980,7 @@
 <!-- FIREBASE -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, getDoc, doc, updateDoc, deleteDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, getDoc, doc, updateDoc, deleteDoc, setDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
     const cfg = {apiKey:"AIzaSyAdqApOvuUXrZUO19NfiqZCLSyUYR74w5M",authDomain:"waliq-ded98.firebaseapp.com",projectId:"waliq-ded98",storageBucket:"waliq-ded98.firebasestorage.app",messagingSenderId:"915222555864",appId:"1:915222555864:web:25320841c97661172e3bad"};
@@ -860,7 +989,9 @@
     const auth=getAuth(app);
     // Expose ke window agar script non-module (openDetailSekolah, syncManual) bisa akses
     window.db=db; window.getDocs=getDocs; window.getDoc=getDoc; window.collection=collection; window.doc=doc;
-    window.setDoc=setDoc; window.updateDoc=updateDoc;
+    window.setDoc=setDoc; window.updateDoc=updateDoc; window.deleteDoc=deleteDoc;
+    window.onSnapshot=onSnapshot; window.query=query; window.orderBy=orderBy;
+    window.isFirebaseReady=true;
     // Auth dilakukan saat login — tidak pakai anonymous
 
     const SA='superadmin';
@@ -1824,20 +1955,25 @@
     };</script>
 
 <script>
-    const VALID_SECTIONS=['dashboard','sekolah','admin','monitoring','kendala'];
+    const VALID_SECTIONS=['dashboard','sekolah','admin','monitoring','kendala','requests'];
     function showSection(n){
         if(!VALID_SECTIONS.includes(n))n='dashboard';
         document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
         document.getElementById('section-'+n).classList.add('active');
         document.getElementById('nav-'+n).classList.add('active');
-        const titles={dashboard:'Dashboard',sekolah:'Kelola Sekolah',admin:'Admin Sekolah',monitoring:'Monitoring Aktivitas',kendala:'Laporan Kendala'};
+        const titles={dashboard:'Dashboard',sekolah:'Kelola Sekolah',admin:'Admin Sekolah',monitoring:'Monitoring Aktivitas',kendala:'Laporan Kendala',requests:'Permintaan Masuk'};
         const t=titles[n]||n;
         document.getElementById('topbar-title').textContent=t;
         if(document.getElementById('topbar-title-mob'))document.getElementById('topbar-title-mob').textContent=t;
         // Hilangkan badge saat buka Laporan Kendala
         if(n==='kendala'){
             const badge=document.getElementById('badge-kendala');
+            if(badge) badge.style.display='none';
+        }
+        // Hilangkan badge saat buka Permintaan Masuk
+        if(n==='requests'){
+            const badge=document.getElementById('badge-requests');
             if(badge) badge.style.display='none';
         }
         // Simpan posisi menu di URL hash
@@ -2582,12 +2718,315 @@ function acKey(e, listId) {
   if (_acIdx >= 0) items[_acIdx].scrollIntoView({block:'nearest'});
 }
 
+
 // Tutup dropdown kalau klik di luar
 document.addEventListener('click', e => {
   if (!e.target.closest('.ac-wrap')) {
     document.querySelectorAll('.ac-list').forEach(l => l.classList.remove('show'));
   }
 });
+</script>
+
+<!-- ══════════════════════════════════════════
+     JS: PERMINTAAN MASUK — REQUESTS MODULE
+══════════════════════════════════════════ -->
+<script>
+// State
+let _allRequests = [];
+let _currentRequestId = null;
+let _rqPage = 1;
+const RQ_PER_PAGE = 15;
+
+// ── Listen ke Firestore collection 'requests' ──
+function initRequestsListener() {
+    if (!window.db || !window.collection || !window.onSnapshot || !window.query || !window.orderBy) {
+        // Firebase belum siap — coba lagi
+        setTimeout(initRequestsListener, 1500);
+        return;
+    }
+    try {
+        const q = window.query(
+            window.collection(window.db, 'requests'),
+            window.orderBy('createdAt', 'desc')
+        );
+        window.onSnapshot(q, snap => {
+            _allRequests = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            updateRequestsBadge();
+            renderRequests();
+            updateRequestsStats();
+        }, err => {
+            console.warn('[Requests] Snapshot error:', err.message);
+        });
+    } catch(e) {
+        console.warn('[Requests] initRequestsListener error:', e);
+    }
+}
+
+// Badge di sidebar
+function updateRequestsBadge() {
+    const pending = _allRequests.filter(r => r.status === 'pending').length;
+    const badge = document.getElementById('badge-requests');
+    if (!badge) return;
+    if (pending > 0) {
+        badge.textContent = pending > 99 ? '99+' : pending;
+        badge.style.display = 'inline-flex';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+// Stats
+function updateRequestsStats() {
+    const total    = _allRequests.length;
+    const pending  = _allRequests.filter(r => r.status === 'pending').length;
+    const approved = _allRequests.filter(r => r.status === 'approved').length;
+    const rejected = _allRequests.filter(r => r.status === 'rejected').length;
+    const set = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
+    set('rq-stat-total', total);
+    set('rq-stat-pending', pending);
+    set('rq-stat-approved', approved);
+    set('rq-stat-rejected', rejected);
+}
+
+// Render table
+function renderRequests() {
+    const q   = (document.getElementById('rq-search')?.value || '').toLowerCase();
+    const fil = document.getElementById('rq-filter')?.value || '';
+    let list  = _allRequests.filter(r => {
+        if (fil && r.status !== fil) return false;
+        if (q) {
+            const haystack = (r.sekolah + ' ' + r.nama + ' ' + r.email + ' ' + r.kota).toLowerCase();
+            if (!haystack.includes(q)) return false;
+        }
+        return true;
+    });
+
+    const total = list.length;
+    const pages = Math.max(1, Math.ceil(total / RQ_PER_PAGE));
+    if (_rqPage > pages) _rqPage = pages;
+    const slice = list.slice((_rqPage - 1) * RQ_PER_PAGE, _rqPage * RQ_PER_PAGE);
+
+    const tbody = document.getElementById('tabel-requests');
+    if (!tbody) return;
+
+    if (!slice.length) {
+        tbody.innerHTML = `<tr><td colspan="9"><div class="empty">Tidak ada permintaan${fil ? ' dengan status ini' : ''}</div></td></tr>`;
+        document.getElementById('pg-requests-wrap').style.display = 'none';
+        return;
+    }
+
+    const paketLabel = { starter:'Starter', pro:'Pro', enterprise:'Dinas/Yayasan', tanya:'Konsultasi', '':'—' };
+    const statusBadge = {
+        pending:  '<span class="badge bg-amber">⏳ Menunggu</span>',
+        approved: '<span class="badge bg-green">✅ Disetujui</span>',
+        rejected: '<span class="badge bg-red">❌ Ditolak</span>',
+    };
+
+    tbody.innerHTML = slice.map((r, i) => {
+        const idx   = (_rqPage - 1) * RQ_PER_PAGE + i + 1;
+        const date  = r.createdAt?.toDate ? r.createdAt.toDate().toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'}) : '—';
+        const badge = statusBadge[r.status] || `<span class="badge bg-blue">${r.status}</span>`;
+        const esc   = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return `<tr>
+            <td style="color:#94a3b8;font-size:12px;">${idx}</td>
+            <td><div style="font-weight:700;font-size:13px;">${esc(r.sekolah)}</div><div style="font-size:11px;color:#94a3b8;">${esc(r.kota)}, ${esc(r.provinsi)}</div></td>
+            <td><div style="font-size:13px;font-weight:600;">${esc(r.nama)}</div><div style="font-size:11px;color:#94a3b8;">${esc(r.jabatan||'')}</div></td>
+            <td><div style="font-size:12px;">${esc(r.email)}</div><div style="font-size:11px;color:#94a3b8;">${esc(r.wa)}</div></td>
+            <td><span style="font-size:12px;font-weight:600;">${paketLabel[r.paket]||esc(r.paket)||'—'}</span></td>
+            <td style="font-size:12px;">${esc(r.siswa)||'—'}</td>
+            <td style="font-size:12px;color:#64748b;">${date}</td>
+            <td>${badge}</td>
+            <td><button class="btn-sm btn-blue" onclick="openRequestDetail('${r.id}')">Detail</button></td>
+        </tr>`;
+    }).join('');
+
+    // Pagination
+    const pgWrap = document.getElementById('pg-requests-wrap');
+    const pgInfo = document.getElementById('pg-requests-info');
+    const pgBtns = document.getElementById('pg-requests-btns');
+    if (total > RQ_PER_PAGE) {
+        pgWrap.style.display = 'flex';
+        pgInfo.textContent = `${(_rqPage-1)*RQ_PER_PAGE+1}–${Math.min(_rqPage*RQ_PER_PAGE,total)} dari ${total}`;
+        let html = `<button class="pg-btn" ${_rqPage<=1?'disabled':''} onclick="_rqPage--;renderRequests()">‹</button>`;
+        for (let p = Math.max(1,_rqPage-2); p <= Math.min(pages,_rqPage+2); p++) {
+            html += `<button class="pg-btn ${p===_rqPage?'active':''}" onclick="_rqPage=${p};renderRequests()">${p}</button>`;
+        }
+        html += `<button class="pg-btn" ${_rqPage>=pages?'disabled':''} onclick="_rqPage++;renderRequests()">›</button>`;
+        pgBtns.innerHTML = html;
+    } else {
+        pgWrap.style.display = 'none';
+    }
+}
+
+// Buka detail
+function openRequestDetail(id) {
+    const r = _allRequests.find(x => x.id === id);
+    if (!r) return;
+    _currentRequestId = id;
+
+    const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const date = r.createdAt?.toDate ? r.createdAt.toDate().toLocaleString('id-ID') : '—';
+    const paketLabel = { starter:'Starter (Gratis 30 hari)', pro:'Pro (Berbayar)', enterprise:'Dinas / Yayasan (Custom)', tanya:'Ingin konsultasi dulu', '':'—' };
+    const statusColor = { pending:'#d97706', approved:'#16a34a', rejected:'#dc2626' };
+    const statusLabel = { pending:'⏳ Menunggu Review', approved:'✅ Sudah Disetujui', rejected:'❌ Ditolak' };
+
+    document.getElementById('rq-detail-judul').textContent = r.sekolah || 'Detail Permintaan';
+    document.getElementById('rq-detail-sub').textContent = `${r.kota}, ${r.provinsi} — ${date}`;
+
+    document.getElementById('rq-detail-body').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;">
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:3px;">Nama Sekolah</div>
+                <div style="font-size:14px;font-weight:800;">${esc(r.sekolah)}</div>
+            </div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;">
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:3px;">Wilayah</div>
+                <div style="font-size:13px;font-weight:600;">${esc(r.kota)}, ${esc(r.provinsi)}</div>
+            </div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;">
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:3px;">PIC / Pemohon</div>
+                <div style="font-size:13px;font-weight:700;">${esc(r.nama)}</div>
+                <div style="font-size:11px;color:#94a3b8;">${esc(r.jabatan||'')}</div>
+            </div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;">
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:3px;">Kontak</div>
+                <div style="font-size:12px;font-weight:600;">${esc(r.email)}</div>
+                <div style="font-size:12px;color:#64748b;">📱 ${esc(r.wa)}</div>
+            </div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;">
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:3px;">Paket Diminati</div>
+                <div style="font-size:13px;font-weight:700;">${paketLabel[r.paket]||esc(r.paket)||'—'}</div>
+            </div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;">
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:3px;">Est. Jumlah Siswa</div>
+                <div style="font-size:13px;font-weight:700;">${esc(r.siswa)||'—'}</div>
+            </div>
+        </div>
+        ${r.pesan ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px;margin-bottom:14px;">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#92400e;margin-bottom:5px;">Pesan dari Pemohon</div>
+            <div style="font-size:13px;color:#78350f;line-height:1.6;">${esc(r.pesan)}</div>
+        </div>` : ''}
+        <div style="background:${r.status==='approved'?'#f0fdf4':r.status==='rejected'?'#fef2f2':'#fff7ed'};border:1px solid ${r.status==='approved'?'#bbf7d0':r.status==='rejected'?'#fecaca':'#fde68a'};border-radius:10px;padding:12px;margin-bottom:14px;">
+            <div style="font-size:11px;font-weight:800;color:${statusColor[r.status]||'#64748b'};">${statusLabel[r.status]||r.status}</div>
+            ${r.tenantLink ? `<div style="margin-top:8px;"><div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;margin-bottom:3px;">Link Tenant</div><div style="font-size:12px;font-weight:600;color:#1d4ed8;word-break:break-all;">${esc(r.tenantLink)}</div></div>` : ''}
+            ${r.adminUsername ? `<div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px;"><div><div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Username Admin</div><div style="font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;">${esc(r.adminUsername)}</div></div><div><div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Password Admin</div><div style="font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;">${esc(r.adminPassword||'—')}</div></div></div>` : ''}
+            ${r.approvalMsg ? `<div style="margin-top:8px;font-size:12px;color:#64748b;font-style:italic;">${esc(r.approvalMsg)}</div>` : ''}
+            ${r.rejectReason ? `<div style="margin-top:6px;font-size:13px;color:#dc2626;">${esc(r.rejectReason)}</div>` : ''}
+        </div>
+    `;
+
+    // Tampilkan/sembunyikan tombol aksi sesuai status
+    const actionBtns = document.getElementById('rq-action-btns');
+    const approveBtn = document.getElementById('btn-rq-approve');
+    const rejectBtn  = document.getElementById('btn-rq-reject');
+    actionBtns.style.display = 'flex';
+    document.getElementById('rq-approve-form').style.display = 'none';
+    document.getElementById('rq-reject-form').style.display = 'none';
+
+    if (r.status === 'approved') {
+        approveBtn.style.display = 'none';
+        rejectBtn.style.display  = 'none';
+    } else if (r.status === 'rejected') {
+        approveBtn.style.display = 'inline-flex';
+        approveBtn.textContent   = '✅ Setujui Ulang';
+        rejectBtn.style.display  = 'none';
+    } else {
+        approveBtn.style.display = 'inline-flex';
+        approveBtn.textContent   = '✅ Setujui & Kirim Akses';
+        rejectBtn.style.display  = 'inline-flex';
+    }
+
+    // Pre-fill link preview jika sudah ada
+    const linkInp = document.getElementById('rq-tenant-link');
+    if (linkInp && r.tenantLink) linkInp.value = r.tenantLink;
+    const unInp = document.getElementById('rq-admin-username');
+    if (unInp && r.adminUsername) unInp.value = r.adminUsername;
+    const pwInp = document.getElementById('rq-admin-password');
+    if (pwInp && r.adminPassword) pwInp.value = r.adminPassword;
+
+    openModal('modal-request-detail');
+}
+
+function showApproveForm() {
+    document.getElementById('rq-action-btns').style.display = 'none';
+    document.getElementById('rq-reject-form').style.display = 'none';
+    document.getElementById('rq-approve-form').style.display = 'block';
+}
+function showRejectForm() {
+    document.getElementById('rq-action-btns').style.display = 'none';
+    document.getElementById('rq-approve-form').style.display = 'none';
+    document.getElementById('rq-reject-form').style.display = 'block';
+}
+
+async function approveRequest() {
+    if (!_currentRequestId) return;
+    const link = document.getElementById('rq-tenant-link')?.value?.trim();
+    const user = document.getElementById('rq-admin-username')?.value?.trim();
+    const pass = document.getElementById('rq-admin-password')?.value?.trim();
+    const msg  = document.getElementById('rq-approve-msg')?.value?.trim();
+    if (!link || !user || !pass) {
+        showToast('Harap isi Link Tenant, Username, dan Password!', 'err');
+        return;
+    }
+    try {
+        await window.updateDoc(window.doc(window.db, 'requests', _currentRequestId), {
+            status:        'approved',
+            tenantLink:    link,
+            adminUsername: user,
+            adminPassword: pass,
+            approvalMsg:   msg || '',
+            approvedAt:    new Date(),
+        });
+        closeModal('modal-request-detail');
+        showToast('✅ Permintaan disetujui! Info akses tersimpan.');
+    } catch(e) {
+        console.error(e);
+        showToast('Gagal menyimpan: ' + e.message, 'err');
+    }
+}
+
+async function rejectRequest() {
+    if (!_currentRequestId) return;
+    const reason = document.getElementById('rq-reject-reason')?.value?.trim();
+    if (!reason) {
+        showToast('Harap isi alasan penolakan.', 'err');
+        return;
+    }
+    try {
+        await window.updateDoc(window.doc(window.db, 'requests', _currentRequestId), {
+            status:       'rejected',
+            rejectReason: reason,
+            rejectedAt:   new Date(),
+        });
+        closeModal('modal-request-detail');
+        showToast('❌ Permintaan ditolak.');
+    } catch(e) {
+        console.error(e);
+        showToast('Gagal menyimpan: ' + e.message, 'err');
+    }
+}
+
+async function hapusRequest() {
+    if (!_currentRequestId) return;
+    if (!confirm('Hapus permintaan ini? Data tidak bisa dikembalikan.')) return;
+    try {
+        await window.deleteDoc(window.doc(window.db, 'requests', _currentRequestId));
+        closeModal('modal-request-detail');
+        showToast('🗑 Permintaan dihapus.');
+    } catch(e) {
+        console.error(e);
+        showToast('Gagal menghapus: ' + e.message, 'err');
+    }
+}
+
+// Inisialisasi listener setelah Firebase siap
+(function waitFirebaseForRequests() {
+    if (window.isFirebaseReady && window.db) {
+        initRequestsListener();
+    } else {
+        setTimeout(waitFirebaseForRequests, 800);
+    }
+})();
 </script>
 </body>
 </html>
