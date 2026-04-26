@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INTEGRITEST — Platform Ujian Digital yang Aman & Terpercaya</title>
+    <link rel="icon" type="image/png" href="images/favicon1.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        const firebaseConfig = {
+            apiKey: "AIzaSyAdqApOvuUXrZUO19NfiqZCLSyUYR74w5M",
+            authDomain: "waliq-ded98.firebaseapp.com",
+            projectId: "waliq-ded98",
+            storageBucket: "waliq-ded98.firebasestorage.app",
+            messagingSenderId: "915222555864",
+            appId: "1:915222555864:web:25320841c97661172e3bad"
+        };
+        let db = null;
+        try {
+            const app = initializeApp(firebaseConfig, "landing");
+            db = getFirestore(app);
+            window._landingDb = db;
+            window._fbReady = true;
+        } catch(e) {
+            window._fbReady = false;
+        }
+        window._addRequest = async function(data) {
+            if (!db) throw new Error('Firebase belum dikonfigurasi');
+            return await addDoc(collection(db, 'requests'), { ...data, status: 'pending', createdAt: serverTimestamp() });
+        };
+    </script>
+
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { font-size: 15px; scroll-behavior: smooth; }
+        body { font-family: 'DM Sans', sans-serif; background: #f9fafb; color: #111827; line-height: 1.6; overflow-x: hidden; }
+
+        :root {
+            --blue: #2563eb;
+            --blue-dark: #1d4ed8;
+            --blue-light: #eff6ff;
+            --indigo: #4f46e5;
+            --navy: #0f172a;
+            --slate: #6b7280;
+            --border: #e5e7eb;
+            --white: #ffffff;
+            --green: #16a34a;
+            --max-w: 1200px;
+        }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+
+        /* ── NAVBAR ── */
+        .navbar {
+            position: sticky; top: 0; z-index: 200;
+            background: rgba(255,255,255,0.97);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            height: 64px;
+            display: flex; align-items: center;
+            padding: 0 max(20px, calc(50vw - 600px));
+        }
+        .nav-inner { display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: var(--max-w); margin: 0 auto; }
+        .nav-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+        .nav-brand img { height: 32px; width: auto; }
+        .nav-brand-name { font-family: 'Sora', sans-serif; font-size: 16px; font-weight: 800; letter-spacing: -.02em; }
+        .nav-brand-name .w { color: #fff; }
+        .nav-brand-name .c { color: #38bdf8; }
+        .nav-badge { font-size: 10px; font-weight: 700; background: var(--blue-light); color: var(--blue); border: 1px solid #bfdbfe; border-radius: 99px; padding: 2px 8px; }
+        .nav-links { display: flex; align-items: center; gap: 2px; }
+        .nav-link { font-size: 13.5px; font-weight: 500; color: var(--slate); padding: 7px 13px; border-radius: 8px; cursor: pointer; text-decoration: none; transition: all .15s; border: none; background: none; font-family: inherit; }
+        .nav-link:hover { color: var(--navy); background: #f3f4f6; }
+        .nav-cta { background: var(--blue); color: #fff; padding: 9px 18px; border-radius: 10px; font-size: 13.5px; font-weight: 700; cursor: pointer; text-decoration: none; transition: all .15s; border: none; font-family: 'Sora', sans-serif; }
+        .nav-cta:hover { background: var(--blue-dark); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(37,99,235,.3); }
+        .mob-btn { display: none; width: 36px; height: 36px; border: 1.5px solid var(--border); border-radius: 8px; background: #fff; cursor: pointer; align-items: center; justify-content: center; color: var(--slate); }
+
+        /* ── HERO ── */
+        .hero {
+            background: linear-gradient(135deg, #0f1d5c 0%, #1e3a8a 50%, #1e1b4b 100%);
+            padding: 56px max(20px, calc(50vw - 600px)) 0;
+            overflow: hidden;
+            position: relative;
+        }
+        .hero-bg-dots { position: absolute; inset: 0; opacity: .04; background-image: radial-gradient(circle, #fff 1px, transparent 1px); background-size: 28px 28px; pointer-events: none; }
+        .hero-glow { position: absolute; top: -150px; right: 5%; width: 500px; height: 500px; background: radial-gradient(circle, rgba(99,102,241,.3) 0%, transparent 70%); pointer-events: none; }
+        .hero-inner { display: grid; grid-template-columns: 1fr 1.1fr; gap: 20px; align-items: flex-end; max-width: var(--max-w); margin: 0 auto; }
+        .hero-content { padding-bottom: 48px; }
+        .hero-pill { display: inline-flex; align-items: center; gap: 7px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18); border-radius: 99px; padding: 5px 14px 5px 8px; margin-bottom: 24px; }
+        .hero-pill-dot { width: 18px; height: 18px; background: #22c55e; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .hero-pill-text { font-size: 12px; font-weight: 600; color: rgba(255,255,255,.9); }
+        .hero-title { font-family: 'Sora', sans-serif; font-size: clamp(26px, 3.5vw, 42px); font-weight: 800; color: #fff; line-height: 1.15; letter-spacing: -.03em; margin-bottom: 16px; }
+        .hero-title em { font-style: normal; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .hero-tagline { font-size: 13px; font-weight: 500; color: rgba(255,255,255,.6); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 16px; }
+        .hero-desc { font-size: 15.5px; color: rgba(255,255,255,.72); line-height: 1.75; margin-bottom: 32px; max-width: 480px; }
+        .hero-desc strong { color: #93c5fd; font-weight: 600; }
+        .hero-free-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(34,197,94,.15); border: 1px solid rgba(34,197,94,.35); border-radius: 10px; padding: 8px 14px; margin-bottom: 28px; }
+        .hero-free-badge span { font-size: 13px; font-weight: 700; color: #4ade80; }
+        .hero-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+        .btn-primary { display: inline-flex; align-items: center; gap: 8px; background: #fff; color: var(--blue-dark); padding: 13px 22px; border-radius: 11px; font-size: 14px; font-weight: 700; cursor: pointer; text-decoration: none; transition: all .2s; font-family: 'Sora', sans-serif; border: none; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,0,0,.25); }
+        .btn-ghost { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); color: #fff; padding: 13px 20px; border-radius: 11px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; transition: all .2s; }
+        .btn-ghost:hover { background: rgba(255,255,255,.18); }
+        .hero-stats { display: flex; align-items: center; gap: 24px; }
+        .hero-stat .val { font-family: 'Sora', sans-serif; font-size: 26px; font-weight: 800; color: #fff; line-height: 1; }
+        .hero-stat .lbl { font-size: 11.5px; color: rgba(255,255,255,.5); font-weight: 500; margin-top: 3px; }
+        .hero-divider { width: 1px; height: 36px; background: rgba(255,255,255,.15); }
+        .hero-image-wrap { display: flex; align-items: flex-end; justify-content: flex-end; position: relative; margin-right: calc(-1 * max(20px, calc(50vw - 600px))); opacity: 0; transform: translateX(60px); transition: opacity .8s cubic-bezier(.22,1,.36,1), transform .8s cubic-bezier(.22,1,.36,1); }
+        .hero-image-wrap.in { opacity: 1; transform: translateX(0); }
+        .hero-image-wrap img { width: 100%; max-width: 680px; height: auto; object-fit: contain; object-position: bottom; filter: drop-shadow(0 -20px 60px rgba(99,102,241,.4)); display: block; }
+
+        /* ── SECTION ── */
+        .section { padding: 88px max(20px, calc(50vw - 600px)); }
+        .section.alt { background: #fff; }
+        .section.dark { background: linear-gradient(135deg, #0f1d5c 0%, #1e3a8a 50%, #1e1b4b 100%); }
+        .section-inner { max-width: var(--max-w); margin: 0 auto; }
+        .section-header { margin-bottom: 56px; }
+        .section-header.center { text-align: center; }
+        .sec-label { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--blue); margin-bottom: 12px; }
+        .sec-label::before { content: ''; width: 18px; height: 2px; background: var(--blue); border-radius: 1px; }
+        .section-header.center .sec-label { justify-content: center; }
+        .section-header.center .sec-label::before { display: none; }
+        .sec-title { font-family: 'Sora', sans-serif; font-size: clamp(22px, 3vw, 34px); font-weight: 800; color: var(--navy); letter-spacing: -.025em; line-height: 1.18; margin-bottom: 14px; }
+        .sec-desc { font-size: 15px; color: var(--slate); max-width: 540px; line-height: 1.75; }
+        .section-header.center .sec-desc { margin: 0 auto; }
+
+        /* ── FEATURES ── */
+        .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+        .feat-card { background: #fff; border: 1.5px solid var(--border); border-radius: 16px; padding: 24px 22px; transition: all .2s; position: relative; overflow: hidden; }
+        .feat-card::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--blue), var(--indigo)); opacity: 0; transition: opacity .2s; }
+        .feat-card:hover { border-color: #bfdbfe; transform: translateY(-3px); box-shadow: 0 16px 48px rgba(37,99,235,.1); }
+        .feat-card:hover::after { opacity: 1; }
+        .feat-icon-wrap { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+        .feat-title { font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+        .feat-desc { font-size: 13px; color: var(--slate); line-height: 1.7; margin-bottom: 14px; }
+        .feat-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 99px; }
+
+        /* ── HOW IT WORKS ── */
+        .steps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; position: relative; }
+        .steps-grid::after { content: ''; position: absolute; top: 28px; left: calc(12.5% + 14px); right: calc(12.5% + 14px); height: 2px; background: linear-gradient(90deg, var(--blue), var(--indigo)); z-index: 0; }
+        .step-item { text-align: center; padding: 0 16px; position: relative; z-index: 1; }
+        .step-num { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), var(--indigo)); color: #fff; font-family: 'Sora', sans-serif; font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; box-shadow: 0 6px 20px rgba(37,99,235,.35); }
+        .step-title { font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+        .step-desc { font-size: 13px; color: var(--slate); line-height: 1.65; }
+
+        /* ── PRICING ── */
+        .pricing-notice { background: linear-gradient(135deg, rgba(34,197,94,.08), rgba(16,185,129,.06)); border: 1.5px solid rgba(34,197,94,.25); border-radius: 14px; padding: 18px 22px; margin-bottom: 36px; display: flex; align-items: flex-start; gap: 14px; }
+        .pricing-notice-icon { font-size: 24px; flex-shrink: 0; margin-top: 2px; }
+        .pricing-notice-title { font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 700; color: #15803d; margin-bottom: 4px; }
+        .pricing-notice-desc { font-size: 13px; color: #166534; line-height: 1.6; }
+
+        /* Pricing table layout */
+        .pricing-table-wrap { border: 1.5px solid var(--border); border-radius: 18px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,.06); }
+        .pricing-table { width: 100%; border-collapse: collapse; background: #fff; }
+        .pricing-table thead tr { background: linear-gradient(135deg, #1e3a8a, #2563eb); }
+        .pricing-table thead th { padding: 20px; font-size: 13px; font-weight: 700; color: rgba(255,255,255,.7); text-align: left; }
+        .pricing-table thead th:not(:first-child) { text-align: center; font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 800; color: #fff; }
+        .pricing-table thead th.featured-col { background: rgba(255,255,255,.1); }
+        .pt-col-name { font-family: 'Sora', sans-serif; font-size: 16px; font-weight: 800; display: block; margin-bottom: 4px; }
+        .pt-col-sub { font-size: 12px; font-weight: 500; color: rgba(255,255,255,.6); display: block; }
+        .pt-col-badge { display: inline-block; background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; font-size: 10px; font-weight: 800; padding: 2px 10px; border-radius: 99px; margin-top: 6px; }
+        .pricing-table tbody tr { border-bottom: 1px solid #f3f4f6; transition: background .12s; }
+        .pricing-table tbody tr:last-child { border-bottom: none; }
+        .pricing-table tbody tr:hover { background: #f9fafb; }
+        .pricing-table tbody tr.group-header { background: #f3f4f6; }
+        .pricing-table tbody tr.group-header td { padding: 8px 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #9ca3af; }
+        .pricing-table td { padding: 13px 20px; font-size: 13.5px; font-weight: 500; color: var(--navy); }
+        .pricing-table td:not(:first-child) { text-align: center; }
+        .pricing-table td.featured-cell { background: #f0f5ff; }
+        .check { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: #22c55e; }
+        .check svg { display: block; }
+        .cross { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: #fef2f2; }
+        .cross svg { display: block; }
+        .partial { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: #fffbeb; font-size: 14px; }
+        .pricing-table tfoot tr { background: linear-gradient(135deg, rgba(37,99,235,.05), rgba(79,70,229,.05)); }
+        .pricing-table tfoot td { padding: 20px; border-top: 1.5px solid var(--border); }
+        .paket-btn { display: inline-block; padding: 10px 22px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'Sora', sans-serif; transition: all .15s; text-align: center; border: none; }
+        .paket-btn.outline { background: #fff; border: 1.5px solid var(--border); color: var(--navy); }
+        .paket-btn.outline:hover { border-color: var(--blue); color: var(--blue); }
+        .paket-btn.filled { background: var(--blue); color: #fff; }
+        .paket-btn.filled:hover { background: var(--blue-dark); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37,99,235,.3); }
+
+        /* ── COMPARISON TABLE ── */
+        .compare-table-wrap { border: 1.5px solid var(--border); border-radius: 18px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,.06); overflow-x: auto; }
+        .compare-table { width: 100%; border-collapse: collapse; background: #fff; min-width: 600px; }
+        .compare-table thead tr { background: linear-gradient(135deg, #1e3a8a, #2563eb); }
+        .compare-table thead th { padding: 18px 20px; font-size: 13px; color: rgba(255,255,255,.7); font-weight: 700; text-align: left; }
+        .compare-table thead th:not(:first-child) { text-align: center; }
+        .compare-table tbody tr { border-bottom: 1px solid #f3f4f6; }
+        .compare-table tbody tr:last-child { border-bottom: none; }
+        .compare-table tbody tr.group-row { background: #f8fafc; }
+        .compare-table tbody tr.group-row td { padding: 8px 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #9ca3af; }
+        .compare-table tbody tr:hover:not(.group-row) { background: #f9fafb; }
+        .compare-table td { padding: 13px 20px; font-size: 13px; font-weight: 500; color: var(--navy); }
+        .compare-table td:not(:first-child) { text-align: center; }
+        .badge-yes { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 99px; padding: 3px 10px; font-size: 12px; font-weight: 700; display: inline-block; white-space: nowrap; }
+        .badge-no { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 99px; padding: 3px 10px; font-size: 12px; font-weight: 700; display: inline-block; white-space: nowrap; }
+        .badge-warn { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; border-radius: 99px; padding: 3px 10px; font-size: 12px; font-weight: 700; display: inline-block; white-space: nowrap; }
+        .badge-special { background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; border-radius: 99px; padding: 4px 14px; font-size: 13px; font-weight: 800; display: inline-block; }
+
+        /* ── TESTIMONIALS ── */
+        .testi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+        .testi-card { background: #fff; border: 1.5px solid var(--border); border-radius: 16px; padding: 24px; transition: all .2s; }
+        .testi-card:hover { border-color: #bfdbfe; box-shadow: 0 8px 32px rgba(37,99,235,.08); }
+        .testi-stars { display: flex; gap: 2px; margin-bottom: 14px; font-size: 14px; }
+        .testi-text { font-size: 13.5px; color: var(--slate); line-height: 1.75; margin-bottom: 18px; font-style: italic; }
+        .testi-author { display: flex; align-items: center; gap: 10px; }
+        .testi-ava { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), var(--indigo)); display: flex; align-items: center; justify-content: center; font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 800; color: #fff; flex-shrink: 0; }
+        .testi-name { font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700; color: var(--navy); }
+        .testi-school { font-size: 12px; color: var(--slate); margin-top: 2px; }
+
+        /* ── FAQ ── */
+        .faq-wrap { max-width: 660px; margin: 0 auto; }
+        .faq-item { border: 1.5px solid var(--border); border-radius: 14px; margin-bottom: 10px; overflow: hidden; transition: border-color .2s; }
+        .faq-item.open { border-color: #bfdbfe; }
+        .faq-q { padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 600; color: var(--navy); gap: 12px; }
+        .faq-icon { width: 26px; height: 26px; border-radius: 8px; background: var(--blue-light); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform .2s, background .2s; }
+        .faq-item.open .faq-icon { transform: rotate(45deg); }
+        .faq-a { display: none; padding: 0 20px 18px; font-size: 13.5px; color: var(--slate); line-height: 1.75; }
+        .faq-item.open .faq-a { display: block; }
+
+        /* ── FORM SECTION ── */
+        .form-section {
+            background: linear-gradient(135deg, #0f1d5c 0%, #1e3a8a 50%, #1e1b4b 100%);
+            padding: 88px max(20px, calc(50vw - 600px)) 0;
+            position: relative; overflow: hidden;
+        }
+        .form-dots { position: absolute; inset: 0; opacity: .04; background-image: radial-gradient(circle, #fff 1px, transparent 1px); background-size: 28px 28px; pointer-events: none; }
+        .form-inner { display: grid; grid-template-columns: 1fr 1.2fr; gap: 0; align-items: end; max-width: var(--max-w); margin: 0 auto; position: relative; z-index: 1; }
+        .form-info { display: flex; flex-direction: column; }
+        .form-info .sec-label { color: #93c5fd; }
+        .form-info .sec-label::before { background: #60a5fa; }
+        .form-info .sec-title { color: #fff; }
+        .form-info .sec-desc { color: rgba(255,255,255,.65); }
+        .form-benefits { display: flex; flex-direction: column; gap: 14px; margin-top: 28px; }
+        .form-benefit { display: flex; align-items: flex-start; gap: 12px; }
+        .fb-icon { width: 36px; height: 36px; border-radius: 10px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .fb-text strong { display: block; font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 2px; }
+        .fb-text span { font-size: 12.5px; color: rgba(255,255,255,.6); }
+        .form-cs-img { width: 80%; max-width: 320px; display: block; margin: 32px 0 -88px auto; filter: drop-shadow(0 -20px 56px rgba(99,102,241,.4)); opacity: 0; transform: translateY(40px); transition: opacity .8s cubic-bezier(.22,1,.36,1) .2s, transform .8s cubic-bezier(.22,1,.36,1) .2s; }
+        .form-cs-img.in { opacity: 1; transform: translateY(0); }        .form-card { background: #fff; border-radius: 20px; padding: 32px 28px; box-shadow: 0 24px 80px rgba(0,0,0,.3); }
+        .form-card-title { font-family: 'Sora', sans-serif; font-size: 18px; font-weight: 800; color: var(--navy); margin-bottom: 4px; }
+        .form-card-sub { font-size: 12.5px; color: var(--slate); margin-bottom: 26px; }
+        .fwrap { margin-bottom: 16px; }
+        .flabel { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--slate); margin-bottom: 6px; }
+        .inp { width: 100%; background: #f9fafb; border: 1.5px solid var(--border); border-radius: 10px; padding: 11px 14px; color: var(--navy); font-size: 13.5px; font-family: inherit; outline: none; transition: border-color .15s, box-shadow .15s; resize: none; }
+        .inp:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,.12); background: #fff; }
+        .inp::placeholder { color: #9ca3af; }
+        .inp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .btn-submit { width: 100%; background: linear-gradient(135deg, var(--blue), var(--indigo)); color: #fff; border: none; border-radius: 12px; padding: 14px 20px; font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: all .15s; box-shadow: 0 6px 20px rgba(37,99,235,.3); display: flex; align-items: center; justify-content: center; gap: 9px; margin-top: 4px; }
+        .btn-submit:hover { opacity: .92; transform: translateY(-1px); }
+        .btn-submit:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+        .form-note { font-size: 11.5px; color: #9ca3af; text-align: center; margin-top: 12px; line-height: 1.6; }
+        .form-success { display: none; text-align: center; padding: 20px 0; }
+        .fs-icon { width: 64px; height: 64px; background: linear-gradient(135deg, #22c55e, #16a34a); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; box-shadow: 0 8px 24px rgba(34,197,94,.3); }
+        .fs-title { font-family: 'Sora', sans-serif; font-size: 18px; font-weight: 800; color: var(--navy); margin-bottom: 8px; }
+        .fs-desc { font-size: 13px; color: var(--slate); line-height: 1.75; }
+
+        /* ── FOOTER ── */
+        footer { background: var(--navy); padding: 56px max(20px, calc(50vw - 600px)) 28px; }
+        .footer-inner { max-width: var(--max-w); margin: 0 auto; }
+        .footer-top { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 48px; margin-bottom: 48px; }
+        .footer-brand p { font-size: 13px; color: rgba(255,255,255,.45); line-height: 1.75; margin-top: 12px; max-width: 260px; }
+        .footer-brand-name { font-family: 'Sora', sans-serif; font-size: 15px; font-weight: 800; color: #fff; }
+        .footer-col h4 { font-family: 'Sora', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: rgba(255,255,255,.9); margin-bottom: 18px; }
+        .footer-col a { display: block; font-size: 13px; color: rgba(255,255,255,.45); text-decoration: none; margin-bottom: 10px; transition: color .15s; cursor: pointer; }
+        .footer-col a:hover { color: #fff; }
+        .footer-bot { border-top: 1px solid rgba(255,255,255,.08); padding-top: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+        .footer-copy { font-size: 12px; color: rgba(255,255,255,.35); }
+        .footer-links { display: flex; gap: 20px; }
+        .footer-links a { font-size: 12px; color: rgba(255,255,255,.35); text-decoration: none; cursor: pointer; transition: color .15s; }
+        .footer-links a:hover { color: #fff; }
+
+        /* ── TOAST ── */
+        #toast { position: fixed; bottom: 24px; right: 24px; z-index: 999; display: none; }
+        #toast.show { display: block; animation: slideUp .2s ease; }
+        .ti { display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-radius: 12px; font-size: 13px; font-weight: 700; box-shadow: 0 8px 32px rgba(0,0,0,.22); min-width: 200px; }
+        .ti.ok { background: #0f172a; color: #f1f5f9; }
+        .ti.err { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ── MOBILE NAV ── */
+        .mob-nav { display: none; position: fixed; inset: 0; z-index: 300; background: rgba(15,23,42,.55); backdrop-filter: blur(4px); }
+        .mob-nav.open { display: block; }
+        .mob-drawer { position: absolute; top: 0; right: 0; bottom: 0; width: 270px; background: #fff; padding: 28px 24px; box-shadow: -8px 0 40px rgba(0,0,0,.15); }
+        .mob-close { position: absolute; top: 16px; right: 16px; width: 34px; height: 34px; border-radius: 8px; border: 1.5px solid var(--border); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--slate); }
+        .mob-links { margin-top: 52px; display: flex; flex-direction: column; gap: 4px; }
+        .mob-link { padding: 11px 14px; border-radius: 10px; font-size: 14px; font-weight: 600; color: var(--slate); cursor: pointer; transition: all .15s; border: none; background: none; font-family: inherit; text-align: left; width: 100%; }
+        .mob-link:hover { background: #f3f4f6; color: var(--navy); }
+        .mob-cta { margin-top: 20px; width: 100%; background: var(--blue); color: #fff; border: none; border-radius: 11px; padding: 13px; font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
+
+        /* ── SCROLL REVEAL ── */
+        .reveal { opacity: 0; transform: translateY(24px); transition: opacity .5s ease, transform .5s ease; }
+        .reveal.in { opacity: 1; transform: translateY(0); }
+
+
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 1024px) {
+            .features-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 900px) {
+            .hero-inner { grid-template-columns: 1fr; }
+            .hero-image-wrap { display: none; }
+            .form-inner { grid-template-columns: 1fr; align-items: start; }
+            .form-cs-img { max-width: 280px; margin: 24px auto 0; }
+            .form-section { padding-bottom: 0; }
+            .steps-grid { grid-template-columns: repeat(2, 1fr); gap: 32px; }
+            .steps-grid::after { display: none; }
+            .footer-top { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 640px) {
+            .nav-links { display: none; }
+            .mob-btn { display: flex; }
+            .features-grid { grid-template-columns: 1fr; }
+            .testi-grid { grid-template-columns: 1fr; }
+            .steps-grid { grid-template-columns: 1fr; }
+            .inp-grid { grid-template-columns: 1fr; }
+            .footer-top { grid-template-columns: 1fr; }
+            .footer-bot { flex-direction: column; align-items: flex-start; }
+            .hero-stats { flex-wrap: wrap; gap: 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- MOBILE NAV -->
+<div class="mob-nav" id="mobNav" onclick="closeMobNav(event)">
+    <div class="mob-drawer">
+        <button class="mob-close" onclick="closeMobNav()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div style="display:flex;align-items:center;gap:10px;">
+            <img src="images/integritest.png" alt="INTEGRITEST" style="height:30px;width:auto;">
+            <span class="footer-brand-name">INTEGRITEST</span>
+        </div>
+        <div class="mob-links">
+            <button class="mob-link" onclick="navTo('fitur')">Fitur</button>
+            <button class="mob-link" onclick="navTo('perbandingan')">vs CBT Lain</button>
+            <button class="mob-link" onclick="navTo('cara-kerja')">Cara Kerja</button>
+            
+            <button class="mob-link" onclick="navTo('faq')">FAQ</button>
+        </div>
+        <button class="mob-cta" onclick="navTo('request')">Daftar Gratis</button>
+    </div>
+</div>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+    <div class="nav-inner">
+        <a class="nav-brand" href="#">
+            <img src="images/integritest.png" alt="INTEGRITEST">
+            <span class="nav-brand-name"><span class="w" style="color:var(--blue-dark);">INTEGRI</span><span class="c" style="color:#2563eb;">TEST</span></span>
+            <span class="nav-badge">v.4</span>
+        </a>
+        <div class="nav-links">
+            <button class="nav-link" onclick="navTo('fitur')">Fitur</button>
+            <button class="nav-link" onclick="navTo('perbandingan')">vs CBT Lain</button>
+            <button class="nav-link" onclick="navTo('cara-kerja')">Cara Kerja</button>
+            
+            <button class="nav-link" onclick="navTo('faq')">FAQ</button>
+            <button class="nav-cta" onclick="navTo('request')">Daftar Gratis →</button>
+        </div>
+        <button class="mob-btn" onclick="openMobNav()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+    </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+    <div class="hero-bg-dots"></div>
+    <div class="hero-glow"></div>
+    <div class="hero-inner">
+        <div class="hero-content">
+            <div class="hero-pill">
+                <div class="hero-pill-dot">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg>
+                </div>
+                <span class="hero-pill-text">100% Gratis · Platform CBT Anti-Kecurangan untuk Sekolah Indonesia</span>
+            </div>
+
+            <div style="margin-bottom:18px;">
+                <div style="font-family:'Sora',sans-serif;font-size:clamp(28px,3vw,38px);font-weight:800;letter-spacing:-.03em;line-height:1;margin-bottom:6px;">
+                    <span style="color:#fff;">INTEGRI</span><span style="color:#38bdf8;">TEST</span>
+                </div>
+                <div style="font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.45);">Digitalizing Integrity, Empowering Honesty</div>
+            </div>
+
+            <h1 class="hero-title">Ujian Online yang<br><em>Aman, Adil,</em> dan Efisien</h1>
+
+            <p style="font-style:italic;font-size:13px;color:rgba(255,255,255,.55);border-left:3px solid #60a5fa;padding-left:12px;margin-bottom:16px;">"Karena kejujuran adalah fondasi pendidikan yang sesungguhnya."</p>
+
+            <p class="hero-desc">Platform ujian digital multi-tenant dengan <strong>Skor Integritas Adaptif 7 Lapis</strong> — dirancang khusus untuk sekolah Indonesia. Gratis sepenuhnya.</p>
+
+            <div class="hero-actions">
+                <button class="btn-primary" onclick="navTo('request')">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.8 19.8 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+                    Ajukan Penggunaan Gratis
+                </button>
+                <button class="btn-ghost" onclick="navTo('fitur')">
+                    Lihat Fitur
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,18 15,12 9,6"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="hero-image-wrap">
+            <img src="images/siswa.png" alt="Siswa menggunakan INTEGRITEST">
+        </div>
+    </div>
+</section>
+
+<!-- FITUR -->
+<section class="section" id="fitur">
+    <div class="section-inner">
+        <div class="section-header reveal">
+            <div class="sec-label">Fitur Utama</div>
+            <h2 class="sec-title">Semua yang Dibutuhkan<br>untuk Ujian Digital</h2>
+            <p class="sec-desc">Dari pembuatan soal hingga laporan nilai — INTEGRITEST menyediakan ekosistem lengkap yang mudah digunakan oleh guru dan siswa.</p>
+        </div>
+        <div class="features-grid">
+            <div class="feat-card reveal">
+                <div class="feat-icon-wrap" style="background:#eff6ff;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <div class="feat-title">Anti-Kecurangan Real-time</div>
+                <div class="feat-desc">Deteksi perpindahan tab, fullscreen enforcement, randomisasi soal & opsi jawaban. Sistem token QR untuk verifikasi pengawas di lokasi.</div>
+                <span class="feat-tag" style="background:#eff6ff;color:#1d4ed8;">🔒 Keamanan</span>
+            </div>
+            <div class="feat-card reveal">
+                <div class="feat-icon-wrap" style="background:#f0fdf4;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
+                </div>
+                <div class="feat-title">Analitik & Laporan Otomatis</div>
+                <div class="feat-desc">Skor dihitung instan begitu ujian selesai. Ekspor laporan nilai per kelas, per mapel, atau per siswa ke PDF/Excel dengan sekali klik.</div>
+                <span class="feat-tag" style="background:#f0fdf4;color:#16a34a;">📊 Analitik</span>
+            </div>
+            <div class="feat-card reveal">
+                <div class="feat-icon-wrap" style="background:#eef2ff;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                </div>
+                <div class="feat-title">Multi-Tenant & Terisolasi</div>
+                <div class="feat-desc">Setiap sekolah mendapat subdomain dan database terpisah. Data satu sekolah tidak bisa diakses sekolah lain — privasi terjamin sepenuhnya.</div>
+                <span class="feat-tag" style="background:#eef2ff;color:#4f46e5;">🏫 Multi-Sekolah</span>
+            </div>
+            <div class="feat-card reveal">
+                <div class="feat-icon-wrap" style="background:#fffbeb;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                </div>
+                <div class="feat-title">Bank Soal Fleksibel</div>
+                <div class="feat-desc">Buat soal pilihan ganda, essay, atau benar/salah. Impor soal dari Word/Excel. Kategorisasi per mapel, kelas, dan tingkat kesulitan.</div>
+                <span class="feat-tag" style="background:#fffbeb;color:#d97706;">📝 Bank Soal</span>
+            </div>
+            <div class="feat-card reveal">
+                <div class="feat-icon-wrap" style="background:#fef2f2;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                </div>
+                <div class="feat-title">Manajemen Peserta Ujian</div>
+                <div class="feat-desc">Import data siswa dari Excel, atur kelas dan ruang ujian, pantau status pengerjaan siswa secara real-time dari dashboard pengawas.</div>
+                <span class="feat-tag" style="background:#fef2f2;color:#dc2626;">👥 Manajemen</span>
+            </div>
+            <div class="feat-card reveal">
+                <div class="feat-icon-wrap" style="background:#faf5ff;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                </div>
+                <div class="feat-title">Responsif di Semua Device</div>
+                <div class="feat-desc">Berfungsi optimal di komputer, tablet, maupun HP — termasuk HP dengan spesifikasi rendah. Dioptimasi untuk koneksi internet terbatas.</div>
+                <span class="feat-tag" style="background:#faf5ff;color:#7c3aed;">📱 Mobile-Ready</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CARA KERJA -->
+<section class="section alt" id="cara-kerja">
+    <div class="section-inner">
+        <div class="section-header center reveal">
+            <div class="sec-label">Cara Kerja</div>
+            <h2 class="sec-title">Mulai dalam 4 Langkah Mudah</h2>
+            <p class="sec-desc">Proses dari pengajuan hingga platform siap digunakan biasanya membutuhkan 1–2 hari kerja.</p>
+        </div>
+        <div class="steps-grid reveal">
+            <div class="step-item">
+                <div class="step-num">1</div>
+                <div class="step-title">Ajukan Permintaan</div>
+                <div class="step-desc">Isi formulir di halaman ini dengan data sekolah Anda. Prosesnya cepat dan gratis.</div>
+            </div>
+            <div class="step-item">
+                <div class="step-num">2</div>
+                <div class="step-title">Review Admin</div>
+                <div class="step-desc">Tim kami akan memverifikasi data sekolah dan menyiapkan tenant khusus untuk Anda.</div>
+            </div>
+            <div class="step-item">
+                <div class="step-num">3</div>
+                <div class="step-title">Terima Link & Akses</div>
+                <div class="step-desc">Anda mendapat email/WhatsApp berisi link platform, username, dan password admin.</div>
+            </div>
+            <div class="step-item">
+                <div class="step-num">4</div>
+                <div class="step-title">Langsung Pakai!</div>
+                <div class="step-desc">Login, import data siswa, buat soal, dan selenggarakan ujian pertama Anda hari ini.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- PAKET REMOVED -->
+<section class="section" id="paket" style="display:none;">
+    <div class="section-inner">
+        <div class="section-header reveal">
+            <div class="sec-label">Paket Layanan</div>
+            <h2 class="sec-title">Semua Paket <span style="background:linear-gradient(90deg,#22c55e,#16a34a);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">100% Gratis</span></h2>
+            <p class="sec-desc">Kami ingin berdampak nyata bagi pendidikan Indonesia. Semua fitur, semua paket — tidak ada biaya tersembunyi, selamanya.</p>
+        </div>
+
+        <div class="pricing-notice reveal">
+            <div class="pricing-notice-icon">🎁</div>
+            <div>
+                <div class="pricing-notice-title">Kenapa Gratis?</div>
+                <div class="pricing-notice-desc">INTEGRITEST lahir dari semangat ingin berdampak bagi pendidikan Indonesia. Kami percaya bahwa teknologi yang baik seharusnya bisa diakses semua sekolah, bukan hanya yang mampu membayar.</div>
+            </div>
+        </div>
+
+        <div class="pricing-table-wrap reveal">
+            <table class="pricing-table">
+                <thead>
+                    <tr>
+                        <th style="width:32%;">Fitur</th>
+                        <th style="width:22%;">
+                            <span class="pt-col-name">Starter</span>
+                            <span class="pt-col-sub">Untuk memulai & mencoba</span>
+                        </th>
+                        <th class="featured-col" style="width:24%;">
+                            <span class="pt-col-name">Pro</span>
+                            <span class="pt-col-sub">Untuk sekolah berkembang</span>
+                            <br><span class="pt-col-badge">⭐ Paling Populer</span>
+                        </th>
+                        <th style="width:22%;">
+                            <span class="pt-col-name">Dinas / Yayasan</span>
+                            <span class="pt-col-sub">Untuk institusi besar</span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="group-header"><td colspan="4">Kapasitas</td></tr>
+                    <tr>
+                        <td>Jumlah siswa</td>
+                        <td>Maks. 100 siswa</td>
+                        <td class="featured-cell"><strong>Tak terbatas</strong></td>
+                        <td><strong>Tak terbatas</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Akun admin</td>
+                        <td>1 admin sekolah</td>
+                        <td class="featured-cell">Multi-admin & pengawas</td>
+                        <td>Multi-admin (lintas sekolah)</td>
+                    </tr>
+                    <tr>
+                        <td>Tenant sekolah</td>
+                        <td>1 sekolah</td>
+                        <td class="featured-cell">1 sekolah</td>
+                        <td><strong>Multiple sekolah/tenant</strong></td>
+                    </tr>
+                    <tr class="group-header"><td colspan="4">Fitur Platform (Semua Tersedia di Semua Paket)</td></tr>
+                    <tr>
+                        <td colspan="4" style="padding:12px 20px;background:#f0fdf4;border-left:4px solid #22c55e;">
+                            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                                <span class="check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg></span>
+                                <span style="font-size:13px;font-weight:700;color:#15803d;">Semua fitur anti-kecurangan</span>
+                                <span style="color:#d1d5db;">•</span>
+                                <span class="check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg></span>
+                                <span style="font-size:13px;font-weight:700;color:#15803d;">Ekspor laporan PDF & Excel</span>
+                                <span style="color:#d1d5db;">•</span>
+                                <span class="check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg></span>
+                                <span style="font-size:13px;font-weight:700;color:#15803d;">Skor Integritas Adaptif</span>
+                                <span style="color:#d1d5db;">•</span>
+                                <span class="check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg></span>
+                                <span style="font-size:13px;font-weight:700;color:#15803d;">Dokumentasi & tutorial</span>
+                            </div>
+                            <div style="font-size:12px;color:#16a34a;margin-top:6px;">✨ Fitur-fitur ini tersedia gratis di semua paket — tidak ada yang dikunci!</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Subdomain khusus sekolah</td>
+                        <td><span class="cross"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
+                        <td class="featured-cell"><span class="check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg></span></td>
+                        <td><span class="check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg></span></td>
+                    </tr>
+                    <tr>
+                        <td>Dashboard gabungan dinas</td>
+                        <td><span class="cross"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
+                        <td class="featured-cell"><span class="cross"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
+                        <td><span class="check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg></span></td>
+                    </tr>
+                    <tr class="group-header"><td colspan="4">Dukungan</td></tr>
+                    <tr>
+                        <td>Dukungan via WhatsApp</td>
+                        <td><span class="cross"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
+                        <td class="featured-cell"><span class="check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg></span></td>
+                        <td><span class="check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg></span></td>
+                    </tr>
+                    <tr>
+                        <td>SLA & dedicated support</td>
+                        <td><span class="cross"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
+                        <td class="featured-cell"><span class="cross"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
+                        <td><span class="check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg></span></td>
+                    </tr>
+                    <tr>
+                        <td>Pelatihan tatap muka</td>
+                        <td><span class="cross"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
+                        <td class="featured-cell"><span class="cross"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td>
+                        <td><span class="check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg></span></td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td style="font-family:'Sora',sans-serif;font-size:14px;font-weight:700;color:var(--navy);">Harga</td>
+                        <td style="text-align:center;">
+                            <div style="font-family:'Sora',sans-serif;font-size:22px;font-weight:800;color:#16a34a;margin-bottom:10px;">Gratis</div>
+                            <button class="paket-btn outline" onclick="navTo('request')">Mulai Sekarang</button>
+                        </td>
+                        <td class="featured-cell" style="text-align:center;">
+                            <div style="font-family:'Sora',sans-serif;font-size:22px;font-weight:800;color:#16a34a;margin-bottom:10px;">Gratis</div>
+                            <button class="paket-btn filled" onclick="navTo('request')">Ajukan Sekarang</button>
+                        </td>
+                        <td style="text-align:center;">
+                            <div style="font-family:'Sora',sans-serif;font-size:22px;font-weight:800;color:#16a34a;margin-bottom:10px;">Gratis</div>
+                            <button class="paket-btn outline" onclick="navTo('request')">Konsultasi Gratis</button>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- PERBANDINGAN -->
+<section class="section alt" id="perbandingan">
+    <div class="section-inner">
+        <div class="section-header center reveal">
+            <div class="sec-label">Kenapa INTEGRITEST?</div>
+            <h2 class="sec-title">Jauh Lebih Unggul dari CBT Konvensional</h2>
+            <p class="sec-desc">Bandingkan sendiri — INTEGRITEST bukan sekadar platform ujian biasa.</p>
+        </div>
+        <div class="compare-table-wrap reveal">
+            <table class="compare-table">
+                <thead>
+                    <tr>
+                        <th>Fitur</th>
+                        <th>
+                            <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+                                <img src="images/integritest.png" alt="" style="height:20px;width:auto;">
+                                <span style="background:linear-gradient(90deg,#fff,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:900;">INTEGRITEST</span>
+                            </div>
+                        </th>
+                        <th>CBT Konvensional</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="group-row"><td colspan="3">🛡️ Keamanan & Anti-Kecurangan</td></tr>
+                    <tr><td>Deteksi pindah tab / keluar layar</td><td><span class="badge-yes">✅ Real-time + hitung pelanggaran</span></td><td><span class="badge-no">❌ Tidak ada / manual</span></td></tr>
+                    <tr><td>Fullscreen enforcement otomatis</td><td><span class="badge-yes">✅ Ya, dengan peringatan bertahap</span></td><td><span class="badge-no">❌ Tidak ada</span></td></tr>
+                    <tr><td>Randomisasi soal & jawaban</td><td><span class="badge-yes">✅ Per siswa, otomatis</span></td><td><span class="badge-warn">⚠️ Terbatas / tidak ada</span></td></tr>
+                    <tr><td>Skor Integritas Adaptif (7 lapis)</td><td><span class="badge-yes">✅ Eksklusif INTEGRITEST</span></td><td><span class="badge-no">❌ Tidak ada</span></td></tr>
+                    <tr><td>Verifikasi pengawas via QR Token</td><td><span class="badge-yes">✅ Scan kamera, real-time</span></td><td><span class="badge-no">❌ Tidak ada</span></td></tr>
+                    <tr><td>Deteksi perangkat duplikat</td><td><span class="badge-yes">✅ Device fingerprint V3</span></td><td><span class="badge-no">❌ Tidak ada</span></td></tr>
+
+                    <tr class="group-row"><td colspan="3">📝 Bank Soal & Ujian</td></tr>
+                    <tr><td>Tipe soal yang didukung</td><td><span class="badge-yes">✅ PG, Essay, Benar/Salah</span></td><td><span class="badge-warn">⚠️ Biasanya hanya PG</span></td></tr>
+                    <tr><td>Import soal dari Word / Excel</td><td><span class="badge-yes">✅ Didukung penuh</span></td><td><span class="badge-no">❌ Manual satu per satu</span></td></tr>
+                    <tr><td>Pembahasan soal setelah ujian</td><td><span class="badge-yes">✅ Bisa diatur kapan dibuka</span></td><td><span class="badge-no">❌ Tidak ada</span></td></tr>
+
+                    <tr class="group-row"><td colspan="3">📊 Laporan & Analitik</td></tr>
+                    <tr><td>Ekspor laporan PDF & Excel</td><td><span class="badge-yes">✅ Per siswa / kelas / mapel</span></td><td><span class="badge-warn">⚠️ Biasanya berbayar</span></td></tr>
+                    <tr><td>Notifikasi hasil ke orang tua via WA</td><td><span class="badge-yes">✅ Otomatis via Fonnte</span></td><td><span class="badge-no">❌ Tidak ada</span></td></tr>
+                    <tr><td>Monitoring real-time pengawas</td><td><span class="badge-yes">✅ Live status tiap siswa</span></td><td><span class="badge-warn">⚠️ Terbatas</span></td></tr>
+
+                    <tr class="group-row"><td colspan="3">⚙️ Teknis & Infrastruktur</td></tr>
+                    <tr><td>Bisa dipakai di HP spesifikasi rendah</td><td><span class="badge-yes">✅ Dioptimasi khusus</span></td><td><span class="badge-no">❌ Sering lag / crash</span></td></tr>
+                    <tr><td>Jawaban aman saat koneksi putus</td><td><span class="badge-yes">✅ Tersimpan lokal</span></td><td><span class="badge-no">❌ Jawaban hilang</span></td></tr>
+                    <tr><td>Multi-tenant (database terpisah)</td><td><span class="badge-yes">✅ Setiap sekolah terisolasi</span></td><td><span class="badge-no">❌ Shared / campur</span></td></tr>
+
+                    <tr>
+                        <td style="font-weight:700;">💰 Biaya</td>
+                        <td><span class="badge-special">🎁 100% GRATIS</span></td>
+                        <td><span class="badge-no">💸 Berbayar (Rp 500rb–5jt/th)</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div style="text-align:center;margin-top:28px;">
+            <button class="btn-primary" onclick="navTo('request')" style="background:var(--blue);color:#fff;display:inline-flex;">
+                Daftar Sekarang — Gratis!
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,18 15,12 9,6"/></svg>
+            </button>
+        </div>
+    </div>
+</section>
+
+<!-- TESTIMONI -->
+<section class="section">
+    <div class="section-inner">
+        <div class="section-header center reveal">
+            <div class="sec-label">Testimoni</div>
+            <h2 class="sec-title">Dipercaya Sekolah-Sekolah di Indonesia</h2>
+        </div>
+        <div class="testi-grid reveal">
+            <div class="testi-card">
+                <div class="testi-stars">⭐⭐⭐⭐⭐</div>
+                <div class="testi-text">"Platform yang luar biasa. Siswa langsung bisa pakai tanpa pelatihan panjang, dan guru sangat terbantu dengan laporan nilai otomatis."</div>
+                <div class="testi-author">
+                    <div class="testi-ava">SY</div>
+                    <div><div class="testi-name">Siti Yuliana, S.Pd.</div><div class="testi-school">Guru TIK · SMAN 3 Makassar</div></div>
+                </div>
+            </div>
+            <div class="testi-card">
+                <div class="testi-stars">⭐⭐⭐⭐⭐</div>
+                <div class="testi-text">"Fitur anti-curang-nya mantap! Sistem QR untuk verifikasi pengawas benar-benar membantu memastikan ujian berjalan adil."</div>
+                <div class="testi-author">
+                    <div class="testi-ava">AR</div>
+                    <div><div class="testi-name">Agus Riyanto, M.Pd.</div><div class="testi-school">Kepala Sekolah · SMK Telkom Surabaya</div></div>
+                </div>
+            </div>
+            <div class="testi-card">
+                <div class="testi-stars">⭐⭐⭐⭐⭐</div>
+                <div class="testi-text">"Setup cepat sekali. Dalam 1 hari setelah pengajuan, platform sudah siap dan kami langsung bisa mengadakan try-out untuk kelas 12."</div>
+                <div class="testi-author">
+                    <div class="testi-ava">DN</div>
+                    <div><div class="testi-name">Dewi Nurhayati, S.Kom.</div><div class="testi-school">Admin IT · MAN 2 Bandung</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FAQ -->
+<section class="section alt" id="faq">
+    <div class="section-inner">
+        <div class="section-header center reveal">
+            <div class="sec-label">FAQ</div>
+            <h2 class="sec-title">Pertanyaan yang Sering Diajukan</h2>
+        </div>
+        <div class="faq-wrap reveal">
+            <div class="faq-item" onclick="toggleFaq(this)">
+                <div class="faq-q">Apakah INTEGRITEST benar-benar gratis?
+                    <div class="faq-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+                </div>
+                <div class="faq-a">Ya, <strong>100% gratis sepenuhnya</strong> — bukan percobaan, bukan freemium. INTEGRITEST lahir dari semangat ingin berdampak bagi pendidikan Indonesia. Kami percaya teknologi yang baik seharusnya bisa diakses semua sekolah tanpa terkecuali. Tidak ada biaya tersembunyi, tidak ada upgrade berbayar. Gratis untuk selamanya.</div>
+            </div>
+            <div class="faq-item" onclick="toggleFaq(this)">
+                <div class="faq-q">Berapa lama proses pengaktifan setelah mengajukan permintaan?
+                    <div class="faq-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+                </div>
+                <div class="faq-a">Rata-rata 1 hari kerja. Setelah permintaan Anda kami verifikasi, sistem tenant akan disiapkan dan Anda akan mendapat notifikasi lengkap berisi link akses, username, dan password admin sekolah.</div>
+            </div>
+            <div class="faq-item" onclick="toggleFaq(this)">
+                <div class="faq-q">Apakah data sekolah kami aman dan terpisah dari sekolah lain?
+                    <div class="faq-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+                </div>
+                <div class="faq-a">Sepenuhnya terisolasi. Setiap sekolah mendapat tenant (ruang data) tersendiri yang tidak bisa diakses pihak lain. Kami menggunakan Firebase dengan security rules yang ketat dan enkripsi data standar industri.</div>
+            </div>
+            <div class="faq-item" onclick="toggleFaq(this)">
+                <div class="faq-q">Bagaimana jika koneksi internet sekolah terbatas atau sering putus?
+                    <div class="faq-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+                </div>
+                <div class="faq-a">INTEGRITEST dioptimasi untuk koneksi rendah. Jawaban siswa disimpan secara lokal di browser secara berkala, sehingga jika koneksi putus sesaat, data tidak hilang. Sistem juga ringan dan cepat di HP kentang sekalipun.</div>
+            </div>
+            <div class="faq-item" onclick="toggleFaq(this)">
+                <div class="faq-q">Apakah ada batasan jumlah soal yang bisa dibuat?
+                    <div class="faq-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+                </div>
+                <div class="faq-a">Tidak ada batas praktis untuk jumlah soal di bank soal. Kapasitas penyimpanan sangat besar dan mencukupi untuk ribuan soal dengan gambar sekalipun.</div>
+            </div>
+            <div class="faq-item" onclick="toggleFaq(this)">
+                <div class="faq-q">Apakah tersedia pelatihan untuk guru dan admin sekolah?
+                    <div class="faq-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+                </div>
+                <div class="faq-a">Ya. Semua pengguna mendapat akses ke dokumentasi dan video tutorial lengkap. Kami juga menyediakan sesi onboarding via WhatsApp untuk membantu proses setup awal.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FORM REQUEST -->
+<section class="form-section" id="request">
+    <div class="form-dots"></div>
+    <div class="form-inner">
+        <div class="form-info">
+            <div class="sec-label">Ajukan Sekarang</div>
+            <h2 class="sec-title">Siap Memulai?<br>Hubungi Kami</h2>
+            <p class="sec-desc">Isi formulir dan tim kami akan menghubungi Anda untuk proses aktivasi platform INTEGRITEST untuk sekolah Anda.</p>
+            <div class="form-benefits">
+                <div class="form-benefit">
+                    <div class="fb-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg></div>
+                    <div class="fb-text"><strong>Aktivasi Cepat 1 Hari Kerja</strong><span>Platform siap digunakan dalam waktu singkat</span></div>
+                </div>
+                <div class="form-benefit">
+                    <div class="fb-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+                    <div class="fb-text"><strong>Tenant Pribadi & Aman</strong><span>Subdomain dan database eksklusif sekolah Anda</span></div>
+                </div>
+                <div class="form-benefit">
+                    <div class="fb-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
+                    <div class="fb-text"><strong>Dukungan Teknis Langsung</strong><span>Tim kami siap membantu via WhatsApp</span></div>
+                </div>
+                <div class="form-benefit">
+                    <div class="fb-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg></div>
+                    <div class="fb-text"><strong>Semua Fitur Tersedia</strong><span>Tidak ada fitur yang dikunci atau berbayar</span></div>
+                </div>
+            </div>
+            <!-- CS image besar di bawah, menempel dengan form -->
+            <img src="images/cs.png" alt="Customer Support" class="form-cs-img">
+        </div>
+
+        <div>
+            <div class="form-card">
+                <div class="form-card-title">Formulir Pengajuan</div>
+                <div class="form-card-sub">Isi data berikut dan admin kami akan memproses permintaan Anda</div>
+
+                <div class="form-success" id="formSuccess">
+                    <div class="fs-icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg>
+                    </div>
+                    <div class="fs-title">Permintaan Terkirim! 🎉</div>
+                    <p class="fs-desc">Terima kasih! Permintaan Anda sudah kami terima dan akan diproses dalam 1–2 hari kerja. Admin kami akan menghubungi Anda via kontak yang tercantum.</p>
+                    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px 16px;margin-top:20px;text-align:left;">
+                        <div style="font-size:12px;font-weight:700;color:#16a34a;margin-bottom:8px;font-family:'Sora',sans-serif;">Langkah selanjutnya:</div>
+                        <div style="font-size:12.5px;color:#166534;line-height:1.8;">✓ Cek email/WhatsApp Anda secara berkala<br>✓ Admin akan kirim link tenant + info login admin<br>✓ Langsung bisa digunakan setelah aktivasi</div>
+                    </div>
+                    <button onclick="resetForm()" style="margin-top:20px;padding:10px 20px;border-radius:10px;border:1.5px solid #e2e8f0;background:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b;">Kirim Permintaan Lain</button>
+                </div>
+
+                <div id="formFields">
+                    <div class="fwrap">
+                        <label class="flabel">Nama Sekolah *</label>
+                        <input class="inp" id="f-sekolah" placeholder="Contoh: SMAN 1 Surabaya" maxlength="100">
+                    </div>
+                    <div class="inp-grid">
+                        <div class="fwrap">
+                            <label class="flabel">Kota/Kabupaten *</label>
+                            <input class="inp" id="f-kota" placeholder="Contoh: Surabaya" maxlength="60">
+                        </div>
+                        <div class="fwrap">
+                            <label class="flabel">Provinsi *</label>
+                            <input class="inp" id="f-provinsi" placeholder="Contoh: Jawa Timur" maxlength="60">
+                        </div>
+                    </div>
+                    <div class="inp-grid">
+                        <div class="fwrap">
+                            <label class="flabel">Nama PIC / Admin *</label>
+                            <input class="inp" id="f-nama" placeholder="Nama lengkap Anda" maxlength="80">
+                        </div>
+                        <div class="fwrap">
+                            <label class="flabel">Jabatan</label>
+                            <input class="inp" id="f-jabatan" placeholder="Guru TIK / Kepala Sekolah" maxlength="60">
+                        </div>
+                    </div>
+                    <div class="inp-grid">
+                        <div class="fwrap">
+                            <label class="flabel">Email *</label>
+                            <input class="inp" id="f-email" type="email" placeholder="email@sekolah.sch.id" maxlength="100">
+                        </div>
+                        <div class="fwrap">
+                            <label class="flabel">WhatsApp *</label>
+                            <input class="inp" id="f-wa" placeholder="08xxxxxxxxxx" maxlength="20">
+                        </div>
+                    </div>
+                    <div class="fwrap">
+                        <label class="flabel">Perkiraan Jumlah Siswa</label>
+                        <select class="inp" id="f-siswa">
+                            <option value="">-- Pilih rentang --</option>
+                            <option value="<100">Kurang dari 100 siswa</option>
+                            <option value="100-300">100 – 300 siswa</option>
+                            <option value="300-600">300 – 600 siswa</option>
+                            <option value="600-1000">600 – 1.000 siswa</option>
+                            <option value=">1000">Lebih dari 1.000 siswa</option>
+                        </select>
+                    </div>
+                    <div class="fwrap">
+                        <label class="flabel">Pesan / Pertanyaan Tambahan</label>
+                        <textarea class="inp" id="f-pesan" rows="3" placeholder="Tuliskan kebutuhan spesifik atau pertanyaan Anda..."></textarea>
+                    </div>
+                    <div id="form-err" style="background:#fef2f2;border:1px solid #fecaca;border-radius:9px;padding:10px 12px;font-size:12.5px;color:#dc2626;margin-bottom:12px;display:none;"></div>
+                    <button class="btn-submit" id="btnSubmit" onclick="submitRequest()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>
+                        Kirim Permintaan
+                    </button>
+                    <p class="form-note">🔒 Data Anda aman dan tidak akan dibagikan ke pihak ketiga manapun.<br>Biasanya diproses dalam 1–2 hari kerja.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+    <div class="footer-inner">
+        <div class="footer-top">
+            <div class="footer-brand">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+                    <img src="images/integritest.png" alt="INTEGRITEST" style="height:30px;width:auto;">
+                    <span class="footer-brand-name">INTEGRITEST</span>
+                </div>
+                <p>Platform ujian digital multi-tenant untuk sekolah Indonesia. Aman, adil, dan efisien.</p>
+            </div>
+            <div class="footer-col">
+                <h4>Platform</h4>
+                <a onclick="navTo('fitur')">Fitur</a>
+                <a onclick="navTo('cara-kerja')">Cara Kerja</a>
+                
+                <a onclick="navTo('faq')">FAQ</a>
+            </div>
+            <div class="footer-col">
+                <h4>Kontak</h4>
+                <a href="mailto:adminintegritest@gmail.com">adminintegritest@gmail.com</a>
+                <a href="https://wa.me/6285233273172" target="_blank">WhatsApp Support</a>
+                <a onclick="navTo('request')">Ajukan Penggunaan</a>
+            </div>
+        </div>
+        <div class="footer-bot">
+            <div class="footer-copy">© 2026 INTEGRITEST. Dikembangkan untuk kemajuan pendidikan Indonesia.</div>
+            <div class="footer-links">
+                <a onclick="openModal('kebijakan')">Kebijakan Privasi</a>
+                <a onclick="openModal('syarat')">Syarat Penggunaan</a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- MODAL KEBIJAKAN & SYARAT -->
+<div id="modal-overlay" onclick="closeModal()" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px;">
+    <div id="modal-box" onclick="event.stopPropagation()" style="background:#fff;border-radius:20px;max-width:600px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.3);">
+        <div style="padding:28px 28px 0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;border-bottom:1px solid #f3f4f6;padding-bottom:16px;">
+            <div id="modal-title" style="font-family:'Sora',sans-serif;font-size:17px;font-weight:800;color:#0f172a;"></div>
+            <button onclick="closeModal()" style="width:32px;height:32px;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#6b7280;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div id="modal-body" style="padding:24px 28px;font-size:13.5px;color:#374151;line-height:1.8;"></div>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast">
+    <div class="ti ok" id="toast-inner">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg>
+        <span id="toast-msg">Berhasil!</span>
+    </div>
+</div>
+
+<!-- BACK TO TOP BUTTON -->
+<button id="backToTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Kembali ke atas" style="
+    position:fixed; bottom:28px; right:24px; z-index:999;
+    width:44px; height:44px; border-radius:50%;
+    background:var(--blue); color:#fff; border:none;
+    box-shadow:0 4px 20px rgba(37,99,235,.45);
+    cursor:pointer; display:none; align-items:center; justify-content:center;
+    transition:all .2s; font-size:0;
+">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18,15 12,9 6,15"/></svg>
+</button>
+
+<script>
+(function(){
+    const btn = document.getElementById('backToTop');
+    window.addEventListener('scroll', function(){
+        btn.style.display = window.scrollY > 400 ? 'flex' : 'none';
+    });
+    btn.addEventListener('mouseenter', function(){ this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 28px rgba(37,99,235,.55)'; });
+    btn.addEventListener('mouseleave', function(){ this.style.transform=''; this.style.boxShadow='0 4px 20px rgba(37,99,235,.45)'; });
+})();
+</script>
+
+<script>
+const modalContent = {
+    kebijakan: {
+        title: '🔒 Kebijakan Privasi',
+        body: `
+            <p><strong>Terakhir diperbarui:</strong> 2026</p>
+            <h3 style="font-family:'Sora',sans-serif;font-size:14px;font-weight:700;color:#0f172a;margin:18px 0 8px;">1. Data yang Kami Kumpulkan</h3>
+            <p>INTEGRITEST mengumpulkan data yang Anda berikan saat mengajukan penggunaan, meliputi: nama sekolah, nama PIC, email, nomor WhatsApp, dan kota/provinsi. Data ujian siswa (nama, jawaban, skor) dikelola langsung oleh admin sekolah masing-masing.</p>
+            <h3 style="font-family:'Sora',sans-serif;font-size:14px;font-weight:700;color:#0f172a;margin:18px 0 8px;">2. Penggunaan Data</h3>
+            <p>Data hanya digunakan untuk proses aktivasi platform, komunikasi dukungan teknis, dan pengembangan layanan. Kami tidak menjual atau membagikan data kepada pihak ketiga manapun.</p>
+            <h3 style="font-family:'Sora',sans-serif;font-size:14px;font-weight:700;color:#0f172a;margin:18px 0 8px;">3. Keamanan Data</h3>
+            <p>Setiap sekolah mendapat tenant (database) tersendiri yang terisolasi. Data diproteksi dengan Firebase Security Rules dan enkripsi standar industri. Tidak ada akses lintas sekolah.</p>
+            <h3 style="font-family:'Sora',sans-serif;font-size:14px;font-weight:700;color:#0f172a;margin:18px 0 8px;">4. Hak Pengguna</h3>
+            <p>Anda berhak meminta penghapusan data sekolah Anda kapan saja dengan menghubungi kami melalui email adminintegritest@gmail.com.</p>
+            <h3 style="font-family:'Sora',sans-serif;font-size:14px;font-weight:700;color:#0f172a;margin:18px 0 8px;">5. Kontak</h3>
+            <p>Pertanyaan terkait privasi dapat dikirim ke <a href="mailto:adminintegritest@gmail.com" style="color:#2563eb;">adminintegritest@gmail.com</a>.</p>
+        `
+    },
+    syarat: {
+        title: '📋 Syarat Penggunaan',
+        body: `
+            <p><strong>Terakhir diperbarui:</strong> 2026</p>
+            <h3 style="font-family:'Sora',sans-serif;font-size:14px;font-weight:700;color:#0f172a;margin:18px 0 8px;">1. Penerimaan Syarat</h3>
+            <p>Dengan mengajukan penggunaan dan menggunakan platform INTEGRITEST, Anda menyatakan telah membaca, memahami, dan menyetujui syarat-syarat ini.</p>
+            <h3 style="font-family:'Sora',sans-serif;font-size:14px;font-weight:700;color:#0f172a;margin:18px 0 8px;">2. Penggunaan yang Diizinkan</h3>
+            <p>Platform INTEGRITEST hanya boleh digunakan untuk keperluan ujian dan evaluasi di lingkungan sekolah/institusi pendidikan yang telah terdaftar. Dilarang menggunakannya untuk tujuan komersial tanpa izin tertulis.</p>
+            <h3 style="font-family:'Sora',sans-serif;font-size:14px;font-weight:700;color:#0f172a;margin:18px 0 8px;">3. Tanggung Jawab Pengguna</h3>
+            <p>Admin sekolah bertanggung jawab atas seluruh data dan aktivitas yang terjadi di tenant mereka, termasuk pengelolaan akun siswa dan guru, serta integritas pelaksanaan ujian.</p>
+            <h3 style="font-family:'Sora',sans-serif;font-size:14px;font-weight:700;color:#0f172a;margin:18px 0 8px;">4. Layanan Gratis</h3>
+            <p>INTEGRITEST disediakan secara gratis tanpa jaminan SLA. Kami berupaya menjaga uptime sebaik mungkin namun tidak bertanggung jawab atas kerugian akibat gangguan layanan.</p>
+            <h3 style="font-family:'Sora',sans-serif;font-size:14px;font-weight:700;color:#0f172a;margin:18px 0 8px;">5. Perubahan Layanan</h3>
+            <p>Kami berhak mengubah, menangguhkan, atau menghentikan layanan sewaktu-waktu dengan pemberitahuan terlebih dahulu kepada pengguna terdaftar.</p>
+            <h3 style="font-family:'Sora',sans-serif;font-size:14px;font-weight:700;color:#0f172a;margin:18px 0 8px;">6. Kontak</h3>
+            <p>Pertanyaan terkait syarat penggunaan: <a href="mailto:adminintegritest@gmail.com" style="color:#2563eb;">adminintegritest@gmail.com</a></p>
+        `
+    }
+};
+function openModal(type) {
+    const content = modalContent[type];
+    document.getElementById('modal-title').textContent = content.title;
+    document.getElementById('modal-body').innerHTML = content.body;
+    const overlay = document.getElementById('modal-overlay');
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+function closeModal() {
+    document.getElementById('modal-overlay').style.display = 'none';
+    document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+function navTo(id) {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    closeMobNav();
+}
+function openMobNav() { document.getElementById('mobNav').classList.add('open'); }
+function closeMobNav(e) {
+    if (!e || e.target === document.getElementById('mobNav') || !e.currentTarget) {
+        document.getElementById('mobNav').classList.remove('open');
+    }
+}
+function toggleFaq(item) {
+    const isOpen = item.classList.contains('open');
+    document.querySelectorAll('.faq-item.open').forEach(f => f.classList.remove('open'));
+    if (!isOpen) item.classList.add('open');
+}
+let toastTimer;
+function showToast(msg, type = 'ok') {
+    const t = document.getElementById('toast');
+    const ti = document.getElementById('toast-inner');
+    const tm = document.getElementById('toast-msg');
+    ti.className = 'ti ' + type;
+    tm.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+async function submitRequest() {
+    const get = id => document.getElementById(id)?.value?.trim() || '';
+    const errBox = document.getElementById('form-err');
+    const data = {
+        sekolah: get('f-sekolah'), kota: get('f-kota'), provinsi: get('f-provinsi'),
+        nama: get('f-nama'), jabatan: get('f-jabatan'), email: get('f-email'),
+        wa: get('f-wa'), siswa: get('f-siswa'), pesan: get('f-pesan'),
+    };
+    const required = ['sekolah','kota','provinsi','nama','email','wa'];
+    const labels = { sekolah: 'Nama Sekolah', kota: 'Kota', provinsi: 'Provinsi', nama: 'Nama PIC', email: 'Email', wa: 'WhatsApp' };
+    const missing = required.filter(k => !data[k]);
+    if (missing.length) { errBox.textContent = 'Harap isi: ' + missing.map(k => labels[k]).join(', '); errBox.style.display = 'block'; return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) { errBox.textContent = 'Format email tidak valid.'; errBox.style.display = 'block'; return; }
+    errBox.style.display = 'none';
+    const btn = document.getElementById('btnSubmit');
+    btn.disabled = true;
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin .7s linear infinite"><polyline points="23,4 23,11 16,11"/><path d="M20.5 15a9 9 0 11-2.8-9.7L23 11"/></svg> Mengirim...';
+    try {
+        if (window._fbReady && window._addRequest) { await window._addRequest(data); }
+        else { await new Promise(r => setTimeout(r, 1200)); }
+        document.getElementById('formFields').style.display = 'none';
+        document.getElementById('formSuccess').style.display = 'block';
+        showToast('Permintaan berhasil dikirim!');
+    } catch (err) {
+        errBox.textContent = 'Terjadi kesalahan saat mengirim. Coba lagi atau hubungi kami langsung.';
+        errBox.style.display = 'block';
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg> Kirim Permintaan';
+    }
+}
+function resetForm() {
+    document.getElementById('formFields').style.display = 'block';
+    document.getElementById('formSuccess').style.display = 'none';
+    ['f-sekolah','f-kota','f-provinsi','f-nama','f-jabatan','f-email','f-wa','f-pesan'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    document.getElementById('f-siswa').value = '';
+    document.getElementById('form-err').style.display = 'none';
+    const btn = document.getElementById('btnSubmit');
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg> Kirim Permintaan';
+}
+const styleEl = document.createElement('style');
+styleEl.textContent = '@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
+document.head.appendChild(styleEl);
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in'); });
+}, { threshold: 0.08 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// Gambar siswa — muncul setelah halaman load
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        const heroImg = document.querySelector('.hero-image-wrap');
+        if (heroImg) heroImg.classList.add('in');
+    }, 200);
+});
+
+// Gambar CS — muncul saat scroll ke section form
+const csImg = document.querySelector('.form-cs-img');
+if (csImg) observer.observe(csImg);
+
+// Active nav highlight on scroll
+const sections = ['fitur','perbandingan','cara-kerja','faq','request'];
+window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && window.scrollY >= el.offsetTop - 100) current = id;
+    });
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.style.color = '';
+        link.style.background = '';
+    });
+});
+</script>
+</body>
+</html>
