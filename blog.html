@@ -53,6 +53,16 @@
             --max-w: 1200px;
         }
 
+
+        /* Autocomplete kabupaten */
+        .kota-dropdown { position:absolute; top:100%; left:0; right:0; background:#fff; border:1.5px solid #bfdbfe; border-radius:12px; box-shadow:0 8px 32px rgba(37,99,235,.12); z-index:999; max-height:220px; overflow-y:auto; margin-top:4px; }
+        .kota-dropdown-item { padding:10px 14px; font-size:13px; cursor:pointer; border-bottom:1px solid #f1f5f9; transition:background .12s; }
+        .kota-dropdown-item:last-child { border-bottom:none; }
+        .kota-dropdown-item:hover, .kota-dropdown-item.active { background:#eff6ff; color:#1d4ed8; }
+        .kota-dropdown-item .kota-name { font-weight:700; color:#0f172a; }
+        .kota-dropdown-item:hover .kota-name, .kota-dropdown-item.active .kota-name { color:#1d4ed8; }
+        .kota-dropdown-item .kota-prov { font-size:11px; color:#9ca3af; margin-top:1px; }
+        #f-provinsi[readonly] { background:#f8faff!important; border-color:#bfdbfe; }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
 
@@ -80,6 +90,57 @@
         .nav-cta:hover { background: var(--blue-dark); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(37,99,235,.3); }
         .mob-btn { display: none; width: 36px; height: 36px; border: 1.5px solid var(--border); border-radius: 8px; background: #fff; cursor: pointer; align-items: center; justify-content: center; color: var(--slate); }
 
+        /* ── HERO DEKORASI FLOATING ── */
+        .hero-deco { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
+        .deco { position: absolute; }
+
+        /* Bintang */
+        .deco-star1 { width: 28px; height: 28px; top: 12%; right: 56%; animation: floatA 5s ease-in-out infinite; opacity: .85; }
+        .deco-star2 { width: 16px; height: 16px; top: 8%; right: 48%; animation: floatB 6s ease-in-out infinite; opacity: .6; }
+        .deco-star3 { width: 22px; height: 22px; top: 5%; right: 35%; animation: floatA 7s ease-in-out infinite 1s; opacity: .7; }
+
+        /* Pensil */
+        .deco-pencil { width: 22px; height: 66px; top: 4%; right: 28%; transform: rotate(-20deg); animation: floatB 8s ease-in-out infinite; opacity: .65; }
+
+        /* Buku */
+        .deco-book { width: 70px; height: 52px; top: 6%; right: 8%; animation: floatA 9s ease-in-out infinite 0.5s; opacity: .55; }
+
+        /* Roket */
+        .deco-rocket { width: 36px; height: 58px; top: 10%; right: 18%; transform: rotate(20deg); animation: floatRocket 7s ease-in-out infinite; opacity: .6; }
+
+        /* Cincin */
+        .deco-ring1 { width: 70px; height: 70px; top: 2%; right: 42%; animation: spinSlow 20s linear infinite; opacity: .4; }
+        .deco-ring2 { width: 46px; height: 46px; bottom: 18%; right: 6%; animation: spinSlow 14s linear infinite reverse; opacity: .45; }
+
+        /* Dots */
+        .deco-dots { width: 80px; height: 80px; top: 14%; right: 62%; animation: floatB 10s ease-in-out infinite; opacity: .35; }
+
+        /* Toga */
+        .deco-cap { width: 68px; height: 52px; top: 3%; right: 72%; animation: floatA 8s ease-in-out infinite 2s; opacity: .55; }
+
+        /* Tanda tanya */
+        .deco-q { width: 22px; height: 36px; top: 18%; right: 38%; animation: floatB 6s ease-in-out infinite 1.5s; opacity: .5; }
+
+        /* Kilat */
+        .deco-bolt { width: 22px; height: 36px; top: 7%; right: 82%; animation: floatA 5.5s ease-in-out infinite 0.8s; opacity: .5; }
+
+        @keyframes floatA {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        @keyframes floatB {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-8px) rotate(3deg); }
+        }
+        @keyframes floatRocket {
+            0%, 100% { transform: rotate(20deg) translateY(0px); }
+            50% { transform: rotate(20deg) translateY(-12px); }
+        }
+        @keyframes spinSlow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
         /* ── HERO ── */
         .hero {
             background: linear-gradient(135deg, #0f1d5c 0%, #1e3a8a 50%, #1e1b4b 100%);
@@ -89,7 +150,7 @@
         }
         .hero-bg-dots { position: absolute; inset: 0; opacity: .04; background-image: radial-gradient(circle, #fff 1px, transparent 1px); background-size: 28px 28px; pointer-events: none; }
         .hero-glow { position: absolute; top: -150px; right: 5%; width: 500px; height: 500px; background: radial-gradient(circle, rgba(99,102,241,.3) 0%, transparent 70%); pointer-events: none; }
-        .hero-inner { display: grid; grid-template-columns: 1fr 1.1fr; gap: 20px; align-items: flex-end; max-width: var(--max-w); margin: 0 auto; }
+        .hero-inner { display: grid; grid-template-columns: 1fr 1.1fr; gap: 20px; align-items: flex-end; max-width: var(--max-w); margin: 0 auto; position: relative; z-index: 2; }
         .hero-content { padding-bottom: 48px; }
         .hero-pill { display: inline-flex; align-items: center; gap: 7px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18); border-radius: 99px; padding: 5px 14px 5px 8px; margin-bottom: 24px; }
         .hero-pill-dot { width: 18px; height: 18px; background: #22c55e; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -130,15 +191,129 @@
         .section-header.center .sec-desc { margin: 0 auto; }
 
         /* ── FEATURES ── */
-        .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-        .feat-card { background: #fff; border: 1.5px solid var(--border); border-radius: 16px; padding: 24px 22px; transition: all .2s; position: relative; overflow: hidden; }
-        .feat-card::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--blue), var(--indigo)); opacity: 0; transition: opacity .2s; }
-        .feat-card:hover { border-color: #bfdbfe; transform: translateY(-3px); box-shadow: 0 16px 48px rgba(37,99,235,.1); }
-        .feat-card:hover::after { opacity: 1; }
-        .feat-icon-wrap { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
-        .feat-title { font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
-        .feat-desc { font-size: 13px; color: var(--slate); line-height: 1.7; margin-bottom: 14px; }
-        .feat-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 99px; }
+        /* ── FITUR REDESIGN ── */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 24px;
+            overflow: hidden;
+            background: #e2e8f0;
+        }
+        .feat-card {
+            background: #fff;
+            padding: 32px 28px;
+            transition: all .25s cubic-bezier(.22,1,.36,1);
+            position: relative;
+            overflow: hidden;
+            cursor: default;
+            margin: 1px;
+            border-radius: 0;
+        }
+        .feat-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(37,99,235,.04) 0%, rgba(79,70,229,.07) 100%);
+            opacity: 0;
+            transition: opacity .25s;
+        }
+        .feat-card:hover { transform: scale(1.025); z-index: 2; box-shadow: 0 24px 64px rgba(15,23,42,.14); border-radius: 16px; margin: -4px; padding: 36px 32px; }
+        .feat-card:hover::before { opacity: 1; }
+        .feat-num {
+            position: absolute;
+            top: 20px; right: 22px;
+            font-family: 'Sora', sans-serif;
+            font-size: 48px;
+            font-weight: 900;
+            color: rgba(15,23,42,.04);
+            line-height: 1;
+            letter-spacing: -.05em;
+            pointer-events: none;
+            user-select: none;
+        }
+        .feat-icon-wrap {
+            width: 52px; height: 52px;
+            border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 20px;
+            position: relative; z-index: 1;
+            transition: transform .25s;
+        }
+        .feat-card:hover .feat-icon-wrap { transform: scale(1.1) rotate(-4deg); }
+        .feat-title {
+            font-family: 'Sora', sans-serif;
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--navy);
+            margin-bottom: 10px;
+            line-height: 1.3;
+            position: relative; z-index: 1;
+        }
+        .feat-desc {
+            font-size: 13px;
+            color: var(--slate);
+            line-height: 1.75;
+            margin-bottom: 18px;
+            position: relative; z-index: 1;
+        }
+        .feat-tag {
+            display: inline-flex; align-items: center; gap: 5px;
+            font-size: 11px; font-weight: 700;
+            padding: 4px 11px;
+            border-radius: 99px;
+            position: relative; z-index: 1;
+        }
+        /* Section fitur header baru */
+        #fitur .section-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            align-items: flex-end;
+            margin-bottom: 48px;
+        }
+        #fitur .sec-badge-row {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+        }
+        #fitur .sec-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: var(--blue); color: #fff;
+            font-size: 10px; font-weight: 800;
+            text-transform: uppercase; letter-spacing: .1em;
+            padding: 4px 12px; border-radius: 99px;
+        }
+        #fitur .sec-count {
+            font-size: 12px; font-weight: 700; color: var(--slate);
+        }
+        #fitur .sec-title {
+            font-size: clamp(28px, 3.5vw, 42px);
+            letter-spacing: -.035em;
+            line-height: 1.1;
+        }
+        #fitur .sec-title em {
+            font-style: normal;
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        #fitur .sec-right {
+            display: flex; flex-direction: column; gap: 14px;
+            padding-bottom: 4px;
+        }
+        #fitur .sec-right p {
+            font-size: 15px; color: var(--slate); line-height: 1.75;
+        }
+        #fitur .sec-cta {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: var(--navy); color: #fff;
+            font-family: 'Sora', sans-serif;
+            font-size: 13px; font-weight: 700;
+            padding: 11px 20px; border-radius: 10px;
+            text-decoration: none; width: fit-content;
+            transition: all .2s;
+        }
+        #fitur .sec-cta:hover { background: var(--blue); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(37,99,235,.25); }
 
         /* ── HOW IT WORKS ── */
         .steps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; position: relative; }
@@ -242,8 +417,25 @@
         .fb-icon { width: 36px; height: 36px; border-radius: 10px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .fb-text strong { display: block; font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 2px; }
         .fb-text span { font-size: 12.5px; color: rgba(255,255,255,.6); }
-        .form-cs-img { width: 80%; max-width: 320px; display: block; margin: 32px 0 -88px auto; filter: drop-shadow(0 -20px 56px rgba(99,102,241,.4)); opacity: 0; transform: translateY(40px); transition: opacity .8s cubic-bezier(.22,1,.36,1) .2s, transform .8s cubic-bezier(.22,1,.36,1) .2s; }
-        .form-cs-img.in { opacity: 1; transform: translateY(0); }        .form-card { background: #fff; border-radius: 20px; padding: 32px 28px; box-shadow: 0 24px 80px rgba(0,0,0,.3); }
+        /* CS wrap & bubbles */
+        .cs-wrap { position: relative; width: 80%; max-width: 320px; margin: 32px 0 -88px auto; }
+        .form-cs-img { width: 100%; display: block; filter: drop-shadow(0 -20px 56px rgba(99,102,241,.4)); opacity: 0; transform: translateY(40px); transition: opacity .8s cubic-bezier(.22,1,.36,1) .2s, transform .8s cubic-bezier(.22,1,.36,1) .2s; }
+        .form-cs-img.in { opacity: 1; transform: translateY(0); }
+        .cs-bubble { position: absolute; background: #fff; border-radius: 18px; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #0f172a; box-shadow: 0 8px 24px rgba(0,0,0,.18); white-space: nowrap; opacity: 0; z-index: 10; transition: opacity .5s ease .4s; }
+        .cs-wrap.in .cs-bubble { opacity: 1; }
+        .cs-bubble-left-top::after { content: ""; position: absolute; bottom: -7px; left: 16px; width: 0; height: 0; border-left: 8px solid transparent; border-right: 0px solid transparent; border-top: 8px solid #fff; }
+        .cs-bubble-right-mid::after { content: ""; position: absolute; bottom: -7px; right: 16px; width: 0; height: 0; border-right: 8px solid transparent; border-top: 8px solid #fff; }
+        .cs-bubble-bottom-left::after { content: ""; position: absolute; top: -7px; left: 16px; width: 0; height: 0; border-left: 8px solid transparent; border-right: 0px solid transparent; border-bottom: 8px solid #fff; }
+        .cs-bubble-left-top  { top: 6%; left: -40%; animation: floatBubbleA 4s ease-in-out infinite; background: #fff; border: 1.5px solid #bfdbfe; }
+        .cs-bubble-right-mid { top: 35%; right: -32%; animation: floatBubbleB 5s ease-in-out infinite; background: #f0fdf4; border: 1.5px solid #bbf7d0; color: #15803d; }
+        .cs-bubble-bottom-left{ bottom: 30%; left: -38%; animation: floatBubbleA 6s ease-in-out infinite 1s; background: #faf5ff; border: 1.5px solid #e9d5ff; }
+        .cs-bubble-rating { top: 20%; right: -28%; animation: floatBubbleB 5.5s ease-in-out infinite .5s; background: #fffbeb; border: 1.5px solid #fde68a; font-size: 11px; }
+        .cs-online { position: absolute; top: 4%; right: 4%; display: flex; align-items: center; gap: 6px; background: #fff; border: 1.5px solid #bbf7d0; border-radius: 99px; padding: 5px 10px 5px 8px; font-size: 11px; font-weight: 700; color: #15803d; box-shadow: 0 4px 16px rgba(0,0,0,.12); animation: floatBubbleA 4s ease-in-out infinite 0.3s; opacity: 0; transition: opacity .5s ease .6s; }
+        .cs-wrap.in .cs-online { opacity: 1; }
+        .cs-online-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 0 3px rgba(34,197,94,.2); animation: pulse 1.5s ease-in-out infinite; }
+        @keyframes floatBubbleA { 0%,100%{transform:translateY(0px)} 50%{transform:translateY(-7px)} }
+        @keyframes floatBubbleB { 0%,100%{transform:translateY(0px) rotate(-1deg)} 50%{transform:translateY(-9px) rotate(1deg)} }
+        @keyframes pulse { 0%,100%{box-shadow:0 0 0 3px rgba(34,197,94,.2)} 50%{box-shadow:0 0 0 6px rgba(34,197,94,.1)} }        .form-card { background: #fff; border-radius: 20px; padding: 32px 28px; box-shadow: 0 24px 80px rgba(0,0,0,.3); }
         .form-card-title { font-family: 'Sora', sans-serif; font-size: 18px; font-weight: 800; color: var(--navy); margin-bottom: 4px; }
         .form-card-sub { font-size: 12.5px; color: var(--slate); margin-bottom: 26px; }
         .fwrap { margin-bottom: 16px; }
@@ -303,6 +495,7 @@
         /* ── RESPONSIVE ── */
         @media (max-width: 1024px) {
             .features-grid { grid-template-columns: repeat(2, 1fr); }
+            #fitur .section-header { grid-template-columns: 1fr; }
         }
         @media (max-width: 900px) {
             .hero-inner { grid-template-columns: 1fr; }
@@ -376,6 +569,94 @@
 <section class="hero">
     <div class="hero-bg-dots"></div>
     <div class="hero-glow"></div>
+
+    <!-- Dekorasi floating lucu di area biru -->
+    <div class="hero-deco" aria-hidden="true">
+        <!-- Bintang kecil berkilau -->
+        <svg class="deco deco-star1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L14.09 8.26L20.18 8.27L15.32 12.14L17.18 18.47L12 14.77L6.82 18.47L8.68 12.14L3.82 8.27L9.91 8.26L12 2Z" fill="rgba(255,255,255,0.9)" stroke="rgba(255,255,255,0.6)" stroke-width="0.5"/>
+        </svg>
+        <svg class="deco deco-star2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L14.09 8.26L20.18 8.27L15.32 12.14L17.18 18.47L12 14.77L6.82 18.47L8.68 12.14L3.82 8.27L9.91 8.26L12 2Z" fill="rgba(255,255,255,0.7)"/>
+        </svg>
+        <svg class="deco deco-star3" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="10" cy="10" r="2" fill="rgba(255,255,255,0.8)"/>
+            <line x1="10" y1="2" x2="10" y2="18" stroke="rgba(255,255,255,0.5)" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="2" y1="10" x2="18" y2="10" stroke="rgba(255,255,255,0.5)" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="4.1" y1="4.1" x2="15.9" y2="15.9" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="15.9" y1="4.1" x2="4.1" y2="15.9" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+
+        <!-- Pensil lucu -->
+        <svg class="deco deco-pencil" viewBox="0 0 40 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="8" y="8" width="24" height="80" rx="4" fill="rgba(255,220,80,0.25)" stroke="rgba(255,255,255,0.6)" stroke-width="2"/>
+            <rect x="8" y="8" width="24" height="16" rx="4" fill="rgba(255,180,100,0.3)" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+            <line x1="14" y1="24" x2="14" y2="88" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+            <polygon points="8,88 32,88 20,112" fill="rgba(255,240,200,0.3)" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
+            <polygon points="16,104 24,104 20,112" fill="rgba(80,40,20,0.4)" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
+        </svg>
+
+        <!-- Buku terbuka -->
+        <svg class="deco deco-book" viewBox="0 0 80 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M40 10 Q20 6 4 12 L4 52 Q20 46 40 50 Q60 46 76 52 L76 12 Q60 6 40 10Z" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+            <line x1="40" y1="10" x2="40" y2="50" stroke="rgba(255,255,255,0.5)" stroke-width="2"/>
+            <line x1="12" y1="20" x2="36" y2="17" stroke="rgba(255,255,255,0.3)" stroke-width="1" stroke-linecap="round"/>
+            <line x1="12" y1="27" x2="36" y2="24" stroke="rgba(255,255,255,0.3)" stroke-width="1" stroke-linecap="round"/>
+            <line x1="12" y1="34" x2="36" y2="31" stroke="rgba(255,255,255,0.3)" stroke-width="1" stroke-linecap="round"/>
+            <line x1="44" y1="17" x2="68" y2="20" stroke="rgba(255,255,255,0.3)" stroke-width="1" stroke-linecap="round"/>
+            <line x1="44" y1="24" x2="68" y2="27" stroke="rgba(255,255,255,0.3)" stroke-width="1" stroke-linecap="round"/>
+            <line x1="44" y1="31" x2="68" y2="34" stroke="rgba(255,255,255,0.3)" stroke-width="1" stroke-linecap="round"/>
+        </svg>
+
+        <!-- Roket kecil -->
+        <svg class="deco deco-rocket" viewBox="0 0 50 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M25 4 C25 4 38 16 38 36 L38 52 L25 60 L12 52 L12 36 C12 16 25 4 25 4Z" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
+            <circle cx="25" cy="30" r="7" fill="rgba(100,180,255,0.3)" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+            <path d="M12 46 L4 54 L12 52Z" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
+            <path d="M38 46 L46 54 L38 52Z" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
+            <path d="M18 60 Q20 68 25 72 Q30 68 32 60Z" fill="rgba(255,140,60,0.3)" stroke="rgba(255,180,80,0.5)" stroke-width="1"/>
+        </svg>
+
+        <!-- Lingkaran cincin -->
+        <svg class="deco deco-ring1" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="30" cy="30" r="26" stroke="rgba(255,255,255,0.18)" stroke-width="3" stroke-dasharray="8 5"/>
+        </svg>
+        <svg class="deco deco-ring2" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="20" cy="20" r="17" stroke="rgba(100,180,255,0.25)" stroke-width="2" stroke-dasharray="5 4"/>
+        </svg>
+
+        <!-- Titik-titik lucu -->
+        <svg class="deco deco-dots" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="10" cy="10" r="4" fill="rgba(255,255,255,0.3)"/>
+            <circle cx="40" cy="10" r="4" fill="rgba(255,255,255,0.2)"/>
+            <circle cx="70" cy="10" r="4" fill="rgba(255,255,255,0.3)"/>
+            <circle cx="10" cy="40" r="4" fill="rgba(255,255,255,0.2)"/>
+            <circle cx="40" cy="40" r="4" fill="rgba(255,255,255,0.15)"/>
+            <circle cx="70" cy="40" r="4" fill="rgba(255,255,255,0.2)"/>
+            <circle cx="10" cy="70" r="4" fill="rgba(255,255,255,0.3)"/>
+            <circle cx="40" cy="70" r="4" fill="rgba(255,255,255,0.2)"/>
+            <circle cx="70" cy="70" r="4" fill="rgba(255,255,255,0.3)"/>
+        </svg>
+
+        <!-- Mortarboard / toga lulus -->
+        <svg class="deco deco-cap" viewBox="0 0 80 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="40,6 76,22 40,38 4,22" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.55)" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M62 29 L62 46 Q40 54 40 54 Q40 54 18 46 L18 29" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linejoin="round"/>
+            <line x1="76" y1="22" x2="76" y2="42" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="76" cy="44" r="3" fill="rgba(255,220,80,0.6)" stroke="rgba(255,255,255,0.5)" stroke-width="1"/>
+        </svg>
+
+        <!-- Tanda tanya lucu -->
+        <svg class="deco deco-q" viewBox="0 0 30 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 12 Q6 4 15 4 Q24 4 24 12 Q24 20 15 22 L15 30" stroke="rgba(255,255,255,0.55)" stroke-width="3" stroke-linecap="round" fill="none"/>
+            <circle cx="15" cy="40" r="3" fill="rgba(255,255,255,0.6)"/>
+        </svg>
+
+        <!-- Kilat -->
+        <svg class="deco deco-bolt" viewBox="0 0 30 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="18,2 6,26 16,26 12,48 24,20 14,20" fill="rgba(255,230,80,0.35)" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" stroke-linejoin="round"/>
+        </svg>
+    </div>
     <div class="hero-inner">
         <div class="hero-content">
             <div class="hero-pill">
@@ -417,61 +698,85 @@
 </section>
 
 <!-- FITUR -->
-<section class="section" id="fitur">
+<section class="section" id="fitur" style="background:#f8faff;">
     <div class="section-inner">
         <div class="section-header reveal">
-            <div class="sec-label">Fitur Utama</div>
-            <h2 class="sec-title">Semua yang Dibutuhkan<br>untuk Ujian Digital</h2>
-            <p class="sec-desc">Dari pembuatan soal hingga laporan nilai — INTEGRITEST menyediakan ekosistem lengkap yang mudah digunakan oleh guru dan siswa.</p>
+            <div>
+                <div class="sec-badge-row">
+                    <span class="sec-badge">✦ Fitur Utama</span>
+                    <span class="sec-count">6 fitur unggulan</span>
+                </div>
+                <h2 class="sec-title">Semua yang Kamu<br>Butuhkan, <em>Gratis.</em></h2>
+            </div>
+            <div class="sec-right">
+                <p>Dari pembuatan soal hingga laporan nilai — ekosistem lengkap yang dirancang khusus untuk sekolah Indonesia. Tanpa biaya, tanpa kompromi.</p>
+                <a class="sec-cta" href="#" onclick="navTo('request');return false;">
+                    Mulai Sekarang
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12,5 19,12 12,19"/></svg>
+                </a>
+            </div>
         </div>
-        <div class="features-grid">
-            <div class="feat-card reveal">
-                <div class="feat-icon-wrap" style="background:#eff6ff;">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+
+        <div class="features-grid reveal">
+            <!-- 1 -->
+            <div class="feat-card">
+                <div class="feat-num">01</div>
+                <div class="feat-icon-wrap" style="background:linear-gradient(135deg,#dbeafe,#eff6ff);">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 </div>
-                <div class="feat-title">Anti-Kecurangan Real-time</div>
+                <div class="feat-title">Anti-Kecurangan<br>Real-time 7 Lapis</div>
                 <div class="feat-desc">Deteksi perpindahan tab, fullscreen enforcement, randomisasi soal & opsi jawaban. Sistem token QR untuk verifikasi pengawas di lokasi.</div>
-                <span class="feat-tag" style="background:#eff6ff;color:#1d4ed8;">🔒 Keamanan</span>
+                <span class="feat-tag" style="background:#dbeafe;color:#1d4ed8;">🔒 Keamanan</span>
             </div>
-            <div class="feat-card reveal">
-                <div class="feat-icon-wrap" style="background:#f0fdf4;">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
+            <!-- 2 -->
+            <div class="feat-card">
+                <div class="feat-num">02</div>
+                <div class="feat-icon-wrap" style="background:linear-gradient(135deg,#d1fae5,#f0fdf4);">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
                 </div>
-                <div class="feat-title">Analitik & Laporan Otomatis</div>
-                <div class="feat-desc">Skor dihitung instan begitu ujian selesai. Ekspor laporan nilai per kelas, per mapel, atau per siswa ke PDF/Excel dengan sekali klik.</div>
-                <span class="feat-tag" style="background:#f0fdf4;color:#16a34a;">📊 Analitik</span>
+                <div class="feat-title">Analitik &amp; Laporan<br>Otomatis PDF/Excel</div>
+                <div class="feat-desc">Skor dihitung instan begitu ujian selesai. Ekspor laporan nilai per kelas, per mapel, atau per siswa dengan sekali klik.</div>
+                <span class="feat-tag" style="background:#d1fae5;color:#16a34a;">📊 Analitik</span>
             </div>
-            <div class="feat-card reveal">
-                <div class="feat-icon-wrap" style="background:#eef2ff;">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <!-- 3 -->
+            <div class="feat-card">
+                <div class="feat-num">03</div>
+                <div class="feat-icon-wrap" style="background:linear-gradient(135deg,#e0e7ff,#eef2ff);">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
                 </div>
-                <div class="feat-title">Multi-Tenant & Terisolasi</div>
-                <div class="feat-desc">Setiap sekolah mendapat subdomain dan database terpisah. Data satu sekolah tidak bisa diakses sekolah lain — privasi terjamin sepenuhnya.</div>
-                <span class="feat-tag" style="background:#eef2ff;color:#4f46e5;">🏫 Multi-Sekolah</span>
+                <div class="feat-title">Multi-Tenant<br>Terisolasi &amp; Aman</div>
+                <div class="feat-desc">Setiap sekolah mendapat subdomain dan database terpisah. Data satu sekolah tidak bisa diakses sekolah lain — privasi terjamin.</div>
+                <span class="feat-tag" style="background:#e0e7ff;color:#4f46e5;">🏫 Multi-Sekolah</span>
             </div>
-            <div class="feat-card reveal">
-                <div class="feat-icon-wrap" style="background:#fffbeb;">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <!-- 4 -->
+            <div class="feat-card">
+                <div class="feat-num">04</div>
+                <div class="feat-icon-wrap" style="background:linear-gradient(135deg,#fef3c7,#fffbeb);">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                 </div>
-                <div class="feat-title">Bank Soal Fleksibel</div>
-                <div class="feat-desc">Buat soal pilihan ganda, essay, atau benar/salah. Impor soal dari Word/Excel. Kategorisasi per mapel, kelas, dan tingkat kesulitan.</div>
-                <span class="feat-tag" style="background:#fffbeb;color:#d97706;">📝 Bank Soal</span>
+                <div class="feat-title">Bank Soal<br>Fleksibel &amp; Lengkap</div>
+                <div class="feat-desc">Buat soal pilihan ganda, essay, atau benar/salah. Impor dari Word/Excel. Kategorisasi per mapel, kelas, dan tingkat kesulitan.</div>
+                <span class="feat-tag" style="background:#fef3c7;color:#d97706;">📝 Bank Soal</span>
             </div>
-            <div class="feat-card reveal">
-                <div class="feat-icon-wrap" style="background:#fef2f2;">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            <!-- 5 -->
+            <div class="feat-card">
+                <div class="feat-num">05</div>
+                <div class="feat-icon-wrap" style="background:linear-gradient(135deg,#fee2e2,#fef2f2);">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
                 </div>
-                <div class="feat-title">Manajemen Peserta Ujian</div>
-                <div class="feat-desc">Import data siswa dari Excel, atur kelas dan ruang ujian, pantau status pengerjaan siswa secara real-time dari dashboard pengawas.</div>
-                <span class="feat-tag" style="background:#fef2f2;color:#dc2626;">👥 Manajemen</span>
+                <div class="feat-title">Manajemen Peserta<br>Ujian Real-time</div>
+                <div class="feat-desc">Import data siswa dari Excel, atur kelas dan ruang ujian, pantau status pengerjaan siswa secara langsung dari dashboard pengawas.</div>
+                <span class="feat-tag" style="background:#fee2e2;color:#dc2626;">👥 Manajemen</span>
             </div>
-            <div class="feat-card reveal">
-                <div class="feat-icon-wrap" style="background:#faf5ff;">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            <!-- 6 -->
+            <div class="feat-card">
+                <div class="feat-num">06</div>
+                <div class="feat-icon-wrap" style="background:linear-gradient(135deg,#f3e8ff,#faf5ff);">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
                 </div>
-                <div class="feat-title">Responsif di Semua Device</div>
-                <div class="feat-desc">Berfungsi optimal di komputer, tablet, maupun HP — termasuk HP dengan spesifikasi rendah. Dioptimasi untuk koneksi internet terbatas.</div>
-                <span class="feat-tag" style="background:#faf5ff;color:#7c3aed;">📱 Mobile-Ready</span>
+                <div class="feat-title">Responsif di<br>Semua Device</div>
+                <div class="feat-desc">Optimal di komputer, tablet, maupun HP spesifikasi rendah. Dioptimasi untuk koneksi internet terbatas khas daerah terpencil.</div>
+                <span class="feat-tag" style="background:#f3e8ff;color:#7c3aed;">📱 Mobile-Ready</span>
             </div>
         </div>
     </div>
@@ -813,8 +1118,31 @@
                     <div class="fb-text"><strong>Semua Fitur Tersedia</strong><span>Tidak ada fitur yang dikunci atau berbayar</span></div>
                 </div>
             </div>
-            <!-- CS image besar di bawah, menempel dengan form -->
-            <img src="images/cs.png" alt="Customer Support" class="form-cs-img">
+            <!-- CS image + chat bubbles dekorasi -->
+            <div class="cs-wrap">
+                <img src="images/cs.png" alt="Customer Support" class="form-cs-img">
+                <!-- Bubble kiri atas -->
+                <div class="cs-bubble cs-bubble-left-top">
+                    <span>💬 Halo! Ada yang bisa dibantu?</span>
+                </div>
+                <!-- Bubble kanan tengah -->
+                <div class="cs-bubble cs-bubble-right-mid">
+                    <span>✅ Sudah aktif hari ini!</span>
+                </div>
+                <!-- Bubble bawah kiri -->
+                <div class="cs-bubble cs-bubble-bottom-left">
+                    <span>🚀 Setup 1 hari kerja</span>
+                </div>
+                <!-- Bubble rating -->
+                <div class="cs-bubble cs-bubble-rating">
+                    <span>⭐⭐⭐⭐⭐ Respon cepat!</span>
+                </div>
+                <!-- Online badge -->
+                <div class="cs-online">
+                    <div class="cs-online-dot"></div>
+                    <span>Online sekarang</span>
+                </div>
+            </div>
         </div>
 
         <div>
@@ -838,16 +1166,17 @@
                 <div id="formFields">
                     <div class="fwrap">
                         <label class="flabel">Nama Sekolah *</label>
-                        <input class="inp" id="f-sekolah" placeholder="Contoh: SMAN 1 Surabaya" maxlength="100">
+                        <input class="inp" id="f-sekolah" placeholder="Contoh: SMK Negeri 1 Brondong" maxlength="100">
                     </div>
                     <div class="inp-grid">
-                        <div class="fwrap">
+                        <div class="fwrap" style="position:relative;">
                             <label class="flabel">Kota/Kabupaten *</label>
-                            <input class="inp" id="f-kota" placeholder="Contoh: Surabaya" maxlength="60">
+                            <input class="inp" id="f-kota" placeholder="Ketik nama kabupaten/kota..." maxlength="60" autocomplete="off" oninput="kotaInput(this)">
+                            <div id="kota-dropdown" class="kota-dropdown" style="display:none;"></div>
                         </div>
                         <div class="fwrap">
                             <label class="flabel">Provinsi *</label>
-                            <input class="inp" id="f-provinsi" placeholder="Contoh: Jawa Timur" maxlength="60">
+                            <input class="inp" id="f-provinsi" placeholder="Otomatis terisi" maxlength="60" readonly style="background:#f3f4f6;cursor:default;color:#6b7280;">
                         </div>
                     </div>
                     <div class="inp-grid">
@@ -1110,9 +1439,11 @@ window.addEventListener('load', () => {
     }, 200);
 });
 
-// Gambar CS — muncul saat scroll ke section form
+// Gambar CS + bubbles — muncul saat scroll ke section form
 const csImg = document.querySelector('.form-cs-img');
+const csWrap = document.querySelector('.cs-wrap');
 if (csImg) observer.observe(csImg);
+if (csWrap) observer.observe(csWrap);
 
 // Active nav highlight on scroll
 const sections = ['fitur','perbandingan','cara-kerja','faq','request'];
@@ -1125,6 +1456,136 @@ window.addEventListener('scroll', () => {
     document.querySelectorAll('.nav-link').forEach(link => {
         link.style.color = '';
         link.style.background = '';
+    });
+});
+
+// ── AUTOCOMPLETE KABUPATEN/KOTA JAWA TIMUR ──
+const kabupatenData = [
+  // Kabupaten
+  {name:"Kab. Bangkalan", prov:"Jawa Timur"},
+  {name:"Kab. Banyuwangi", prov:"Jawa Timur"},
+  {name:"Kab. Blitar", prov:"Jawa Timur"},
+  {name:"Kab. Bojonegoro", prov:"Jawa Timur"},
+  {name:"Kab. Bondowoso", prov:"Jawa Timur"},
+  {name:"Kab. Gresik", prov:"Jawa Timur"},
+  {name:"Kab. Jember", prov:"Jawa Timur"},
+  {name:"Kab. Jombang", prov:"Jawa Timur"},
+  {name:"Kab. Kediri", prov:"Jawa Timur"},
+  {name:"Kab. Lamongan", prov:"Jawa Timur"},
+  {name:"Kab. Lumajang", prov:"Jawa Timur"},
+  {name:"Kab. Madiun", prov:"Jawa Timur"},
+  {name:"Kab. Magetan", prov:"Jawa Timur"},
+  {name:"Kab. Malang", prov:"Jawa Timur"},
+  {name:"Kab. Mojokerto", prov:"Jawa Timur"},
+  {name:"Kab. Nganjuk", prov:"Jawa Timur"},
+  {name:"Kab. Ngawi", prov:"Jawa Timur"},
+  {name:"Kab. Pacitan", prov:"Jawa Timur"},
+  {name:"Kab. Pamekasan", prov:"Jawa Timur"},
+  {name:"Kab. Pasuruan", prov:"Jawa Timur"},
+  {name:"Kab. Ponorogo", prov:"Jawa Timur"},
+  {name:"Kab. Probolinggo", prov:"Jawa Timur"},
+  {name:"Kab. Sampang", prov:"Jawa Timur"},
+  {name:"Kab. Sidoarjo", prov:"Jawa Timur"},
+  {name:"Kab. Situbondo", prov:"Jawa Timur"},
+  {name:"Kab. Sumenep", prov:"Jawa Timur"},
+  {name:"Kab. Trenggalek", prov:"Jawa Timur"},
+  {name:"Kab. Tuban", prov:"Jawa Timur"},
+  {name:"Kab. Tulungagung", prov:"Jawa Timur"},
+  // Kota
+  {name:"Kota Batu", prov:"Jawa Timur"},
+  {name:"Kota Blitar", prov:"Jawa Timur"},
+  {name:"Kota Kediri", prov:"Jawa Timur"},
+  {name:"Kota Madiun", prov:"Jawa Timur"},
+  {name:"Kota Malang", prov:"Jawa Timur"},
+  {name:"Kota Mojokerto", prov:"Jawa Timur"},
+  {name:"Kota Pasuruan", prov:"Jawa Timur"},
+  {name:"Kota Probolinggo", prov:"Jawa Timur"},
+  {name:"Kota Surabaya", prov:"Jawa Timur"},
+  // Alias tanpa "Kab." / "Kota" supaya mudah dicari
+  {name:"Bangkalan", prov:"Jawa Timur"},
+  {name:"Banyuwangi", prov:"Jawa Timur"},
+  {name:"Blitar", prov:"Jawa Timur"},
+  {name:"Bojonegoro", prov:"Jawa Timur"},
+  {name:"Bondowoso", prov:"Jawa Timur"},
+  {name:"Brondong", prov:"Jawa Timur"},
+  {name:"Gresik", prov:"Jawa Timur"},
+  {name:"Jember", prov:"Jawa Timur"},
+  {name:"Jombang", prov:"Jawa Timur"},
+  {name:"Kediri", prov:"Jawa Timur"},
+  {name:"Lamongan", prov:"Jawa Timur"},
+  {name:"Lumajang", prov:"Jawa Timur"},
+  {name:"Madiun", prov:"Jawa Timur"},
+  {name:"Magetan", prov:"Jawa Timur"},
+  {name:"Malang", prov:"Jawa Timur"},
+  {name:"Mojokerto", prov:"Jawa Timur"},
+  {name:"Nganjuk", prov:"Jawa Timur"},
+  {name:"Ngawi", prov:"Jawa Timur"},
+  {name:"Pacitan", prov:"Jawa Timur"},
+  {name:"Pamekasan", prov:"Jawa Timur"},
+  {name:"Pasuruan", prov:"Jawa Timur"},
+  {name:"Ponorogo", prov:"Jawa Timur"},
+  {name:"Probolinggo", prov:"Jawa Timur"},
+  {name:"Sampang", prov:"Jawa Timur"},
+  {name:"Sidoarjo", prov:"Jawa Timur"},
+  {name:"Situbondo", prov:"Jawa Timur"},
+  {name:"Sumenep", prov:"Jawa Timur"},
+  {name:"Surabaya", prov:"Jawa Timur"},
+  {name:"Trenggalek", prov:"Jawa Timur"},
+  {name:"Tuban", prov:"Jawa Timur"},
+  {name:"Tulungagung", prov:"Jawa Timur"},
+  {name:"Batu", prov:"Jawa Timur"},
+];
+
+let kotaActiveIdx = -1;
+
+function kotaInput(el) {
+    const q = el.value.trim().toLowerCase();
+    const dd = document.getElementById('kota-dropdown');
+    kotaActiveIdx = -1;
+    if (q.length < 2) { dd.style.display = 'none'; return; }
+    const results = kabupatenData.filter(d => d.name.toLowerCase().includes(q));
+    // Deduplicate by province display name
+    if (!results.length) { dd.style.display = 'none'; return; }
+    dd.innerHTML = results.slice(0,10).map((d,i) =>
+        `<div class="kota-dropdown-item" onmousedown="pilihKota('${d.name.replace(/'/g,"\'")}','${d.prov}')" data-idx="${i}">
+            <div class="kota-name">${d.name}</div>
+            <div class="kota-prov">${d.prov}</div>
+        </div>`
+    ).join('');
+    dd.style.display = 'block';
+}
+
+function pilihKota(nama, prov) {
+    document.getElementById('f-kota').value = nama;
+    document.getElementById('f-provinsi').value = prov;
+    document.getElementById('kota-dropdown').style.display = 'none';
+}
+
+// Keyboard nav & close on blur
+document.addEventListener('DOMContentLoaded', () => {
+    const inp = document.getElementById('f-kota');
+    if (!inp) return;
+    inp.addEventListener('keydown', (e) => {
+        const dd = document.getElementById('kota-dropdown');
+        const items = dd.querySelectorAll('.kota-dropdown-item');
+        if (!items.length || dd.style.display === 'none') return;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            kotaActiveIdx = Math.min(kotaActiveIdx + 1, items.length - 1);
+            items.forEach((it,i) => it.classList.toggle('active', i === kotaActiveIdx));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            kotaActiveIdx = Math.max(kotaActiveIdx - 1, 0);
+            items.forEach((it,i) => it.classList.toggle('active', i === kotaActiveIdx));
+        } else if (e.key === 'Enter' && kotaActiveIdx >= 0) {
+            e.preventDefault();
+            items[kotaActiveIdx].dispatchEvent(new MouseEvent('mousedown'));
+        } else if (e.key === 'Escape') {
+            dd.style.display = 'none';
+        }
+    });
+    inp.addEventListener('blur', () => {
+        setTimeout(() => { document.getElementById('kota-dropdown').style.display = 'none'; }, 150);
     });
 });
 </script>
