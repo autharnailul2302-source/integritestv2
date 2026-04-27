@@ -613,10 +613,13 @@
             // Menghapus localStorage di tengah ujian tidak akan membantu siswa mengelabui sistem
             if (window._lockFingerprintForExam) window._lockFingerprintForExam();
             // ★ ACTIVITY PING — catat sesi ujian ke counter superadmin (fire-and-forget)
+            // FIX: Gunakan window._defaultDb (Firebase superadmin bersama), BUKAN window.db
+            // window.db bisa mengarah ke Firebase sekolah sendiri jika sekolah punya custom config
             (async function() {
                 try {
-                    if (window.isFirebaseReady && window.db) {
-                        const _schoolRefEx = window.doc(window.db, 'superadmin', 'data', 'schools', window.appId);
+                    const _saDb = window._defaultDb || window.db;
+                    if (window.isFirebaseReady && _saDb) {
+                        const _schoolRefEx = window.doc(_saDb, 'superadmin', 'data', 'schools', window.appId);
                         const _schoolSnapEx = await window.getDoc(_schoolRefEx);
                         if (_schoolSnapEx.exists()) {
                             const _d = _schoolSnapEx.data();
