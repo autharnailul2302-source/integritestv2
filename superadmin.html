@@ -696,7 +696,7 @@
                     </div>
                     <div class="fwrap">
                         <label class="flabel">Username Login Admin Sekolah *</label>
-                        <input id="rq-admin-username" class="inp" placeholder="admin_sman1surabaya">
+                        <input id="rq-admin-username" class="inp" placeholder="admin_smkn1brondong">
                     </div>
                     <div class="fwrap">
                         <label class="flabel">Password Login Admin Sekolah *</label>
@@ -765,14 +765,14 @@
             <button class="close-btn" onclick="closeModal('modal-sekolah')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
         <div class="modal-body">
-            <div class="fwrap"><label class="flabel">Nama Sekolah *</label><input id="s-nama" class="inp" placeholder="SMAN 1 Surabaya" oninput="autoGenAppId(this.value);previewLink()"></div>
+            <div class="fwrap"><label class="flabel">Nama Sekolah *</label><input id="s-nama" class="inp" placeholder="SMKN 1 Brondong" oninput="autoGenAppId(this.value);previewLink()"></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                 <div class="fwrap ac-wrap"><label class="flabel">Kota / Kab *</label><input id="s-kota" class="inp" placeholder="Ketik kota/kabupaten..." autocomplete="off" oninput="acKota(this,'s-provinsi','ac-s-kota')" onkeydown="acKey(event,'ac-s-kota')" onfocus="acKota(this,'s-provinsi','ac-s-kota')"><div class="ac-list" id="ac-s-kota"></div></div>
                 <div class="fwrap ac-wrap"><label class="flabel">Provinsi</label><input id="s-provinsi" class="inp" placeholder="Provinsi (otomatis)" autocomplete="off" readonly style="background:#f1f5f9;cursor:default;"></div>
             </div>
             <div class="fwrap">
                 <label class="flabel">Kode / App ID * <span style="font-weight:400;text-transform:none;letter-spacing:0;">(huruf kecil & angka, otomatis dari nama)</span></label>
-                <input id="s-appid" class="inp mono" placeholder="sman1sby" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9]/g,'');previewLink()">
+                <input id="s-appid" class="inp mono" placeholder="smkn1brondong" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9]/g,'');previewLink()">
                 <div style="font-size:10px;color:#94a3b8;margin-top:4px;">💡 Otomatis ter-isi dari nama sekolah — bisa diedit manual</div>
             </div>
             <div class="fwrap">
@@ -780,8 +780,8 @@
                 <input id="s-baseurl" class="inp mono" style="font-size:11px;" placeholder="https://username.github.io/integritestv2/" oninput="previewLink()">
             </div>
             <div id="link-preview" class="lp"><div class="lp-lbl">Preview Link Akses Sekolah</div><div id="lp-url" class="lp-url"></div></div>
-            <div class="fwrap" style="margin-top:12px;"><label class="flabel">Shortlink s.id <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opsional)</span></label><input id="s-shortlink" class="inp mono" style="font-size:11px;" placeholder="https://s.id/sman1sby"></div>
-            <div class="fwrap"><label class="flabel">Kontak / Email PIC</label><input id="s-kontak" class="inp" placeholder="admin@sman1.sch.id"></div>
+            <div class="fwrap" style="margin-top:12px;"><label class="flabel">Shortlink s.id <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opsional)</span></label><input id="s-shortlink" class="inp mono" style="font-size:11px;" placeholder="https://s.id/smkn1brondong"></div>
+            <div class="fwrap"><label class="flabel">Kontak / Email PIC</label><input id="s-kontak" class="inp" placeholder="admin@smkn1brondong.sch.id"></div>
             <!-- Firebase Config -->
             <div class="fwrap" style="margin-top:4px;">
                 <label class="flabel">Mode Firebase <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#94a3b8;">— pilih sesuai kebutuhan sekolah</span></label>
@@ -837,7 +837,7 @@
         </div>
         <div class="modal-body">
             <div class="fwrap"><label class="flabel">Sekolah *</label><select id="a-sekolah" class="inp"><option value="">-- Pilih Sekolah --</option></select></div>
-            <div class="fwrap"><label class="flabel">Username *</label><input id="a-username" class="inp mono" placeholder="admin_sman1" oninput="this.value=this.value.toLowerCase().replace(/\s/g,'_')"></div>
+            <div class="fwrap"><label class="flabel">Username *</label><input id="a-username" class="inp mono" placeholder="admin_smkn1" oninput="this.value=this.value.toLowerCase().replace(/\s/g,'_')"></div>
             <div class="fwrap"><label class="flabel">Password * <span style="font-weight:400;text-transform:none;letter-spacing:0;">(min. 6 karakter)</span></label><input id="a-password" class="inp" type="text" placeholder="Password admin sekolah"></div>
             <div class="fwrap"><label class="flabel">Nama Lengkap</label><input id="a-nama" class="inp" placeholder="Budi Santoso, S.Kom"></div>
             <div class="info-box">💡 Akun disimpan di Firestore sekolah (<span class="mono">artifacts/{appId}/admin_credentials</span>). Admin login di <span class="mono">index.html?s={appId}</span>.</div>
