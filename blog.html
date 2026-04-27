@@ -315,13 +315,107 @@
         }
         #fitur .sec-cta:hover { background: var(--blue); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(37,99,235,.25); }
 
-        /* ── HOW IT WORKS ── */
-        .steps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; position: relative; }
-        .steps-grid::after { content: ''; position: absolute; top: 28px; left: calc(12.5% + 14px); right: calc(12.5% + 14px); height: 2px; background: linear-gradient(90deg, var(--blue), var(--indigo)); z-index: 0; }
-        .step-item { text-align: center; padding: 0 16px; position: relative; z-index: 1; }
-        .step-num { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), var(--indigo)); color: #fff; font-family: 'Sora', sans-serif; font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; box-shadow: 0 6px 20px rgba(37,99,235,.35); }
-        .step-title { font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
-        .step-desc { font-size: 13px; color: var(--slate); line-height: 1.65; }
+        /* ── HOW IT WORKS REDESIGN ── */
+        .steps-track {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            position: relative;
+        }
+        .steps-connector {
+            position: absolute;
+            top: 36px;
+            left: calc(12.5% + 20px);
+            right: calc(12.5% + 20px);
+            height: 2px;
+            background: linear-gradient(90deg, #bfdbfe, #c4b5fd);
+            z-index: 0;
+        }
+        .steps-connector-fill {
+            position: absolute;
+            top: 0; left: 0; height: 100%;
+            background: linear-gradient(90deg, var(--blue), var(--indigo));
+            border-radius: 1px;
+            width: 0%;
+            transition: width 1.2s cubic-bezier(.22,1,.36,1);
+        }
+        .steps-connector-fill.animate { width: 100%; }
+        .step-card {
+            background: #fff;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 20px;
+            padding: 28px 22px 24px;
+            position: relative;
+            z-index: 1;
+            text-align: left;
+            transition: all .25s cubic-bezier(.22,1,.36,1);
+            overflow: hidden;
+        }
+        .step-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(37,99,235,.03) 0%, rgba(79,70,229,.06) 100%);
+            opacity: 0;
+            transition: opacity .25s;
+        }
+        .step-card:hover {
+            border-color: #bfdbfe;
+            box-shadow: 0 16px 48px rgba(37,99,235,.1);
+            transform: translateY(-4px);
+        }
+        .step-card:hover::before { opacity: 1; }
+        .step-num-badge {
+            width: 44px; height: 44px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--blue), var(--indigo));
+            color: #fff;
+            font-family: 'Sora', sans-serif;
+            font-size: 17px;
+            font-weight: 800;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 16px;
+            box-shadow: 0 6px 20px rgba(37,99,235,.3);
+            position: relative; z-index: 1;
+        }
+        .step-card-num-bg {
+            position: absolute;
+            bottom: -10px; right: -6px;
+            font-family: 'Sora', sans-serif;
+            font-size: 72px;
+            font-weight: 900;
+            color: rgba(37,99,235,.04);
+            line-height: 1;
+            letter-spacing: -.05em;
+            pointer-events: none;
+            user-select: none;
+        }
+        .step-card-title {
+            font-family: 'Sora', sans-serif;
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--navy);
+            margin-bottom: 8px;
+            line-height: 1.3;
+            position: relative; z-index: 1;
+        }
+        .step-card-desc {
+            font-size: 12.5px;
+            color: var(--slate);
+            line-height: 1.7;
+            position: relative; z-index: 1;
+        }
+        .step-card-time {
+            display: inline-flex; align-items: center; gap: 5px;
+            margin-top: 14px;
+            font-size: 11px; font-weight: 700;
+            color: var(--blue);
+            background: var(--blue-light);
+            border: 1px solid #bfdbfe;
+            border-radius: 99px;
+            padding: 3px 10px;
+            position: relative; z-index: 1;
+        }
 
         /* ── PRICING ── */
         .pricing-notice { background: linear-gradient(135deg, rgba(34,197,94,.08), rgba(16,185,129,.06)); border: 1.5px solid rgba(34,197,94,.25); border-radius: 14px; padding: 18px 22px; margin-bottom: 36px; display: flex; align-items: flex-start; gap: 14px; }
@@ -360,34 +454,155 @@
         .paket-btn.filled { background: var(--blue); color: #fff; }
         .paket-btn.filled:hover { background: var(--blue-dark); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37,99,235,.3); }
 
-        /* ── COMPARISON TABLE ── */
-        .compare-table-wrap { border: 1.5px solid var(--border); border-radius: 18px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,.06); overflow-x: auto; }
+        /* ── COMPARISON TABLE REDESIGN ── */
+        .compare-wrap { display: grid; grid-template-columns: 1fr; gap: 0; }
+        .compare-table-wrap { border: 1.5px solid #e2e8f0; border-radius: 20px; overflow: hidden; box-shadow: 0 8px 40px rgba(15,23,42,.08); overflow-x: auto; }
         .compare-table { width: 100%; border-collapse: collapse; background: #fff; min-width: 600px; }
-        .compare-table thead tr { background: linear-gradient(135deg, #1e3a8a, #2563eb); }
-        .compare-table thead th { padding: 18px 20px; font-size: 13px; color: rgba(255,255,255,.7); font-weight: 700; text-align: left; }
+        .compare-table thead tr { background: linear-gradient(135deg, #0f1d5c 0%, #1e3a8a 60%, #1e1b4b 100%); }
+        .compare-table thead th { padding: 20px 24px; font-size: 13px; color: rgba(255,255,255,.6); font-weight: 600; text-align: left; }
         .compare-table thead th:not(:first-child) { text-align: center; }
-        .compare-table tbody tr { border-bottom: 1px solid #f3f4f6; }
+        .compare-table thead th.col-integri {
+            background: rgba(255,255,255,.08);
+            border-left: 1px solid rgba(255,255,255,.1);
+            border-right: 1px solid rgba(255,255,255,.1);
+        }
+        .compare-table thead th.col-konven {
+            color: rgba(255,255,255,.45);
+        }
+        .compare-table tbody tr { border-bottom: 1px solid #f1f5f9; }
         .compare-table tbody tr:last-child { border-bottom: none; }
-        .compare-table tbody tr.group-row { background: #f8fafc; }
-        .compare-table tbody tr.group-row td { padding: 8px 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #9ca3af; }
-        .compare-table tbody tr:hover:not(.group-row) { background: #f9fafb; }
-        .compare-table td { padding: 13px 20px; font-size: 13px; font-weight: 500; color: var(--navy); }
+        .compare-table tbody tr.group-row { background: linear-gradient(90deg, #f8faff, #f1f5f9); }
+        .compare-table tbody tr.group-row td {
+            padding: 10px 24px;
+            font-size: 10.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            color: var(--blue);
+            border-left: 3px solid var(--blue);
+        }
+        .compare-table tbody tr:hover:not(.group-row) { background: #fafbff; }
+        .compare-table td { padding: 14px 24px; font-size: 13px; font-weight: 500; color: var(--navy); }
         .compare-table td:not(:first-child) { text-align: center; }
-        .badge-yes { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 99px; padding: 3px 10px; font-size: 12px; font-weight: 700; display: inline-block; white-space: nowrap; }
-        .badge-no { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 99px; padding: 3px 10px; font-size: 12px; font-weight: 700; display: inline-block; white-space: nowrap; }
-        .badge-warn { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; border-radius: 99px; padding: 3px 10px; font-size: 12px; font-weight: 700; display: inline-block; white-space: nowrap; }
-        .badge-special { background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; border-radius: 99px; padding: 4px 14px; font-size: 13px; font-weight: 800; display: inline-block; }
+        .compare-table td.col-integri-cell { background: #f8fbff; border-left: 1px solid #e2eeff; border-right: 1px solid #e2eeff; }
+        .badge-yes {
+            background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+        .badge-no {
+            background: #fafafa;
+            color: #9ca3af;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+        .badge-warn {
+            background: #fffbeb;
+            color: #d97706;
+            border: 1px solid #fde68a;
+            border-radius: 8px;
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-block;
+            white-space: nowrap;
+        }
+        .badge-special {
+            background: linear-gradient(135deg, #1e3a8a, #2563eb);
+            color: #fff;
+            border-radius: 10px;
+            padding: 7px 18px;
+            font-family: 'Sora', sans-serif;
+            font-size: 13px;
+            font-weight: 800;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            letter-spacing: -.01em;
+            box-shadow: 0 4px 18px rgba(37,99,235,.35);
+            border: 1px solid rgba(255,255,255,.15);
+        }
+        .compare-score-row td { background: linear-gradient(90deg, #f8faff, #eff6ff); font-weight: 700; }
+        .compare-score-row td.col-integri-cell { background: linear-gradient(90deg, #eff6ff, #e0f2fe); }
+        /* Section perbandingan subtle bg */
+        #perbandingan.section.alt { background: #fff; }
 
-        /* ── TESTIMONIALS ── */
-        .testi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-        .testi-card { background: #fff; border: 1.5px solid var(--border); border-radius: 16px; padding: 24px; transition: all .2s; }
-        .testi-card:hover { border-color: #bfdbfe; box-shadow: 0 8px 32px rgba(37,99,235,.08); }
-        .testi-stars { display: flex; gap: 2px; margin-bottom: 14px; font-size: 14px; }
-        .testi-text { font-size: 13.5px; color: var(--slate); line-height: 1.75; margin-bottom: 18px; font-style: italic; }
-        .testi-author { display: flex; align-items: center; gap: 10px; }
-        .testi-ava { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), var(--indigo)); display: flex; align-items: center; justify-content: center; font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 800; color: #fff; flex-shrink: 0; }
-        .testi-name { font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700; color: var(--navy); }
-        .testi-school { font-size: 12px; color: var(--slate); margin-top: 2px; }
+        /* ── TESTIMONIALS REDESIGN ── */
+        .testi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .testi-card {
+            background: #fff;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 20px;
+            padding: 28px 24px 24px;
+            transition: all .25s cubic-bezier(.22,1,.36,1);
+            position: relative;
+            overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+        .testi-card::before {
+            content: '"';
+            position: absolute;
+            top: -8px; right: 20px;
+            font-family: 'Sora', sans-serif;
+            font-size: 100px;
+            font-weight: 900;
+            color: rgba(37,99,235,.06);
+            line-height: 1;
+            pointer-events: none;
+            user-select: none;
+        }
+        .testi-card:hover {
+            border-color: #bfdbfe;
+            box-shadow: 0 16px 48px rgba(37,99,235,.1);
+            transform: translateY(-4px);
+        }
+        .testi-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            font-size: 10.5px; font-weight: 800;
+            text-transform: uppercase; letter-spacing: .08em;
+            padding: 3px 10px;
+            border-radius: 99px;
+            margin-bottom: 16px;
+            width: fit-content;
+        }
+        .testi-stars { display: flex; gap: 2px; margin-bottom: 12px; font-size: 13px; }
+        .testi-text {
+            font-size: 13.5px;
+            color: #374151;
+            line-height: 1.8;
+            margin-bottom: 20px;
+            font-style: italic;
+            flex: 1;
+            position: relative; z-index: 1;
+        }
+        .testi-author { display: flex; align-items: center; gap: 12px; border-top: 1px solid #f1f5f9; padding-top: 16px; position: relative; z-index: 1; }
+        .testi-ava {
+            width: 44px; height: 44px;
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Sora', sans-serif;
+            font-size: 14px; font-weight: 800; color: #fff;
+            flex-shrink: 0;
+            box-shadow: 0 4px 14px rgba(0,0,0,.15);
+        }
+        .testi-name { font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 800; color: var(--navy); line-height: 1.3; }
+        .testi-role { font-size: 11.5px; color: var(--blue); font-weight: 700; margin-top: 2px; }
+        .testi-school { font-size: 11px; color: var(--slate); margin-top: 1px; }
 
         /* ── FAQ ── */
         .faq-wrap { max-width: 660px; margin: 0 auto; }
@@ -503,8 +718,8 @@
             .form-inner { grid-template-columns: 1fr; align-items: start; }
             .form-cs-img { max-width: 280px; margin: 24px auto 0; }
             .form-section { padding-bottom: 0; }
-            .steps-grid { grid-template-columns: repeat(2, 1fr); gap: 32px; }
-            .steps-grid::after { display: none; }
+            .steps-track { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+            .steps-connector { display: none; }
             .footer-top { grid-template-columns: 1fr 1fr; }
         }
         @media (max-width: 640px) {
@@ -512,11 +727,15 @@
             .mob-btn { display: flex; }
             .features-grid { grid-template-columns: 1fr; }
             .testi-grid { grid-template-columns: 1fr; }
-            .steps-grid { grid-template-columns: 1fr; }
+            .steps-track { grid-template-columns: 1fr; }
             .inp-grid { grid-template-columns: 1fr; }
             .footer-top { grid-template-columns: 1fr; }
             .footer-bot { flex-direction: column; align-items: flex-start; }
             .hero-stats { flex-wrap: wrap; gap: 16px; }
+            /* Recognition bar mobile */
+            #recognition-row { flex-direction: column; align-items: flex-start !important; gap: 8px !important; }
+            #recognition-row > div { border-right: none !important; border-bottom: 1px solid #f1f5f9; padding: 8px 0 !important; width: 100%; }
+            #recognition-row > div:last-child { border-bottom: none; }
         }
     </style>
 </head>
@@ -677,7 +896,7 @@
 
             <p style="font-style:italic;font-size:13px;color:rgba(255,255,255,.55);border-left:3px solid #60a5fa;padding-left:12px;margin-bottom:16px;">"Karena kejujuran adalah fondasi pendidikan yang sesungguhnya."</p>
 
-            <p class="hero-desc">Platform ujian digital multi-tenant dengan <strong>Skor Integritas Adaptif 7 Lapis</strong> — dirancang khusus untuk sekolah Indonesia. Gratis sepenuhnya.</p>
+            <p class="hero-desc">Platform ujian digital dengan <strong>Anti-Kecurangan 7 Lapis</strong> dan <strong>Skor Integritas Adaptif</strong> per siswa — dirancang khusus untuk sekolah Indonesia. Gratis sepenuhnya.</p>
 
             <div class="hero-actions">
                 <button class="btn-primary" onclick="navTo('request')">
@@ -696,6 +915,72 @@
         </div>
     </div>
 </section>
+
+<!-- RECOGNITION BAR -->
+<div style="background:#fff;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;padding:0 max(20px,calc(50vw - 600px));">
+    <div style="max-width:1200px;margin:0 auto;padding:20px 0;">
+
+        <!-- Label -->
+        <div style="text-align:center;margin-bottom:18px;">
+            <span style="display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af;">
+                <span style="display:inline-block;width:18px;height:1.5px;background:#d1d5db;border-radius:1px;"></span>
+                Diakui & Didukung
+                <span style="display:inline-block;width:18px;height:1.5px;background:#d1d5db;border-radius:1px;"></span>
+            </span>
+        </div>
+
+        <!-- Logo + Badge Row -->
+        <div style="display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;">
+
+            <!-- SMKN 1 Brondong -->
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 24px;border-right:1px solid #f1f5f9;">
+                <img src="images/logosmk.png" alt="SMK Negeri 1 Brondong" style="height:40px;width:auto;object-fit:contain;flex-shrink:0;">
+                <div>
+                    <div style="font-family:'Sora',sans-serif;font-size:11px;font-weight:800;color:#0f172a;line-height:1.2;">SMK Negeri 1</div>
+                    <div style="font-size:10px;color:#6b7280;font-weight:600;">Brondong, Lamongan</div>
+                </div>
+            </div>
+
+            <!-- TKJ -->
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 24px;border-right:1px solid #f1f5f9;">
+                <img src="images/logotkj.png" alt="Teknik Komputer dan Jaringan" style="height:40px;width:auto;object-fit:contain;flex-shrink:0;border-radius:50%;">
+                <div>
+                    <div style="font-family:'Sora',sans-serif;font-size:11px;font-weight:800;color:#0f172a;line-height:1.2;">Teknik Komputer</div>
+                    <div style="font-size:10px;color:#6b7280;font-weight:600;">& Jaringan (TKJ)</div>
+                </div>
+            </div>
+
+            <!-- Dinas Pendidikan Jatim -->
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 24px;border-right:1px solid #f1f5f9;">
+                <img src="images/dindik_jatim-removebg-preview.png" alt="Dinas Pendidikan Jawa Timur" style="height:40px;width:auto;object-fit:contain;flex-shrink:0;">
+                <div>
+                    <div style="font-family:'Sora',sans-serif;font-size:11px;font-weight:800;color:#0f172a;line-height:1.2;">Dinas Pendidikan</div>
+                    <div style="font-size:10px;color:#6b7280;font-weight:600;">Provinsi Jawa Timur</div>
+                </div>
+            </div>
+
+            <!-- Jawa Pos -->
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 24px;border-right:1px solid #f1f5f9;">
+                <img src="images/jawapos-removebg-preview.png" alt="Jawa Pos" style="height:28px;width:auto;object-fit:contain;flex-shrink:0;">
+                <div>
+                    <div style="font-family:'Sora',sans-serif;font-size:11px;font-weight:800;color:#0f172a;line-height:1.2;">Jawa Pos</div>
+                    <div style="font-size:10px;color:#6b7280;font-weight:600;">Media Partner & Juri</div>
+                </div>
+            </div>
+
+            <!-- ITS -->
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 24px;border-right:1px solid #f1f5f9;">
+                <img src="images/its-removebg-preview.png" alt="ITS" style="height:40px;width:auto;object-fit:contain;flex-shrink:0;">
+                <div>
+                    <div style="font-family:'Sora',sans-serif;font-size:11px;font-weight:800;color:#0f172a;line-height:1.2;">Institut Teknologi</div>
+                    <div style="font-size:10px;color:#6b7280;font-weight:600;">Sepuluh Nopember (ITS)</div>
+                </div>
+            </div>
+
+
+        </div>
+    </div>
+</div>
 
 <!-- FITUR -->
 <section class="section" id="fitur" style="background:#f8faff;">
@@ -783,33 +1068,44 @@
 </section>
 
 <!-- CARA KERJA -->
-<section class="section alt" id="cara-kerja">
+<section class="section" id="cara-kerja" style="background:linear-gradient(180deg,#f0f5ff 0%,#e8f0fe 100%);">
     <div class="section-inner">
         <div class="section-header center reveal">
             <div class="sec-label">Cara Kerja</div>
             <h2 class="sec-title">Mulai dalam 4 Langkah Mudah</h2>
             <p class="sec-desc">Proses dari pengajuan hingga platform siap digunakan biasanya membutuhkan 1–2 hari kerja.</p>
         </div>
-        <div class="steps-grid reveal">
-            <div class="step-item">
-                <div class="step-num">1</div>
-                <div class="step-title">Ajukan Permintaan</div>
-                <div class="step-desc">Isi formulir di halaman ini dengan data sekolah Anda. Prosesnya cepat dan gratis.</div>
+        <div class="steps-track reveal" id="stepsTrack">
+            <div class="steps-connector">
+                <div class="steps-connector-fill" id="connectorFill"></div>
             </div>
-            <div class="step-item">
-                <div class="step-num">2</div>
-                <div class="step-title">Review Admin</div>
-                <div class="step-desc">Tim kami akan memverifikasi data sekolah dan menyiapkan tenant khusus untuk Anda.</div>
+            <div class="step-card">
+                <div class="step-num-badge">1</div>
+                <div class="step-card-num-bg">1</div>
+                <div class="step-card-title">Ajukan Permintaan</div>
+                <div class="step-card-desc">Isi formulir di halaman ini dengan data sekolah Anda. Prosesnya cepat dan gratis.</div>
+                <div class="step-card-time">⚡ ~5 menit</div>
             </div>
-            <div class="step-item">
-                <div class="step-num">3</div>
-                <div class="step-title">Terima Link & Akses</div>
-                <div class="step-desc">Anda mendapat email/WhatsApp berisi link platform, username, dan password admin.</div>
+            <div class="step-card">
+                <div class="step-num-badge">2</div>
+                <div class="step-card-num-bg">2</div>
+                <div class="step-card-title">Review Admin</div>
+                <div class="step-card-desc">Tim kami akan memverifikasi data sekolah dan menyiapkan tenant khusus untuk Anda.</div>
+                <div class="step-card-time">🕐 1–2 hari kerja</div>
             </div>
-            <div class="step-item">
-                <div class="step-num">4</div>
-                <div class="step-title">Langsung Pakai!</div>
-                <div class="step-desc">Login, import data siswa, buat soal, dan selenggarakan ujian pertama Anda hari ini.</div>
+            <div class="step-card">
+                <div class="step-num-badge">3</div>
+                <div class="step-card-num-bg">3</div>
+                <div class="step-card-title">Terima Link & Akses</div>
+                <div class="step-card-desc">Anda mendapat email/WhatsApp berisi link platform, username, dan password admin.</div>
+                <div class="step-card-time">📩 Via WA / Email</div>
+            </div>
+            <div class="step-card">
+                <div class="step-num-badge">4</div>
+                <div class="step-card-num-bg">4</div>
+                <div class="step-card-title">Langsung Pakai!</div>
+                <div class="step-card-desc">Login, import data siswa, buat soal, dan selenggarakan ujian pertama Anda hari ini.</div>
+                <div class="step-card-time">🎉 Hari itu juga</div>
             </div>
         </div>
     </div>
@@ -957,53 +1253,54 @@
             <table class="compare-table">
                 <thead>
                     <tr>
-                        <th>Fitur</th>
-                        <th>
+                        <th style="width:40%;">Fitur</th>
+                        <th class="col-integri" style="width:32%;">
                             <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
-                                <img src="images/integritest.png" alt="" style="height:20px;width:auto;">
-                                <span style="background:linear-gradient(90deg,#fff,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:900;">INTEGRITEST</span>
+                                <img src="images/integritest.png" alt="" style="height:18px;width:auto;opacity:.9;">
+                                <span style="font-family:'Sora',sans-serif;font-size:14px;font-weight:900;color:#fff;letter-spacing:-.01em;">INTEGRITEST</span>
                             </div>
                         </th>
-                        <th>CBT Konvensional</th>
+                        <th class="col-konven" style="width:28%;font-size:12px;font-weight:600;">CBT Konvensional</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr class="group-row"><td colspan="3">🛡️ Keamanan & Anti-Kecurangan</td></tr>
-                    <tr><td>Deteksi pindah tab / keluar layar</td><td><span class="badge-yes">✅ Real-time + hitung pelanggaran</span></td><td><span class="badge-no">❌ Tidak ada / manual</span></td></tr>
-                    <tr><td>Fullscreen enforcement otomatis</td><td><span class="badge-yes">✅ Ya, dengan peringatan bertahap</span></td><td><span class="badge-no">❌ Tidak ada</span></td></tr>
-                    <tr><td>Randomisasi soal & jawaban</td><td><span class="badge-yes">✅ Per siswa, otomatis</span></td><td><span class="badge-warn">⚠️ Terbatas / tidak ada</span></td></tr>
-                    <tr><td>Skor Integritas Adaptif (7 lapis)</td><td><span class="badge-yes">✅ Eksklusif INTEGRITEST</span></td><td><span class="badge-no">❌ Tidak ada</span></td></tr>
-                    <tr><td>Verifikasi pengawas via QR Token</td><td><span class="badge-yes">✅ Scan kamera, real-time</span></td><td><span class="badge-no">❌ Tidak ada</span></td></tr>
-                    <tr><td>Deteksi perangkat duplikat</td><td><span class="badge-yes">✅ Device fingerprint V3</span></td><td><span class="badge-no">❌ Tidak ada</span></td></tr>
+                    <tr><td>Deteksi pindah tab / keluar layar</td><td class="col-integri-cell"><span class="badge-yes">✅ Real-time + hitung pelanggaran</span></td><td><span class="badge-no">✗ Tidak ada / manual</span></td></tr>
+                    <tr><td>Fullscreen enforcement otomatis</td><td class="col-integri-cell"><span class="badge-yes">✅ Ya, dengan peringatan bertahap</span></td><td><span class="badge-no">✗ Tidak ada</span></td></tr>
+                    <tr><td>Randomisasi soal & jawaban</td><td class="col-integri-cell"><span class="badge-yes">✅ Per siswa, otomatis</span></td><td><span class="badge-warn">⚠️ Terbatas / tidak ada</span></td></tr>
+                    <tr><td>Skor Integritas Adaptif (7 lapis)</td><td class="col-integri-cell"><span class="badge-yes">✅ Eksklusif INTEGRITEST</span></td><td><span class="badge-no">✗ Tidak ada</span></td></tr>
+                    <tr><td>Verifikasi pengawas via QR Token</td><td class="col-integri-cell"><span class="badge-yes">✅ Scan kamera, real-time</span></td><td><span class="badge-no">✗ Tidak ada</span></td></tr>
+                    <tr><td>Deteksi perangkat duplikat</td><td class="col-integri-cell"><span class="badge-yes">✅ Device fingerprint V3</span></td><td><span class="badge-no">✗ Tidak ada</span></td></tr>
 
                     <tr class="group-row"><td colspan="3">📝 Bank Soal & Ujian</td></tr>
-                    <tr><td>Tipe soal yang didukung</td><td><span class="badge-yes">✅ PG, Essay, Benar/Salah</span></td><td><span class="badge-warn">⚠️ Biasanya hanya PG</span></td></tr>
-                    <tr><td>Import soal dari Word / Excel</td><td><span class="badge-yes">✅ Didukung penuh</span></td><td><span class="badge-no">❌ Manual satu per satu</span></td></tr>
-                    <tr><td>Pembahasan soal setelah ujian</td><td><span class="badge-yes">✅ Bisa diatur kapan dibuka</span></td><td><span class="badge-no">❌ Tidak ada</span></td></tr>
+                    <tr><td>Tipe soal yang didukung</td><td class="col-integri-cell"><span class="badge-yes">✅ PG, Essay, Benar/Salah</span></td><td><span class="badge-warn">⚠️ Biasanya hanya PG</span></td></tr>
+                    <tr><td>Import soal dari Word / Excel</td><td class="col-integri-cell"><span class="badge-yes">✅ Didukung penuh</span></td><td><span class="badge-no">✗ Manual satu per satu</span></td></tr>
+                    <tr><td>Pembahasan soal setelah ujian</td><td class="col-integri-cell"><span class="badge-yes">✅ Bisa diatur kapan dibuka</span></td><td><span class="badge-no">✗ Tidak ada</span></td></tr>
 
                     <tr class="group-row"><td colspan="3">📊 Laporan & Analitik</td></tr>
-                    <tr><td>Ekspor laporan PDF & Excel</td><td><span class="badge-yes">✅ Per siswa / kelas / mapel</span></td><td><span class="badge-warn">⚠️ Biasanya berbayar</span></td></tr>
-                    <tr><td>Notifikasi hasil ke orang tua via WA</td><td><span class="badge-yes">✅ Otomatis via Fonnte</span></td><td><span class="badge-no">❌ Tidak ada</span></td></tr>
-                    <tr><td>Monitoring real-time pengawas</td><td><span class="badge-yes">✅ Live status tiap siswa</span></td><td><span class="badge-warn">⚠️ Terbatas</span></td></tr>
+                    <tr><td>Ekspor laporan PDF & Excel</td><td class="col-integri-cell"><span class="badge-yes">✅ Per siswa / kelas / mapel</span></td><td><span class="badge-warn">⚠️ Biasanya berbayar</span></td></tr>
+                    <tr><td>Notifikasi hasil ke orang tua via WA</td><td class="col-integri-cell"><span class="badge-yes">✅ Otomatis via Fonnte</span></td><td><span class="badge-no">✗ Tidak ada</span></td></tr>
+                    <tr><td>Monitoring real-time pengawas</td><td class="col-integri-cell"><span class="badge-yes">✅ Live status tiap siswa</span></td><td><span class="badge-warn">⚠️ Terbatas</span></td></tr>
 
                     <tr class="group-row"><td colspan="3">⚙️ Teknis & Infrastruktur</td></tr>
-                    <tr><td>Bisa dipakai di HP spesifikasi rendah</td><td><span class="badge-yes">✅ Dioptimasi khusus</span></td><td><span class="badge-no">❌ Sering lag / crash</span></td></tr>
-                    <tr><td>Jawaban aman saat koneksi putus</td><td><span class="badge-yes">✅ Tersimpan lokal</span></td><td><span class="badge-no">❌ Jawaban hilang</span></td></tr>
-                    <tr><td>Multi-tenant (database terpisah)</td><td><span class="badge-yes">✅ Setiap sekolah terisolasi</span></td><td><span class="badge-no">❌ Shared / campur</span></td></tr>
+                    <tr><td>Bisa dipakai di HP spesifikasi rendah</td><td class="col-integri-cell"><span class="badge-yes">✅ Dioptimasi khusus</span></td><td><span class="badge-no">✗ Sering lag / crash</span></td></tr>
+                    <tr><td>Jawaban aman saat koneksi putus</td><td class="col-integri-cell"><span class="badge-yes">✅ Tersimpan lokal</span></td><td><span class="badge-no">✗ Jawaban hilang</span></td></tr>
+                    <tr><td>Multi-tenant (database terpisah)</td><td class="col-integri-cell"><span class="badge-yes">✅ Setiap sekolah terisolasi</span></td><td><span class="badge-no">✗ Shared / campur</span></td></tr>
 
-                    <tr>
-                        <td style="font-weight:700;">💰 Biaya</td>
-                        <td><span class="badge-special">🎁 100% GRATIS</span></td>
-                        <td><span class="badge-no">💸 Berbayar (Rp 500rb–5jt/th)</span></td>
+                    <tr class="compare-score-row">
+                        <td style="font-weight:700;font-family:'Sora',sans-serif;">💰 Biaya</td>
+                        <td class="col-integri-cell"><span class="badge-special"><span style="font-size:15px;">✦</span> 100% GRATIS</span></td>
+                        <td><span style="font-size:13px;color:#9ca3af;font-weight:600;">Rp 500rb–5jt / tahun</span></td>
                     </tr>
                 </tbody>
             </table>
         </div>
-        <div style="text-align:center;margin-top:28px;">
-            <button class="btn-primary" onclick="navTo('request')" style="background:var(--blue);color:#fff;display:inline-flex;">
+        <div style="text-align:center;margin-top:36px;">
+            <button onclick="navTo('request')" style="display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,#0f1d5c,#2563eb);color:#fff;font-family:'Sora',sans-serif;font-size:15px;font-weight:800;padding:16px 32px;border-radius:14px;border:none;cursor:pointer;box-shadow:0 8px 28px rgba(37,99,235,.4);letter-spacing:-.02em;transition:all .2s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 14px 36px rgba(37,99,235,.5)'" onmouseout="this.style.transform='';this.style.boxShadow='0 8px 28px rgba(37,99,235,.4)'">
                 Daftar Sekarang — Gratis!
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,18 15,12 9,6"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12,5 19,12 12,19"/></svg>
             </button>
+            <div style="margin-top:12px;font-size:12px;color:#9ca3af;font-weight:500;">Tanpa kartu kredit · Langsung aktif · Gratis selamanya</div>
         </div>
     </div>
 </section>
@@ -1013,32 +1310,67 @@
     <div class="section-inner">
         <div class="section-header center reveal">
             <div class="sec-label">Testimoni</div>
-            <h2 class="sec-title">Dipercaya Sekolah-Sekolah di Indonesia</h2>
+            <h2 class="sec-title">Dipercaya oleh <em style="font-style:normal;background:linear-gradient(135deg,#2563eb,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Pendidik Nyata</em></h2>
+            <p class="sec-desc">Langsung dari para pendidik di SMK Negeri 1 Brondong yang telah merasakan manfaatnya.</p>
         </div>
         <div class="testi-grid reveal">
+
+            <!-- Kepala Sekolah -->
             <div class="testi-card">
+                <span class="testi-badge" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;">🏫 Kepala Sekolah</span>
                 <div class="testi-stars">⭐⭐⭐⭐⭐</div>
-                <div class="testi-text">"Platform yang luar biasa. Siswa langsung bisa pakai tanpa pelatihan panjang, dan guru sangat terbantu dengan laporan nilai otomatis."</div>
+                <div class="testi-text">"INTEGRITEST benar-benar mengubah cara sekolah kami menyelenggarakan ujian. Integritas akademik terjaga, proses lebih efisien, dan yang terpenting — gratis. Luar biasa untuk pendidikan Indonesia."</div>
                 <div class="testi-author">
-                    <div class="testi-ava">SY</div>
-                    <div><div class="testi-name">Siti Yuliana, S.Pd.</div><div class="testi-school">Guru TIK · SMAN 3 Makassar</div></div>
+                    <div class="testi-ava" style="background:linear-gradient(135deg,#0f1d5c,#2563eb);">MR</div>
+                    <div>
+                        <div class="testi-name">Mat Rukun, S.ST., S.Pd., M.Kom.</div>
+                        <div class="testi-role">Kepala Sekolah</div>
+                        <div class="testi-school">SMK Negeri 1 Brondong</div>
+                    </div>
                 </div>
             </div>
+
+            <!-- Kaprog TKJ -->
             <div class="testi-card">
+                <span class="testi-badge" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">💻 Kaprog TKJ</span>
                 <div class="testi-stars">⭐⭐⭐⭐⭐</div>
-                <div class="testi-text">"Fitur anti-curang-nya mantap! Sistem QR untuk verifikasi pengawas benar-benar membantu memastikan ujian berjalan adil."</div>
+                <div class="testi-text">"Sebagai Kaprog TKJ, saya sangat terkesan dengan arsitektur multi-tenant dan fitur anti-kecurangan berlapis. Deteksi device fingerprint dan QR Token-nya benar-benar canggih dan relevan untuk kebutuhan ujian sekolah kami."</div>
                 <div class="testi-author">
-                    <div class="testi-ava">AR</div>
-                    <div><div class="testi-name">Agus Riyanto, M.Pd.</div><div class="testi-school">Kepala Sekolah · SMK Telkom Surabaya</div></div>
+                    <div class="testi-ava" style="background:linear-gradient(135deg,#16a34a,#0d9488);">EZ</div>
+                    <div>
+                        <div class="testi-name">Edy Zulyanto, S.Kom., M.Pd.</div>
+                        <div class="testi-role">Kaprog TKJ</div>
+                        <div class="testi-school">SMK Negeri 1 Brondong</div>
+                    </div>
                 </div>
             </div>
+
+            <!-- Guru BK -->
             <div class="testi-card">
+                <span class="testi-badge" style="background:#faf5ff;color:#7c3aed;border:1px solid #e9d5ff;">🧠 Guru BK</span>
                 <div class="testi-stars">⭐⭐⭐⭐⭐</div>
-                <div class="testi-text">"Setup cepat sekali. Dalam 1 hari setelah pengajuan, platform sudah siap dan kami langsung bisa mengadakan try-out untuk kelas 12."</div>
+                <div class="testi-text">"Dari sisi psikologis siswa, ujian yang adil sangat berpengaruh pada kepercayaan diri mereka. INTEGRITEST memastikan tidak ada yang bisa curang, sehingga hasil ujian benar-benar mencerminkan kemampuan masing-masing siswa."</div>
                 <div class="testi-author">
-                    <div class="testi-ava">DN</div>
-                    <div><div class="testi-name">Dewi Nurhayati, S.Kom.</div><div class="testi-school">Admin IT · MAN 2 Bandung</div></div>
+                    <div class="testi-ava" style="background:linear-gradient(135deg,#7c3aed,#db2777);">RA</div>
+                    <div>
+                        <div class="testi-name">Rizka Andhika Fitriyah, S.Psi.</div>
+                        <div class="testi-role">Guru BK</div>
+                        <div class="testi-school">SMK Negeri 1 Brondong</div>
+                    </div>
                 </div>
+            </div>
+
+        </div>
+
+        <!-- Sekolah badge -->
+        <div style="margin-top:32px;text-align:center;">
+            <div style="display:inline-flex;align-items:center;gap:10px;background:#f8faff;border:1.5px solid #bfdbfe;border-radius:14px;padding:12px 20px;">
+                <img src="images/logosmk.png" alt="SMK Negeri 1 Brondong" style="width:36px;height:36px;object-fit:contain;flex-shrink:0;border-radius:8px;">
+                <div style="text-align:left;">
+                    <div style="font-family:'Sora',sans-serif;font-size:13px;font-weight:800;color:var(--navy);">SMK Negeri 1 Brondong</div>
+                    <div style="font-size:11px;color:var(--slate);margin-top:1px;">Lamongan, Jawa Timur · Pengguna aktif INTEGRITEST</div>
+                </div>
+                <div style="margin-left:8px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:99px;padding:4px 12px;font-size:11px;font-weight:800;color:#15803d;">✓ Terverifikasi</div>
             </div>
         </div>
     </div>
@@ -1231,13 +1563,26 @@
     <div class="footer-inner">
         <div class="footer-top">
             <div class="footer-brand">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
-                    <img src="images/integritest.png" alt="INTEGRITEST" style="height:30px;width:auto;">
-                    <span class="footer-brand-name">INTEGRITEST</span>
+                <!-- EJIES Logo Block -->
+                <div style="background:#0d1117;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px 20px;display:inline-flex;flex-direction:column;gap:14px;margin-bottom:16px;">
+                    <!-- Logo EJIES -->
+                    <img src="images/logoejies.png" alt="EJIES 2026" style="height:36px;width:auto;object-fit:contain;object-position:left;">
+                    <!-- Divider -->
+                    <div style="height:1px;background:linear-gradient(90deg,rgba(56,189,248,.3),rgba(251,146,60,.3),transparent);"></div>
+                    <!-- 50 Besar Badge — warna senada EJIES -->
+                    <div style="display:inline-flex;align-items:center;gap:10px;">
+                        <!-- Trophy icon circle -->
+                        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#fb923c,#f97316);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(251,146,60,.4);">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0012 0V2z"/></svg>
+                        </div>
+                        <div>
+                            <div style="font-family:'Sora',sans-serif;font-size:15px;font-weight:900;color:#fff;line-height:1;letter-spacing:-.02em;">50 Besar</div>
+                            <div style="font-size:11px;font-weight:600;color:rgba(255,255,255,.5);margin-top:3px;letter-spacing:.02em;">East Java Innovative Education Summit 2026</div>
+                        </div>
+                    </div>
                 </div>
-                <p>Platform ujian digital multi-tenant untuk sekolah Indonesia. Aman, adil, dan efisien.</p>
-            </div>
-            <div class="footer-col">
+
+            </div>            <div class="footer-col">
                 <h4>Platform</h4>
                 <a onclick="navTo('fitur')">Fitur</a>
                 <a onclick="navTo('cara-kerja')">Cara Kerja</a>
@@ -1252,7 +1597,7 @@
             </div>
         </div>
         <div class="footer-bot">
-            <div class="footer-copy">© 2026 INTEGRITEST. Dikembangkan untuk kemajuan pendidikan Indonesia.</div>
+            <div class="footer-copy">© 2026 INTEGRITEST · Nailul Authar. Dikembangkan untuk kemajuan pendidikan Indonesia.</div>
             <div class="footer-links">
                 <a onclick="openModal('kebijakan')">Kebijakan Privasi</a>
                 <a onclick="openModal('syarat')">Syarat Penggunaan</a>
@@ -1444,6 +1789,21 @@ const csImg = document.querySelector('.form-cs-img');
 const csWrap = document.querySelector('.cs-wrap');
 if (csImg) observer.observe(csImg);
 if (csWrap) observer.observe(csWrap);
+
+// Steps connector fill animation
+const connectorFill = document.getElementById('connectorFill');
+const stepsTrack = document.getElementById('stepsTrack');
+if (connectorFill && stepsTrack) {
+    const connectorObs = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+            if (e.isIntersecting) {
+                setTimeout(() => connectorFill.classList.add('animate'), 200);
+                connectorObs.unobserve(e.target);
+            }
+        });
+    }, { threshold: 0.3 });
+    connectorObs.observe(stepsTrack);
+}
 
 // Active nav highlight on scroll
 const sections = ['fitur','perbandingan','cara-kerja','faq','request'];
