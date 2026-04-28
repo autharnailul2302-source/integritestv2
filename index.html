@@ -361,6 +361,10 @@
                 ]);
                 
                 window.isFirebaseReady = true;
+                // ★ FIX: Simpan appId yang valid untuk superadmin SEBELUM bisa dioverride
+                // window.appId bisa berubah setelah init (oleh _customAppId/__app_id),
+                // tapi _superadminAppId selalu menunjuk ke doc ID yang benar di Firestore
+                window._superadminAppId = window.appId;
                 console.log('[Firebase] Connected —', isCustomFirebase ? 'custom project' : 'shared project');
 
                 // ══════════════════════════════════════════════════════
@@ -395,7 +399,8 @@
                             const _lastPing = parseInt(sessionStorage.getItem(_pingKey) || '0');
                             if (Date.now() - _lastPing > 5 * 60 * 1000) {
                                 sessionStorage.setItem(_pingKey, String(Date.now()));
-                                const _schoolRef2 = doc(defaultDb, 'superadmin', 'data', 'schools', window.appId);
+                                const _pingAppId = window._superadminAppId || window.appId;
+                                const _schoolRef2 = doc(defaultDb, 'superadmin', 'data', 'schools', _pingAppId);
                                 const _schoolSnap2 = await getDoc(_schoolRef2);
                                 // FIX: Gunakan setDoc+merge agar lastAccess SELALU tersimpan
                                 // meski field belum pernah ada di dokumen sebelumnya
@@ -625,7 +630,8 @@
                 try {
                     const _saDb = window._defaultDb || window.db;
                     if (window.isFirebaseReady && _saDb) {
-                        const _schoolRefEx = window.doc(_saDb, 'superadmin', 'data', 'schools', window.appId);
+                        const _saAppId = window._superadminAppId || window.appId;
+                        const _schoolRefEx = window.doc(_saDb, 'superadmin', 'data', 'schools', _saAppId);
                         const _schoolSnapEx = await window.getDoc(_schoolRefEx);
                         if (_schoolSnapEx.exists()) {
                             const _d = _schoolSnapEx.data();
@@ -762,7 +768,8 @@
                             const _isDQ = _intScore === 0;
 
                             // Gunakan window._defaultDb — selalu Firebase bersama (superadmin)
-                            const _schoolRefSync = doc(window._defaultDb, 'superadmin', 'data', 'schools', window.appId);
+                            const _saAppIdSync = window._superadminAppId || window.appId;
+                            const _schoolRefSync = doc(window._defaultDb, 'superadmin', 'data', 'schools', _saAppIdSync);
                             const _schoolSnapSync = await getDoc(_schoolRefSync);
                             if (_schoolSnapSync.exists()) {
                                 const _cur = _schoolSnapSync.data();
@@ -775,7 +782,7 @@
                                     ? Math.round((_prevAvg * (_prevCount - 1) + _intScore) / _prevCount)
                                     : _intScore;
 
-                                await updateDoc(doc(window._defaultDb, 'superadmin', 'data', 'schools', window.appId), {
+                                await updateDoc(doc(window._defaultDb, 'superadmin', 'data', 'schools', _saAppIdSync), {
                                     avgIntegrityScore  : _newAvg,
                                     lastExamSession    : Date.now(),
                                     lastExamSessionDate: new Date().toISOString(),
