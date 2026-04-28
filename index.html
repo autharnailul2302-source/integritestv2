@@ -476,6 +476,8 @@
                     })();
                     // ★ Mulai polling kendala pengawas
                     if (window.startKendalaPolling) window.startKendalaPolling();
+                    // ★ Cek notifikasi unlock request dari pengawas
+                    setTimeout(() => { if (window.updateUnlockRequestNotifications) window.updateUnlockRequestNotifications(); }, 2000);
                 }
 
                 // ★ RESTORE SESSION — cek sesi admin/pengawas yang tersimpan, delay agar
@@ -551,6 +553,7 @@
                         if ('motivasi'   in data) latestAppearance.motivasi   = data.motivasi   ?? '';
                         if ('logoUrl'    in data) latestAppearance.logoUrl    = data.logoUrl    ?? '';
                         if (data.nomorIdMode !== undefined) latestAppearance.nomorIdMode = data.nomorIdMode;
+                        if (data.judulColor  !== undefined) latestAppearance.judulColor  = data.judulColor;
                     }
                 });
                 
@@ -950,6 +953,7 @@
                         motivasi:     savedApp.motivasi    ?? null,
                         logoUrl:      savedApp.logoUrl     ?? null,
                         nomorIdMode:  savedApp.nomorIdMode ?? 'nisn',
+                        judulColor:   savedApp.judulColor  ?? '#fde047',
                         timestamp: Date.now()
                     });
                     window.appealEnabled = newAppealEnabled;
@@ -1114,6 +1118,95 @@
         });
 
         // --- SAVE APPEARANCE ONLY (Pengaturan Tampilan SAJA — dari tab Setting Tampilan) ---
+        // ── Reset Tampilan ke Default ──
+        window.resetTampilanDefault = async function() {
+            if (!confirm('Reset tampilan ke default?\n\nJudul, warna, logo, sub-judul, dan motivasi akan dikembalikan ke bawaan sistem.')) return;
+            const def = window.appearanceDefaults || {};
+            const resetVal = {
+                judulUjian  : def.judulUjian  || 'INTEGRITEST',
+                subJudul    : def.subJudul    || 'Digitalyzing Integrity, Empowering Honestly',
+                motivasi    : def.motivasi    || 'Kerjakan dengan jujur dan penuh semangat. Hasil terbaik lahir dari usaha yang sungguh-sungguh. Percayalah pada kemampuanmu — sukses menantimu!',
+                logoUrl     : def.logoUrl     || 'images/integritest.png',
+                nomorIdMode : 'nisn',
+                judulColor  : '#fde047'
+            };
+            try {
+                if (window.isFirebaseReady && window.db) {
+                    await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'app_settings'), {
+                        ...resetVal,
+                        token        : window.currentExamToken    || '',
+                        examDuration : window.currentExamDuration || 60,
+                        minDuration  : window.currentMinExamDuration || 0,
+                        deviceCooldown: window.deviceCooldownMinutes || 30,
+                        appealEnabled: window.appealEnabled !== false,
+                        timestamp    : Date.now()
+                    });
+                }
+                window._savedAppearance = resetVal;
+                window.applyAppearanceSettings(resetVal);
+                window.loadTampilanFields();
+                alert('✅ Tampilan berhasil direset ke default!');
+            } catch(e) {
+                alert('❌ Gagal reset: ' + e.message);
+            }
+        };
+
+        // ── Reset Semua Pengaturan ──
+        window.resetSemuaPengaturan = async function() {
+            const konfirmasi = prompt('⚠️ PERINGATAN!\n\nIni akan mereset TOKEN, DURASI, dan semua TAMPILAN ke nilai awal.\nData siswa, soal, dan hasil ujian TIDAK akan dihapus.\n\nKetik "RESET" untuk konfirmasi:');
+            if (konfirmasi !== 'RESET') { alert('Reset dibatalkan.'); return; }
+            const def = window.appearanceDefaults || {};
+            const resetAll = {
+                token         : '',
+                examDuration  : 60,
+                minDuration   : 0,
+                deviceCooldown: 30,
+                appealEnabled : true,
+                judulUjian    : def.judulUjian  || 'INTEGRITEST',
+                subJudul      : def.subJudul    || 'Digitalyzing Integrity, Empowering Honestly',
+                motivasi      : def.motivasi    || 'Kerjakan dengan jujur dan penuh semangat.',
+                logoUrl       : def.logoUrl     || 'images/integritest.png',
+                nomorIdMode   : 'nisn',
+                judulColor    : '#fde047',
+                timestamp     : Date.now()
+            };
+            try {
+                if (window.isFirebaseReady && window.db) {
+                    await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'app_settings'), resetAll);
+                }
+                window._savedAppearance = resetAll;
+                window.applyAppearanceSettings(resetAll);
+                window.loadTampilanFields();
+                // Reset state lokal
+                window.currentExamToken = '';
+                window.currentExamDuration = 60;
+                window.currentMinExamDuration = 0;
+                window.deviceCooldownMinutes = 30;
+                window.appealEnabled = true;
+                // Sync ke field token & durasi
+                const tf = document.getElementById('exam-token-input'); if (tf) tf.value = '';
+                const df = document.getElementById('exam-duration-input'); if (df) df.value = 60;
+                alert('✅ Semua pengaturan berhasil direset!\n\nSilakan set token ujian baru sebelum ujian dimulai.');
+            } catch(e) {
+                alert('❌ Gagal reset: ' + e.message);
+            }
+        };
+
+        window.setJudulColor = function(color) {
+            const picker  = document.getElementById('setting-judul-color-picker');
+            const preview = document.getElementById('preview-judul-color');
+            if (picker)  picker.value  = color;
+            if (preview) preview.style.color = color;
+            // Live preview langsung ke login header
+            const loginH1 = document.getElementById('login-header-judul');
+            if (loginH1) {
+                loginH1.style.color = color;
+                loginH1.style.textShadow = `0 0 14px ${color}80`;
+            }
+            // Simpan sementara ke _savedAppearance agar tidak hilang sebelum klik Simpan
+            if (window._savedAppearance) window._savedAppearance.judulColor = color;
+        };
+
         window.saveAppearanceOnly = async () => {
             const savedApp = window._savedAppearance || {};
             const newJudulUjian   = (document.getElementById('setting-judul-ujian')?.value  ?? '').trim();
@@ -1121,6 +1214,7 @@
             const newMotivasi     = (document.getElementById('setting-motivasi')?.value     ?? '').trim();
             const newLogoUrl      = (document.getElementById('setting-logo-url')?.value     ?? '').trim();
             const newNomorIdMode  = document.getElementById('setting-nomor-id-mode')?.value || savedApp.nomorIdMode || 'nisn';
+            const newJudulColor   = document.getElementById('setting-judul-color-picker')?.value || savedApp.judulColor || '#fde047';
 
             if (window.isFirebaseReady && window.db) {
                 try {
@@ -1136,20 +1230,21 @@
                         motivasi:     newMotivasi   || null,
                         logoUrl:      newLogoUrl    || null,
                         nomorIdMode:  newNomorIdMode,
+                        judulColor:   newJudulColor,
                         timestamp: Date.now()
                     });
                     // Update cache lokal
-                    window._savedAppearance = { judulUjian: newJudulUjian, subJudul: newSubJudul, motivasi: newMotivasi, logoUrl: newLogoUrl, nomorIdMode: newNomorIdMode };
+                    window._savedAppearance = { judulUjian: newJudulUjian, subJudul: newSubJudul, motivasi: newMotivasi, logoUrl: newLogoUrl, nomorIdMode: newNomorIdMode, judulColor: newJudulColor };
                     // Terapkan ke UI langsung
                     window.applyAppearanceSettings(window._savedAppearance);
                     alert(`✅ Pengaturan tampilan disimpan!`);
                 } catch(saveErr) {
                     alert(`❌ Gagal simpan ke server: ${saveErr.message}\n\nCek koneksi internet dan coba lagi.`);
-                    window.applyAppearanceSettings({ judulUjian: newJudulUjian, subJudul: newSubJudul, motivasi: newMotivasi, logoUrl: newLogoUrl, nomorIdMode: newNomorIdMode });
+                    window.applyAppearanceSettings({ judulUjian: newJudulUjian, subJudul: newSubJudul, motivasi: newMotivasi, logoUrl: newLogoUrl, nomorIdMode: newNomorIdMode, judulColor: newJudulColor });
                 }
             } else {
                 // Offline — terapkan ke UI saja
-                window.applyAppearanceSettings({ judulUjian: newJudulUjian, subJudul: newSubJudul, motivasi: newMotivasi, logoUrl: newLogoUrl, nomorIdMode: newNomorIdMode });
+                window.applyAppearanceSettings({ judulUjian: newJudulUjian, subJudul: newSubJudul, motivasi: newMotivasi, logoUrl: newLogoUrl, nomorIdMode: newNomorIdMode, judulColor: newJudulColor });
                 alert("Mode Offline: Pengaturan tampilan diterapkan sementara, tidak tersimpan ke server.");
             }
         };
@@ -4128,10 +4223,11 @@ html.dark .ob-dot.active { background: #818cf8; }
                     <div class="relative admin-only-tab" id="dropdown-lainnya-wrap">
                         <button id="btn-dropdown-lainnya" onclick="window._toggleNavDropdown('dropdown-lainnya')" class="admin-only-tab flex items-center gap-2 py-2.5 px-3 rounded-xl text-gray-400 hover:bg-gray-100 font-bold text-sm transition-all whitespace-nowrap">
                             <i data-lucide="more-horizontal" class="w-4 h-4"></i>
+                            <span id="lainnya-badge-combined" class="hidden min-w-[8px] h-[8px] bg-purple-600 rounded-full"></span>
                         </button>
                         <div id="dropdown-lainnya" class="hidden absolute top-full right-0 mt-1.5 w-52 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 p-1.5 flex-col gap-0.5">
                             <button onclick="window.switchDashTab('tampilan');window._closeAllNavDropdowns()" id="tab-dash-tampilan" class="admin-only-tab flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-800 font-semibold text-sm transition-all w-full text-left">
-                                <i data-lucide="settings-2" class="w-4 h-4 shrink-0"></i><span>Setting</span>
+                                <i data-lucide="settings-2" class="w-4 h-4 shrink-0"></i><span>Setting</span><span id="unlock-req-badge-nav" class="hidden ml-auto min-w-[18px] h-[18px] px-1 bg-purple-600 text-white text-[10px] font-black rounded-full flex items-center justify-center animate-pulse">0</span>
                             </button>
                             <button onclick="window.switchDashTab('akun-guru');window._closeAllNavDropdowns()" id="tab-dash-akun-guru" class="admin-only-tab flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-800 font-semibold text-sm transition-all w-full text-left">
                                 <i data-lucide="user-cog" class="w-4 h-4 shrink-0"></i><span>Akun Guru</span>
@@ -4196,6 +4292,15 @@ html.dark .ob-dot.active { background: #818cf8; }
 
                 // Observe perubahan badge secara periodik (sederhana & aman)
                 setInterval(updatePantauBadge, 2000);
+                // Update titik ungu Lainnya secara periodik
+                setInterval(function() {
+                    var dot = document.getElementById('lainnya-badge-combined');
+                    var nav = document.getElementById('unlock-req-badge-nav');
+                    if (!dot || !nav) return;
+                    var hasUnlock = !nav.classList.contains('hidden') && parseInt(nav.textContent||'0') > 0;
+                    if (hasUnlock) dot.classList.remove('hidden');
+                    else dot.classList.add('hidden');
+                }, 2000);
             })();
             </script>
             <script>
@@ -4257,6 +4362,21 @@ html.dark .ob-dot.active { background: #818cf8; }
                     <button onclick="window.switchDashTab('banding')"
                         class="shrink-0 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xs font-black px-4 py-2 rounded-xl transition-all shadow-sm">
                         Review Sekarang &#x2192;
+                    </button>
+                </div>
+
+                <!-- UNLOCK REQUEST ALERT BANNER -->
+                <div id="unlock-req-alert-banner" class="hidden mb-4 rounded-2xl border-2 border-purple-400 bg-purple-50 px-5 py-4 flex items-center justify-between gap-4 shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-purple-500 flex items-center justify-center text-white text-xl shrink-0 animate-pulse">🔓</div>
+                        <div>
+                            <p class="font-black text-purple-800 text-sm" id="unlock-req-banner-text">Ada permintaan Unlock Device dari Pengawas</p>
+                            <p class="text-xs text-purple-600 mt-0.5">Pengawas sudah approve banding — siswa menunggu device di-unlock.</p>
+                        </div>
+                    </div>
+                    <button onclick="window.switchDashTab('tampilan'); setTimeout(() => { const el = document.getElementById('sec-unlock-requests'); if(el) el.scrollIntoView({behavior:'smooth'}); }, 400);"
+                        class="shrink-0 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white text-xs font-black px-4 py-2 rounded-xl transition-all shadow-sm whitespace-nowrap">
+                        Unlock Sekarang &#x2192;
                     </button>
                 </div>
 
@@ -6704,32 +6824,27 @@ Terima kasih 🙏</textarea>
                         <p class="text-xs text-purple-500 mt-2">Tips: Bisa input <strong>NISN</strong> (angka), <strong>Nomor Peserta</strong> dari kartu peserta (contoh: A-001), atau <strong>Device ID</strong> dari detail monitoring siswa.</p>
                         <div id="unlock-device-result" class="mt-2 hidden text-xs font-semibold px-3 py-2 rounded-lg"></div>
 
+                        <!-- ── Request Unlock dari Pengawas ── -->
+                        <div class="mt-5 border-t pt-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="bell" class="w-4 h-4 text-purple-500"></i>
+                                    <p class="font-black text-gray-800 text-sm">Request Unlock dari Pengawas
+                                        <span id="unlock-req-badge" class="hidden ml-1 bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full animate-pulse">0</span>
+                                    </p>
+                                </div>
+                                <button onclick="window.loadUnlockRequests()" class="p-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 transition-colors">
+                                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-purple-500"></i>
+                                </button>
+                            </div>
+                            <p class="text-[11px] text-gray-400 mb-3">Pengawas mengajukan unlock setelah approve banding siswa DQ</p>
+                            <div id="unlock-requests-list">
+                                <p class="text-xs text-gray-400 italic text-center py-4">Memuat request unlock...</p>
+                            </div>
+                        </div>
+
                     </div><!-- end bg-white p-5 -->
                 </div><!-- end sec-unlock-device -->
-
-                <!-- ══ PANEL: REQUEST UNLOCK DARI PENGAWAS ══ -->
-                <div id="sec-unlock-requests" class="rounded-2xl mb-5 overflow-hidden border border-purple-200 shadow-sm">
-                    <div class="flex items-center gap-3 px-5 py-4" style="background:linear-gradient(135deg,#7c3aed,#9333ea)">
-                        <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
-                            <i data-lucide="bell" class="w-4 h-4 text-white"></i>
-                        </div>
-                        <div class="flex-1">
-                            <p class="font-black text-white text-sm flex items-center gap-2">
-                                Request Unlock dari Pengawas
-                                <span id="unlock-req-badge" class="hidden bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full animate-pulse">0</span>
-                            </p>
-                            <p class="text-purple-200 text-[10px] mt-0.5">Pengawas mengajukan unlock setelah approve banding siswa DQ</p>
-                        </div>
-                        <button onclick="window.loadUnlockRequests()" class="shrink-0 p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
-                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-white"></i>
-                        </button>
-                    </div>
-                    <div class="p-4 bg-white">
-                        <div id="unlock-requests-list">
-                            <p class="text-xs text-gray-400 italic text-center py-4">Memuat request unlock...</p>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- ══ KONTROL PEMBAHASAN SOAL ══ -->
                 <div id="sec-pembahasan" class="rounded-2xl mb-5 overflow-hidden border border-indigo-100 shadow-sm" style="display:none">
@@ -6834,6 +6949,28 @@ Terima kasih 🙏</textarea>
                                 <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Nama / Jenis Ujian <span class="text-blue-500">(Header Utama)</span></label>
                                 <input type="text" id="setting-judul-ujian" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-gray-800" placeholder="Contoh: Sumatif Akhir Sekolah">
                                 <p class="text-[11px] text-gray-400 mt-1">Tampil sebagai judul besar di halaman login dan welcome.</p>
+                                <!-- Color picker warna judul -->
+                                <div class="mt-2 flex items-center gap-3 flex-wrap">
+                                    <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide shrink-0">Warna Teks Judul:</label>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <!-- Preset warna -->
+                                        <button onclick="window.setJudulColor('#fde047')" title="Kuning (default)" class="w-7 h-7 rounded-full border-2 border-gray-200 hover:scale-110 transition-transform" style="background:#fde047"></button>
+                                        <button onclick="window.setJudulColor('#ffffff')" title="Putih" class="w-7 h-7 rounded-full border-2 border-gray-200 hover:scale-110 transition-transform" style="background:#ffffff"></button>
+                                        <button onclick="window.setJudulColor('#93c5fd')" title="Biru muda" class="w-7 h-7 rounded-full border-2 border-gray-200 hover:scale-110 transition-transform" style="background:#93c5fd"></button>
+                                        <button onclick="window.setJudulColor('#6ee7b7')" title="Hijau muda" class="w-7 h-7 rounded-full border-2 border-gray-200 hover:scale-110 transition-transform" style="background:#6ee7b7"></button>
+                                        <button onclick="window.setJudulColor('#fca5a5')" title="Merah muda" class="w-7 h-7 rounded-full border-2 border-gray-200 hover:scale-110 transition-transform" style="background:#fca5a5"></button>
+                                        <button onclick="window.setJudulColor('#f9a8d4')" title="Pink" class="w-7 h-7 rounded-full border-2 border-gray-200 hover:scale-110 transition-transform" style="background:#f9a8d4"></button>
+                                        <!-- Custom color -->
+                                        <label class="relative w-7 h-7 rounded-full border-2 border-dashed border-gray-300 hover:scale-110 transition-transform cursor-pointer flex items-center justify-center overflow-hidden" title="Pilih warna custom">
+                                            <span class="text-gray-400 text-xs font-bold pointer-events-none">+</span>
+                                            <input type="color" id="setting-judul-color-picker" class="absolute opacity-0 w-full h-full cursor-pointer" value="#fde047" oninput="window.setJudulColor(this.value)">
+                                        </label>
+                                    </div>
+                                    <!-- Preview -->
+                                    <div class="flex items-center gap-2 bg-blue-900 rounded-lg px-3 py-1.5 ml-1">
+                                        <span class="text-[11px] font-black tracking-wide" id="preview-judul-color" style="color:#fde047">Preview Judul</span>
+                                    </div>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Nama Sekolah / Sub-Judul</label>
@@ -6882,6 +7019,12 @@ Terima kasih 🙏</textarea>
                         </div>
                     </div>
 
+                    <!-- Tombol Simpan -->
+                    <div class="mt-5 pt-4 border-t flex justify-end">
+                        <button onclick="window.saveAppearanceOnly()" class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-sm active:scale-95 transition-all flex items-center gap-2">
+                            <i data-lucide="save" class="w-4 h-4"></i> Simpan Identitas Ujian
+                        </button>
+                    </div>
 
                 </div>
                     </div><!-- end bg-white p-5 -->
@@ -6990,67 +7133,60 @@ Terima kasih 🙏</textarea>
                             <i data-lucide="shield-check" class="w-4 h-4"></i> Perbarui Kredensial Admin
                         </button>
                     </div>
+
+                    <!-- ── Admin Tamu (Juri/Demo) ── -->
+                    <div class="mt-6 border-t pt-5">
+                        <div id="kartu-admin-tamu">
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-100">
+                                    <i data-lucide="user-check" class="w-4 h-4 text-amber-600"></i>
+                                </div>
+                                <div>
+                                    <p class="font-black text-gray-800 text-sm">Admin Tamu <span class="ml-1 text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Khusus Demo / Juri</span></p>
+                                    <p class="text-gray-400 text-[11px]">Akses view-only tanpa bisa edit data</p>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-400 mb-4">Buat akun admin sementara agar juri/penguji bisa masuk dan melihat semua fitur seperti admin — tapi <strong class="text-gray-600">tidak bisa mengedit, menghapus, atau mengubah data apapun</strong>.</p>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-600 mb-1 block">Username Tamu</label>
+                                    <input type="text" id="guest-admin-user" placeholder="cth: juri2025" autocomplete="off"
+                                        class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-400 bg-gray-50 focus:bg-white">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-600 mb-1 block">Password Tamu</label>
+                                    <input type="text" id="guest-admin-pass" placeholder="min. 6 karakter" autocomplete="off"
+                                        class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-400 bg-gray-50 focus:bg-white font-mono">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-600 mb-1 block">Nama Tampilan</label>
+                                    <input type="text" id="guest-admin-display" placeholder="cth: Juri Lomba LKS" autocomplete="off"
+                                        class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-400 bg-gray-50 focus:bg-white">
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 mb-4">
+                                <button onclick="window.createGuestAdmin()"
+                                    class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-sm transition active:scale-95">
+                                    <i data-lucide="user-plus" class="w-4 h-4"></i> Buat Akun Admin Tamu
+                                </button>
+                                <button onclick="window.loadGuestAdmins()"
+                                    class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl font-semibold text-sm flex items-center gap-2 transition active:scale-95">
+                                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+                                </button>
+                            </div>
+                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Akun Tamu Aktif</p>
+                            <div id="guest-admin-list" class="space-y-2 min-h-[48px]">
+                                <p class="text-xs text-gray-400 py-3 text-center">Memuat...</p>
+                            </div>
+                            <div class="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-start gap-2">
+                                <i data-lucide="info" class="w-4 h-4 shrink-0 mt-0.5 text-amber-500"></i>
+                                <span>Admin tamu dapat melihat semua data tapi semua tombol <strong>Simpan, Hapus, Edit, dan Tambah</strong> dikunci. Data kamu aman.</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                     </div><!-- end bg-white p-5 -->
                 </div><!-- end sec-keamanan -->
-
-                <!-- KARTU: Admin Tamu (untuk Juri/Demo) -->
-                <div id="kartu-admin-tamu" class="mb-4 rounded-2xl overflow-hidden border border-amber-200 shadow-sm" style="display:none">
-                    <div class="px-5 py-3.5 flex items-center gap-3" style="background:linear-gradient(135deg,#92400e,#d97706)">
-                        <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(255,255,255,0.15)">
-                            <i data-lucide="user-check" class="w-4 h-4 text-white"></i>
-                        </div>
-                        <div>
-                            <p class="font-black text-white text-sm">Admin Tamu <span class="ml-1 text-[10px] font-bold bg-white/20 text-amber-100 px-2 py-0.5 rounded-full">Khusus Demo / Juri</span></p>
-                            <p class="text-amber-100 text-[11px]">Akses view-only tanpa bisa edit data</p>
-                        </div>
-                    </div>
-                    <div class="bg-white p-5">
-                    <p class="text-xs text-gray-400 mb-4">Buat akun admin sementara agar juri/penguji bisa masuk dan melihat semua fitur seperti admin — tapi <strong class="text-gray-600">tidak bisa mengedit, menghapus, atau mengubah data apapun</strong>. Akun ini bisa dihapus kapanpun.</p>
-
-                    <!-- Form buat akun tamu -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div>
-                            <label class="text-xs font-semibold text-gray-600 mb-1 block">Username Tamu</label>
-                            <input type="text" id="guest-admin-user" placeholder="cth: juri2025" autocomplete="off"
-                                class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-400 bg-gray-50 focus:bg-white">
-                        </div>
-                        <div>
-                            <label class="text-xs font-semibold text-gray-600 mb-1 block">Password Tamu</label>
-                            <input type="text" id="guest-admin-pass" placeholder="min. 6 karakter" autocomplete="off"
-                                class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-400 bg-gray-50 focus:bg-white font-mono">
-                        </div>
-                        <div>
-                            <label class="text-xs font-semibold text-gray-600 mb-1 block">Nama Tampilan</label>
-                            <input type="text" id="guest-admin-display" placeholder="cth: Juri Lomba LKS" autocomplete="off"
-                                class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-400 bg-gray-50 focus:bg-white">
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-3 mb-5">
-                        <button onclick="window.createGuestAdmin()"
-                            class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-sm transition active:scale-95">
-                            <i data-lucide="user-plus" class="w-4 h-4"></i> Buat Akun Admin Tamu
-                        </button>
-                        <button onclick="window.loadGuestAdmins()"
-                            class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl font-semibold text-sm flex items-center gap-2 transition active:scale-95">
-                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
-                        </button>
-                    </div>
-
-                    <!-- Daftar akun tamu -->
-                    <div>
-                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Akun Tamu Aktif</p>
-                        <div id="guest-admin-list" class="space-y-2 min-h-[48px]">
-                            <p class="text-xs text-gray-400 py-3 text-center">Memuat...</p>
-                        </div>
-                    </div>
-
-                    <div class="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-start gap-2">
-                        <i data-lucide="info" class="w-4 h-4 shrink-0 mt-0.5 text-amber-500"></i>
-                        <span>Admin tamu dapat melihat semua data, grafik, hasil ujian, dan pengaturan — tetapi semua tombol <strong>Simpan, Hapus, Edit, dan Tambah</strong> dikunci. Data kamu aman.</span>
-                    </div>
-                    </div><!-- end bg-white p-5 -->
-                </div>
 
                 <!-- KARTU: Manajemen Guru Mapel -->
                 <div id="kartu-guru-mapel" class="mb-4 rounded-2xl overflow-hidden border border-emerald-200 shadow-sm" style="display:none">
@@ -7123,20 +7259,56 @@ Terima kasih 🙏</textarea>
 
                 <!-- Tombol simpan & Reset Section -->
                 <div id="sec-reset" class="mt-2 rounded-2xl overflow-hidden border border-gray-200 shadow-sm mb-4" style="display:none">
-                    <div class="px-5 py-3 flex items-center gap-3 bg-gray-50 border-b border-gray-100">
-                        <i data-lucide="save" class="w-4 h-4 text-gray-500"></i>
-                        <p class="font-bold text-gray-700 text-sm">Simpan & Reset Pengaturan</p>
+                    <div class="px-5 py-3.5 flex items-center gap-3" style="background:linear-gradient(135deg,#334155,#475569)">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(255,255,255,0.15)">
+                            <i data-lucide="save" class="w-4 h-4 text-white"></i>
+                        </div>
+                        <div>
+                            <p class="font-black text-white text-sm">Simpan & Reset Pengaturan</p>
+                            <p class="text-slate-300 text-[11px]">Simpan perubahan atau kembalikan ke pengaturan default</p>
+                        </div>
                     </div>
-                    <div class="bg-white px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <!-- Info Perf Mode -->
-                    <div id="perf-mode-info" class="hidden flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-xs text-amber-700">
-                        <i data-lucide="zap" class="w-4 h-4 text-amber-500 shrink-0"></i>
-                        <span><strong>Mode Performa Aktif</strong> — Animasi dinonaktifkan otomatis karena HP terdeteksi sebagai perangkat rendah spesifikasi.</span>
-                    </div>
-                    <div class="flex-1"></div>
-                    <button onclick="window.saveAppearanceOnly()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold shadow-md active:scale-95 transition-transform flex items-center gap-2">
-                        <i data-lucide="palette" class="w-4 h-4"></i> Simpan Pengaturan Tampilan
-                    </button>
+                    <div class="bg-white p-5 space-y-4">
+
+                        <!-- Info Perf Mode -->
+                        <div id="perf-mode-info" class="hidden items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-xs text-amber-700">
+                            <i data-lucide="zap" class="w-4 h-4 text-amber-500 shrink-0"></i>
+                            <span><strong>Mode Performa Aktif</strong> — Animasi dinonaktifkan otomatis karena HP terdeteksi sebagai perangkat rendah spesifikasi.</span>
+                        </div>
+
+                        <!-- ── Simpan ── -->
+                        <div class="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-xl px-4 py-3.5">
+                            <div>
+                                <p class="font-bold text-blue-800 text-sm">💾 Simpan Pengaturan Tampilan</p>
+                                <p class="text-xs text-blue-500 mt-0.5">Simpan judul, warna, logo, motivasi, dan identitas ujian ke server.</p>
+                            </div>
+                            <button onclick="window.saveAppearanceOnly()" class="shrink-0 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm active:scale-95 transition-all flex items-center gap-2">
+                                <i data-lucide="palette" class="w-4 h-4"></i> Simpan
+                            </button>
+                        </div>
+
+                        <!-- ── Reset Tampilan ke Default ── -->
+                        <div class="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-3.5">
+                            <div>
+                                <p class="font-bold text-amber-800 text-sm">🔄 Reset Tampilan ke Default</p>
+                                <p class="text-xs text-amber-600 mt-0.5">Kembalikan judul, warna teks, logo, sub-judul, dan motivasi ke bawaan sistem.</p>
+                            </div>
+                            <button onclick="window.resetTampilanDefault()" class="shrink-0 bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm active:scale-95 transition-all flex items-center gap-2">
+                                <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Reset Tampilan
+                            </button>
+                        </div>
+
+                        <!-- ── Reset Semua Pengaturan ── -->
+                        <div class="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl px-4 py-3.5">
+                            <div>
+                                <p class="font-bold text-red-700 text-sm">⚠️ Reset Semua Pengaturan</p>
+                                <p class="text-xs text-red-400 mt-0.5">Reset token, durasi, tampilan, dan semua pengaturan ke nilai awal. <strong>Tidak menghapus data siswa.</strong></p>
+                            </div>
+                            <button onclick="window.resetSemuaPengaturan()" class="shrink-0 bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm active:scale-95 transition-all flex items-center gap-2">
+                                <i data-lucide="alert-triangle" class="w-4 h-4"></i> Reset Semua
+                            </button>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -8927,6 +9099,17 @@ Terima kasih 🙏</textarea>
             const loginExamWrap = document.getElementById('login-exam-name-wrap');
             if (loginH1 && judul) { loginH1.textContent = judul; }
             if (loginSub && sub)  { loginSub.textContent = sub; }
+            // Terapkan warna judul
+            const judulColor = s.judulColor || '#fde047';
+            if (loginH1) {
+                loginH1.style.color = judulColor;
+                loginH1.style.textShadow = `0 0 14px ${judulColor}80`;
+            }
+            // Update preview & color picker di setting
+            const prevEl = document.getElementById('preview-judul-color');
+            const pickerEl = document.getElementById('setting-judul-color-picker');
+            if (prevEl) prevEl.style.color = judulColor;
+            if (pickerEl && document.activeElement !== pickerEl) pickerEl.value = judulColor;
             // Tampilkan blok nama ujian hanya kalau ada isinya
             if (loginExamWrap) {
                 if (judul || sub) { loginExamWrap.classList.remove('hidden'); loginExamWrap.style.display = 'flex'; }
@@ -9010,6 +9193,11 @@ Terima kasih 🙏</textarea>
             setVal('setting-motivasi',    s.motivasi);
             setVal('setting-logo-url',    s.logoUrl);
             setVal('setting-nomor-id-mode', s.nomorIdMode || 'nisn');
+            // Sync color picker & preview
+            const color = s.judulColor || '#fde047';
+            setVal('setting-judul-color-picker', color);
+            const prevEl = document.getElementById('preview-judul-color');
+            if (prevEl) prevEl.style.color = color;
             if (window.loadAdminCredentialFields) window.loadAdminCredentialFields();
             if (window.loadGuestAdmins) window.loadGuestAdmins();
         };
@@ -10333,8 +10521,6 @@ Terima kasih 🙏</textarea>
                 }
             }
             // Kartu Admin Tamu & Guru Mapel hanya tampil di tab Setting (tampilan), dan hanya untuk admin penuh
-            const kartuTamu = document.getElementById('kartu-admin-tamu');
-            if (kartuTamu) kartuTamu.style.display = (tab === 'tampilan' && window.isAdmin && window.isAdmin()) ? '' : 'none';
             const kartuGuru = document.getElementById('kartu-guru-mapel');
             if (kartuGuru) kartuGuru.style.display = 'none'; // sudah ada di tab Akun Guru tersendiri
             if (tab === 'jadwal') { window.renderJadwalList(); window.initJadwalForm(); }
@@ -22342,6 +22528,8 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
                     </div>`;
                 }).join('');
                 if (window.lucide) window.lucide.createIcons();
+                // Refresh badge & banner
+                if (window.updateUnlockRequestNotifications) window.updateUnlockRequestNotifications();
 
             } catch(err) {
                 listEl.innerHTML = `<p class="text-xs text-red-400 text-center py-4">Gagal memuat: ${err.message}</p>`;
@@ -22383,6 +22571,58 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
                 window.loadUnlockRequests();
             } catch(err) { alert('Gagal: ' + err.message); }
         };
+
+        // ── Update semua notifikasi unlock request (badge + banner) ──
+        window.updateUnlockRequestNotifications = async function() {
+            if (!window.isFirebaseReady || !window.db || !window.isAdmin || !window.isAdmin()) return;
+            try {
+                const snap = await window.getDocs(
+                    window.collection(window.db, 'artifacts', window.appId, 'public', 'data', 'unlock_requests')
+                );
+                let pendingCount = 0;
+                snap.forEach(d => { if (d.data().status === 'pending') pendingCount++; });
+
+                const label = pendingCount > 99 ? '99+' : String(pendingCount);
+
+                // Badge di dalam panel sec-unlock-requests
+                const badgePanel = document.getElementById('unlock-req-badge');
+                if (badgePanel) {
+                    if (pendingCount > 0) { badgePanel.textContent = label; badgePanel.classList.remove('hidden'); }
+                    else badgePanel.classList.add('hidden');
+                }
+
+                // Badge di nav Setting (dalam dropdown Lainnya)
+                const badgeNav = document.getElementById('unlock-req-badge-nav');
+                if (badgeNav) {
+                    if (pendingCount > 0) { badgeNav.textContent = label; badgeNav.classList.remove('hidden'); badgeNav.classList.add('flex'); }
+                    else { badgeNav.classList.add('hidden'); badgeNav.classList.remove('flex'); }
+                }
+
+                // Titik ungu di tombol "⋯" Lainnya
+                const lainnyaDot = document.getElementById('lainnya-badge-combined');
+                if (lainnyaDot) {
+                    if (pendingCount > 0) lainnyaDot.classList.remove('hidden');
+                    else lainnyaDot.classList.add('hidden');
+                }
+
+                // Banner di welcome panel
+                const banner = document.getElementById('unlock-req-alert-banner');
+                const bannerTxt = document.getElementById('unlock-req-banner-text');
+                if (banner) {
+                    if (pendingCount > 0) {
+                        if (bannerTxt) bannerTxt.textContent = pendingCount === 1
+                            ? '1 permintaan Unlock Device dari Pengawas'
+                            : `${pendingCount} permintaan Unlock Device dari Pengawas`;
+                        banner.classList.remove('hidden');
+                    } else {
+                        banner.classList.add('hidden');
+                    }
+                }
+            } catch(e) { /* silent fail */ }
+        };
+
+        // Auto-polling notifikasi unlock request setiap 15 detik
+        setInterval(() => { if (window.updateUnlockRequestNotifications) window.updateUnlockRequestNotifications(); }, 15000);
 
         window.loadBandingAdminList = async function() {
             const container = document.getElementById('banding-admin-list-container');
