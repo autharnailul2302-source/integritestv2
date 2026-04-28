@@ -397,12 +397,15 @@
                                 sessionStorage.setItem(_pingKey, String(Date.now()));
                                 const _schoolRef2 = doc(defaultDb, 'superadmin', 'data', 'schools', window.appId);
                                 const _schoolSnap2 = await getDoc(_schoolRef2);
+                                // FIX: Gunakan setDoc+merge agar lastAccess SELALU tersimpan
+                                // meski field belum pernah ada di dokumen sebelumnya
                                 if (_schoolSnap2.exists()) {
-                                    await updateDoc(_schoolRef2, {
+                                    const _prevAccess = _schoolSnap2.data().totalAccess || 0;
+                                    await setDoc(_schoolRef2, {
                                         lastAccess    : Date.now(),
                                         lastAccessDate: new Date().toISOString(),
-                                        totalAccess   : (_schoolSnap2.data().totalAccess || 0) + 1
-                                    });
+                                        totalAccess   : _prevAccess + 1
+                                    }, { merge: true });
                                     console.log('[ActivityPing] Berhasil dicatat untuk', window.appId);
                                 }
                             }
@@ -626,10 +629,14 @@
                         const _schoolSnapEx = await window.getDoc(_schoolRefEx);
                         if (_schoolSnapEx.exists()) {
                             const _d = _schoolSnapEx.data();
+                            // FIX: Tambahkan lastExamSession saat ujian MULAI
+                            // agar kolom 'Sesi Ujian Terakhir' langsung muncul di superadmin
                             await window.updateDoc(_schoolRefEx, {
-                                totalExamSessions : (_d.totalExamSessions || 0) + 1,
-                                lastExamStart     : Date.now(),
-                                lastExamStartDate : new Date().toISOString()
+                                totalExamSessions  : (_d.totalExamSessions || 0) + 1,
+                                lastExamStart      : Date.now(),
+                                lastExamStartDate  : new Date().toISOString(),
+                                lastExamSession    : Date.now(),
+                                lastExamSessionDate: new Date().toISOString()
                             });
                         }
                     }
