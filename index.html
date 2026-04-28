@@ -2643,6 +2643,14 @@
         #modal-warning-student, #modal-dq-final { backdrop-filter: blur(6px); }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(100%); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideOutRight {
+            from { opacity: 1; transform: translateX(0); }
+            to   { opacity: 0; transform: translateX(110%); }
+        }
 
         /* ===== HP KENTANG MODE (low-end device) ===== */
         /* Diterapkan otomatis via JS bila device lambat */
@@ -4034,18 +4042,15 @@ html.dark .ob-dot.active { background: #818cf8; }
     </div>
     
     <!-- MODAL CHEATING ALERT -->
+    <!-- MODAL PELANGGARAN: FULLSCREEN untuk Pengawas -->
     <div id="modal-cheat-alert" class="fixed inset-0 z-[60] flex items-center justify-center bg-red-900/90 backdrop-blur-sm hidden animate-fade-in">
         <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full mx-4 text-center border-4 border-red-600 relative overflow-hidden">
-            <!-- Background pulse effect -->
             <div class="absolute inset-0 bg-red-50 animate-pulse -z-10"></div>
-            
             <div class="w-24 h-24 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-red-200">
                 <i data-lucide="siren" class="w-12 h-12 animate-bounce"></i>
             </div>
-            
             <h2 class="text-3xl font-extrabold text-red-700 mb-2 uppercase tracking-wider">PERINGATAN BAHAYA!</h2>
             <h3 class="text-xl font-bold text-gray-800 mb-4" id="cheat-student-name">Nama Siswa</h3>
-            
             <div class="bg-red-100 border border-red-200 p-4 rounded-xl mb-6">
                 <p class="text-red-800 font-semibold text-lg" id="cheat-message">Terdeteksi melakukan kecurangan!</p>
                 <div class="mt-2 text-sm text-red-600">
@@ -4053,12 +4058,14 @@ html.dark .ob-dot.active { background: #818cf8; }
                     Pelanggaran: <span id="cheat-count" class="font-bold">3x</span>
                 </div>
             </div>
-            
             <button onclick="window.closeCheatAlert()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-red-500/50 transition-all active:scale-95 text-lg uppercase tracking-wide">
                 MENGERTI & TUTUP
             </button>
         </div>
     </div>
+
+    <!-- TOAST PELANGGARAN: Pojok kanan bawah untuk Admin -->
+    <div id="cheat-toast-container" class="fixed bottom-5 right-5 z-[60] flex flex-col-reverse gap-2 max-w-xs w-full pointer-events-none"></div>
     
     <!-- MODAL VIOLATION DETAILS (NEW) -->
     <div id="modal-violation-details" class="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm hidden">
@@ -11397,29 +11404,101 @@ Terima kasih 🙏</textarea>
         window.triggerCheatAlert = function(data) {
             if (document.getElementById('section-dashboard').classList.contains('hidden-section')) return;
 
-            const modal = document.getElementById('modal-cheat-alert');
-            const nameEl = document.getElementById('cheat-student-name');
-            const msgEl = document.getElementById('cheat-message');
-            const statusEl = document.getElementById('cheat-status');
-            const countEl = document.getElementById('cheat-count');
+            const isPengawas = !!(window.currentPengawasRuang);
+            const isAdmin    = window.isAdmin && window.isAdmin();
 
-            nameEl.innerText = data.studentName + " (" + data.className + ")";
-            statusEl.innerText = data.status;
-            countEl.innerText = data.violations + "x";
-
-            if (data.status.includes('DISKUALIFIKASI')) {
-                 msgEl.innerText = "SISWA INI TELAH DIDISKUALIFIKASI OLEH SISTEM!";
-            } else {
-                 msgEl.innerText = "Terdeteksi melakukan kecurangan (Pindah Tab/Split Screen)!";
+            // ── PENGAWAS: fullscreen modal (tetap seperti semula) ──
+            if (isPengawas) {
+                const modal   = document.getElementById('modal-cheat-alert');
+                const nameEl  = document.getElementById('cheat-student-name');
+                const msgEl   = document.getElementById('cheat-message');
+                const statusEl= document.getElementById('cheat-status');
+                const countEl = document.getElementById('cheat-count');
+                nameEl.innerText   = data.studentName + ' (' + data.className + ')';
+                statusEl.innerText = data.status;
+                countEl.innerText  = data.violations + 'x';
+                msgEl.innerText    = data.status.includes('DISKUALIFIKASI')
+                    ? 'SISWA INI TELAH DIDISKUALIFIKASI OLEH SISTEM!'
+                    : 'Terdeteksi melakukan kecurangan (Pindah Tab/Split Screen)!';
+                modal.classList.remove('hidden');
+                try {
+                    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+                    audio.volume = 0.5;
+                    audio.play().catch(() => {});
+                } catch(e) {}
+                return;
             }
 
-            modal.classList.remove('hidden');
-            
-            try {
-                const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-                audio.volume = 0.5;
-                audio.play().catch(() => {}); 
-            } catch(e) {}
+            // ── ADMIN: toast pojok kanan bawah ──
+            if (isAdmin) {
+                const container = document.getElementById('cheat-toast-container');
+                if (!container) return;
+
+                const isDQ = data.status && data.status.includes('DISKUALIFIKASI');
+                const toastId = 'cheat-toast-' + Date.now();
+
+                const toast = document.createElement('div');
+                toast.id = toastId;
+                toast.className = 'pointer-events-auto';
+                toast.style.cssText = 'animation: slideInRight 0.3s ease-out;';
+                toast.innerHTML = `
+                    <div class="bg-white rounded-2xl shadow-2xl border-l-4 ${isDQ ? 'border-red-600' : 'border-orange-400'} overflow-hidden w-80">
+                        <div class="flex items-center gap-2 px-4 py-2.5 ${isDQ ? 'bg-red-600' : 'bg-orange-500'}">
+                            <i data-lucide="${isDQ ? 'siren' : 'alert-triangle'}" class="w-4 h-4 text-white shrink-0"></i>
+                            <p class="text-white font-black text-xs uppercase tracking-wide flex-1">${isDQ ? '🚨 Diskualifikasi!' : '⚠️ Pelanggaran Terdeteksi'}</p>
+                            <button onclick="window._closeCheatToast('${toastId}')" class="text-white/70 hover:text-white transition-colors">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <div class="px-4 py-3">
+                            <p class="font-bold text-gray-800 text-sm">${_e(data.studentName)}</p>
+                            <p class="text-xs text-gray-500 mt-0.5">${_e(data.className)} · ${data.violations}× pelanggaran</p>
+                            <p class="text-xs ${isDQ ? 'text-red-600' : 'text-orange-500'} font-semibold mt-1">${isDQ ? 'Siswa telah didiskualifikasi otomatis' : 'Pindah tab / split screen terdeteksi'}</p>
+                            <div class="flex gap-2 mt-2.5">
+                                <button onclick="window.switchDashTab('nilai'); window._closeCheatToast('${toastId}')"
+                                    class="flex-1 text-xs font-bold px-3 py-1.5 rounded-lg ${isDQ ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-orange-50 text-orange-600 hover:bg-orange-100'} transition-colors">
+                                    Lihat Monitoring
+                                </button>
+                                <button onclick="window._closeCheatToast('${toastId}')"
+                                    class="text-xs font-bold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors">
+                                    Abaikan
+                                </button>
+                            </div>
+                        </div>
+                        <!-- Progress bar auto-dismiss -->
+                        <div class="h-1 bg-gray-100">
+                            <div id="${toastId}-bar" class="h-full ${isDQ ? 'bg-red-500' : 'bg-orange-400'}" style="width:100%;transition:width 8s linear;"></div>
+                        </div>
+                    </div>`;
+
+                container.appendChild(toast);
+                if (window.lucide) window.lucide.createIcons({ el: toast });
+
+                // Play sound (lebih pelan untuk admin)
+                try {
+                    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+                    audio.volume = 0.25;
+                    audio.play().catch(() => {});
+                } catch(e) {}
+
+                // Start progress bar & auto-dismiss
+                setTimeout(() => {
+                    const bar = document.getElementById(toastId + '-bar');
+                    if (bar) bar.style.width = '0%';
+                }, 50);
+                setTimeout(() => window._closeCheatToast(toastId), 8000);
+
+                // Maksimal 5 toast sekaligus
+                const toasts = container.children;
+                if (toasts.length > 5) window._closeCheatToast(toasts[0].id);
+            }
+        };
+
+        window._closeCheatToast = function(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.style.animation = 'slideOutRight 0.25s ease-in forwards';
+            setTimeout(() => el.remove(), 250);
         };
 
         window.closeCheatAlert = function() {
