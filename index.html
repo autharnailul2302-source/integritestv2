@@ -4075,8 +4075,8 @@ html.dark .ob-dot.active { background: #818cf8; }
                     <div class="w-px h-6 bg-gray-200 mx-0.5 shrink-0"></div>
 
                     <!-- 5. DROPDOWN: Manajemen (Soal, Siswa, Kelas) -->
-                    <div class="relative" id="dropdown-manajemen-wrap">
-                        <button id="btn-dropdown-manajemen" onclick="window._toggleNavDropdown('dropdown-manajemen')" class="flex items-center gap-2 py-2.5 px-4 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all whitespace-nowrap">
+                    <div class="relative admin-only-tab" id="dropdown-manajemen-wrap">
+                        <button id="btn-dropdown-manajemen" onclick="window._toggleNavDropdown('dropdown-manajemen')" class="admin-only-tab flex items-center gap-2 py-2.5 px-4 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all whitespace-nowrap">
                             <i data-lucide="layers" class="w-4 h-4"></i><span>Manajemen</span><i data-lucide="chevron-down" class="w-3.5 h-3.5 ml-0.5 opacity-60"></i>
                         </button>
                         <div id="dropdown-manajemen" class="hidden absolute top-full mt-1.5 w-52 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 p-1.5 flex-col gap-0.5" style="left:4px">
@@ -4125,8 +4125,8 @@ html.dark .ob-dot.active { background: #818cf8; }
                     <div class="flex-1"></div>
 
                     <!-- 8. DROPDOWN: Lainnya (Setting, Akun Guru, Data Backup) — pojok kanan -->
-                    <div class="relative" id="dropdown-lainnya-wrap">
-                        <button id="btn-dropdown-lainnya" onclick="window._toggleNavDropdown('dropdown-lainnya')" class="flex items-center gap-2 py-2.5 px-3 rounded-xl text-gray-400 hover:bg-gray-100 font-bold text-sm transition-all whitespace-nowrap">
+                    <div class="relative admin-only-tab" id="dropdown-lainnya-wrap">
+                        <button id="btn-dropdown-lainnya" onclick="window._toggleNavDropdown('dropdown-lainnya')" class="admin-only-tab flex items-center gap-2 py-2.5 px-3 rounded-xl text-gray-400 hover:bg-gray-100 font-bold text-sm transition-all whitespace-nowrap">
                             <i data-lucide="more-horizontal" class="w-4 h-4"></i>
                         </button>
                         <div id="dropdown-lainnya" class="hidden absolute top-full right-0 mt-1.5 w-52 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 p-1.5 flex-col gap-0.5">
@@ -6707,6 +6707,30 @@ Terima kasih 🙏</textarea>
                     </div><!-- end bg-white p-5 -->
                 </div><!-- end sec-unlock-device -->
 
+                <!-- ══ PANEL: REQUEST UNLOCK DARI PENGAWAS ══ -->
+                <div id="sec-unlock-requests" class="rounded-2xl mb-5 overflow-hidden border border-purple-200 shadow-sm">
+                    <div class="flex items-center gap-3 px-5 py-4" style="background:linear-gradient(135deg,#7c3aed,#9333ea)">
+                        <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+                            <i data-lucide="bell" class="w-4 h-4 text-white"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-black text-white text-sm flex items-center gap-2">
+                                Request Unlock dari Pengawas
+                                <span id="unlock-req-badge" class="hidden bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full animate-pulse">0</span>
+                            </p>
+                            <p class="text-purple-200 text-[10px] mt-0.5">Pengawas mengajukan unlock setelah approve banding siswa DQ</p>
+                        </div>
+                        <button onclick="window.loadUnlockRequests()" class="shrink-0 p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-white"></i>
+                        </button>
+                    </div>
+                    <div class="p-4 bg-white">
+                        <div id="unlock-requests-list">
+                            <p class="text-xs text-gray-400 italic text-center py-4">Memuat request unlock...</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- ══ KONTROL PEMBAHASAN SOAL ══ -->
                 <div id="sec-pembahasan" class="rounded-2xl mb-5 overflow-hidden border border-indigo-100 shadow-sm" style="display:none">
                     <!-- Section Header -->
@@ -7736,16 +7760,23 @@ Terima kasih 🙏</textarea>
                                 <p class="text-[10px] font-black text-red-600 uppercase tracking-wider">🚨 Siswa DQ di Tengah Ujian — Wajib Ujian Ulang</p>
                                 <div class="flex items-start gap-2 bg-white rounded-xl border border-green-200 p-2.5">
                                     <div class="w-5 h-5 rounded-full bg-green-500 text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">1</div>
-                                    <p class="text-[10px] text-gray-600">Catat <strong>NISN siswa</strong> di atas — dibutuhkan admin untuk unlock.</p>
+                                    <p class="text-[10px] text-gray-600">Banding sudah disetujui. Klik tombol <strong>Ajukan Unlock ke Admin</strong> di bawah — Admin akan mendapat notifikasi otomatis.</p>
                                 </div>
                                 <div class="flex items-start gap-2 bg-white rounded-xl border border-green-200 p-2.5">
                                     <div class="w-5 h-5 rounded-full bg-green-500 text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">2</div>
-                                    <p class="text-[10px] text-gray-600">Hubungi Admin → Admin buka <strong>Tab Tampilan → Unlock Device Siswa</strong> → input NISN → klik Unlock.</p>
+                                    <p class="text-[10px] text-gray-600">Tunggu Admin approve request unlock — status akan berubah otomatis di bawah.</p>
                                 </div>
                                 <div class="flex items-start gap-2 bg-white rounded-xl border border-green-200 p-2.5">
                                     <div class="w-5 h-5 rounded-full bg-green-500 text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">3</div>
-                                    <p class="text-[10px] text-gray-600">Siswa login ulang dengan token yang sama → ujian mulai dari soal pertama.</p>
+                                    <p class="text-[10px] text-gray-600">Setelah disetujui Admin → Siswa login ulang dengan token yang sama → ujian mulai dari soal pertama.</p>
                                 </div>
+                                <!-- Tombol Ajukan Unlock -->
+                                <button id="btn-ajukan-unlock" onclick="window.ajukanUnlockKeAdmin()"
+                                    class="w-full mt-1 flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white text-xs font-bold py-2.5 rounded-xl transition-all shadow-sm">
+                                    <i data-lucide="send" class="w-3.5 h-3.5"></i> Ajukan Unlock ke Admin
+                                </button>
+                                <!-- Status request unlock -->
+                                <div id="unlock-request-status" class="hidden px-3 py-2 rounded-xl text-[10px] font-semibold"></div>
                                 <div class="flex items-start gap-2 bg-amber-50 rounded-xl border border-amber-200 p-2.5">
                                     <span class="text-amber-500 text-xs shrink-0 mt-0.5">⚠️</span>
                                     <p class="text-[10px] text-amber-700">Ujian ulang tidak memungkinkan? Minta Admin <strong>Isi Nilai Manual</strong> di tabel monitoring.</p>
@@ -10282,6 +10313,8 @@ Terima kasih 🙏</textarea>
                 if (window.refreshGuruPaketChecks) window.refreshGuruPaketChecks();
                 // Muat daftar guru jika belum
                 if (window.loadGuruMapelList) window.loadGuruMapelList();
+                // Muat request unlock dari pengawas
+                if (window.loadUnlockRequests) window.loadUnlockRequests();
             }
             if (tab === 'kendala') {
                 const isPengawas = !!(window.currentPengawasRuang);
@@ -21937,6 +21970,20 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
                     : 'Banding diterima — tindak lanjut sesuai kondisi';
                 if (sopPanel) sopPanel.classList.remove('hidden');
 
+                // Simpan data siswa DQ untuk dipakai tombol Ajukan Unlock
+                window._pendingUnlockSiswa = wasDQ ? {
+                    docId, nama: siswaName, nisn: siswaNisn, kelas: siswaKelas,
+                    violations: siswaViols,
+                    pengawasNama: window.currentPengawasName || window.currentStaffName || 'Pengawas',
+                    ruang: (window.currentPengawasRuang && window.currentPengawasRuang.nama) || '—'
+                } : null;
+
+                // Reset status & tombol unlock request
+                const btnAjukan = document.getElementById('btn-ajukan-unlock');
+                const statusEl  = document.getElementById('unlock-request-status');
+                if (btnAjukan) { btnAjukan.disabled = false; btnAjukan.innerHTML = '<i data-lucide="send" class="w-3.5 h-3.5"></i> Ajukan Unlock ke Admin'; if (window.lucide) window.lucide.createIcons(); }
+                if (statusEl)  { statusEl.classList.add('hidden'); statusEl.textContent = ''; }
+
                 // Tampilkan langkah yang sesuai kondisi
                 const dqSteps    = document.getElementById('sop-dq-steps');
                 const nonDqSteps = document.getElementById('sop-nondq-steps');
@@ -21949,6 +21996,73 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
                     window.renderLogAnomal();
                 }
             } catch(err) { alert('Gagal: ' + err.message); }
+        };
+
+        // ── Pengawas ajukan request unlock ke Admin ──
+        window.ajukanUnlockKeAdmin = async function() {
+            const siswa   = window._pendingUnlockSiswa;
+            const btnEl   = document.getElementById('btn-ajukan-unlock');
+            const statusEl = document.getElementById('unlock-request-status');
+
+            const showStatus = (msg, type) => {
+                if (!statusEl) return;
+                const cls = type === 'ok' ? 'bg-green-100 text-green-700'
+                          : type === 'warn' ? 'bg-amber-100 text-amber-700'
+                          : 'bg-red-100 text-red-600';
+                statusEl.className = `px-3 py-2 rounded-xl text-[10px] font-semibold ${cls}`;
+                statusEl.innerHTML = msg;
+                statusEl.classList.remove('hidden');
+            };
+
+            if (!siswa) { showStatus('❌ Data siswa tidak ditemukan. Coba approve ulang banding terlebih dahulu.', 'err'); return; }
+            if (!window.isFirebaseReady || !window.db) { showStatus('❌ Firebase belum siap. Coba refresh halaman.', 'err'); return; }
+
+            if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = '⏳ Mengirim request...'; }
+            showStatus('🔍 Mengirim permintaan unlock ke Admin...', 'warn');
+
+            try {
+                // Cek apakah request sudah ada sebelumnya
+                const allReqs = await window.getDocs(
+                    window.collection(window.db, 'artifacts', window.appId, 'public', 'data', 'unlock_requests')
+                );
+                let alreadyExists = false;
+                allReqs.forEach(d => {
+                    const r = d.data();
+                    if (r.studentNisn === siswa.nisn && r.status === 'pending') alreadyExists = true;
+                });
+                if (alreadyExists) {
+                    showStatus('⚠️ Request unlock untuk siswa ini sudah ada dan sedang menunggu persetujuan Admin.', 'warn');
+                    if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = '✅ Sudah Diajukan'; }
+                    return;
+                }
+
+                // Kirim request ke collection unlock_requests
+                await window.addDoc(
+                    window.collection(window.db, 'artifacts', window.appId, 'public', 'data', 'unlock_requests'),
+                    {
+                        studentName    : siswa.nama,
+                        studentNisn    : siswa.nisn,
+                        studentKelas   : siswa.kelas,
+                        examResultDocId: siswa.docId,
+                        violations     : siswa.violations,
+                        pengawasNama   : siswa.pengawasNama,
+                        ruang          : siswa.ruang,
+                        status         : 'pending',
+                        createdAt      : Date.now(),
+                        note           : ''
+                    }
+                );
+
+                showStatus(`✅ Request unlock berhasil dikirim ke Admin! Admin akan mendapat notifikasi dan dapat menyetujui langsung dari dashboard.<br><span class="opacity-70">Dikirim oleh: ${_e(siswa.pengawasNama)} — Ruang: ${_e(siswa.ruang)}</span>`, 'ok');
+                if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = '✅ Request Terkirim'; }
+
+                // Reload notif admin jika admin sedang online
+                if (window.loadUnlockRequests) window.loadUnlockRequests();
+
+            } catch(err) {
+                showStatus('❌ Gagal mengirim request: ' + _e(err.message), 'err');
+                if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '<i data-lucide="send" class="w-3.5 h-3.5"></i> Coba Lagi'; if (window.lucide) window.lucide.createIcons(); }
+            }
         };
 
         window.rejectAppeal = async function(docId) {
@@ -21975,18 +22089,10 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
             const sub    = document.getElementById('pengawas-appeal-subtitle');
             if (!list) return;
 
-            // Sembunyikan notif banding jika fitur dinonaktifkan admin
-            if (window.appealEnabled === false) {
-                const notif = document.getElementById('pengawas-banding-notif');
-                if (notif) notif.classList.add('hidden');
-                return;
-            }
-
             if (!window.isFirebaseReady || !window.db) {
-                if (sub) sub.textContent = 'Menunggu koneksi...';
+                if (sub) sub.textContent = 'Menunggu koneksi Firebase...';
                 if (list) list.innerHTML = '<p class="text-xs text-amber-400 italic animate-pulse">Menunggu Firebase siap...</p>';
-                // Coba lagi setelah 3 detik
-                setTimeout(() => { if (window.loadPengawasAppealList) window.loadPengawasAppealList(); }, 3000);
+                setTimeout(() => { if (window.loadPengawasAppealList) window.loadPengawasAppealList(); }, 2000);
                 return;
             }
 
@@ -21998,59 +22104,89 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
                 let rows = [];
                 snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
 
-                // Filter hanya ruang pengawas ini + ada banding pending
+                // Filter hanya ruang pengawas ini
                 const ruangNama = window.currentPengawasRuang ? (window.currentPengawasRuang.nama || '').toLowerCase() : null;
-                const appeals = rows.filter(r => {
-                    const inRuang = !ruangNama || (r.ruangUjian || '').toLowerCase() === ruangNama || (r.ruangNama || '').toLowerCase() === ruangNama;
-                    return inRuang && r.appealStatus === 'pending';
-                });
+                const inRuangFilter = r => !ruangNama || (r.ruangUjian || '').toLowerCase() === ruangNama || (r.ruangNama || '').toLowerCase() === ruangNama;
+
+                // Pisah pending vs history — history tampil meski appealEnabled=false
+                const appeals = window.appealEnabled === false ? [] : rows.filter(r => inRuangFilter(r) && r.appealStatus === 'pending');
+                const history = rows.filter(r => inRuangFilter(r) && (r.appealStatus === 'approved' || r.appealStatus === 'rejected'));
 
                 // Update badge & notif monitoring
                 if (window.updateAppealNotifications) window.updateAppealNotifications(rows);
 
                 // Update subtitle
-                if (sub) sub.textContent = appeals.length === 0
-                    ? 'Tidak ada banding pending di ruang ini.'
-                    : `${appeals.length} siswa menunggu keputusanmu.`;
+                if (sub) sub.textContent = window.appealEnabled === false
+                    ? `Fitur banding nonaktif. Riwayat: ${history.length} keputusan.`
+                    : appeals.length === 0
+                        ? `Tidak ada banding pending. Riwayat: ${history.length} keputusan.`
+                        : `${appeals.length} siswa menunggu keputusanmu.`;
 
-                if (appeals.length === 0) {
-                    list.innerHTML = '<p class="text-xs text-green-600 font-medium text-center py-2">&#x2705; Tidak ada banding pending.</p>';
-                    return;
-                }
+                // Render pending
+                const pendingHtml = window.appealEnabled === false
+                    ? '<p class="text-xs text-gray-400 italic text-center py-2">⛔ Fitur banding dinonaktifkan oleh Admin.</p>'
+                    : appeals.length === 0
+                        ? '<p class="text-xs text-green-600 font-medium text-center py-2">✅ Tidak ada banding pending.</p>'
+                        : appeals.map(r => {
+                            const noteShort = r.appealNote ? r.appealNote.substring(0, 100) + (r.appealNote.length > 100 ? '\u2026' : '') : '(tidak ada catatan)';
+                            const viol = r.violations || 0;
+                            return `<div class="bg-white rounded-xl border border-amber-200 p-3 shadow-sm">
+                                <div class="flex items-start justify-between gap-2 mb-2">
+                                    <div>
+                                        <p class="font-bold text-gray-800 text-sm">${_e(r.studentName) || '\u2014'}</p>
+                                        <p class="text-[10px] text-gray-400">${_e(r.studentKelas) || ''} &bull; ${_e(r.studentNisn) || ''}</p>
+                                    </div>
+                                    <span class="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600">
+                                        ${viol}\u00d7 pelanggaran
+                                    </span>
+                                </div>
+                                <p class="text-xs text-gray-600 bg-amber-50 rounded-lg p-2 mb-3 italic">"${noteShort}"</p>
+                                <div class="flex gap-2">
+                                    <button onclick="window.approveAppeal('${r.id}').then(() => window.loadPengawasAppealList())"
+                                        class="flex-1 bg-green-500 hover:bg-green-600 active:scale-95 text-white text-xs font-bold py-1.5 rounded-lg transition-all">
+                                        &#x2705; Ampuni
+                                    </button>
+                                    <button onclick="window.rejectAppeal('${r.id}').then(() => window.loadPengawasAppealList())"
+                                        class="flex-1 bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xs font-bold py-1.5 rounded-lg transition-all">
+                                        &#x274c; Tolak
+                                    </button>
+                                </div>
+                            </div>`;
+                        }).join('');
 
-                // Render list
-                list.innerHTML = appeals.map(r => {
-                    const noteShort = r.appealNote ? r.appealNote.substring(0, 100) + (r.appealNote.length > 100 ? '\u2026' : '') : '(tidak ada catatan)';
-                    const viol = r.violations || 0;
-                    return `<div class="bg-white rounded-xl border border-amber-200 p-3 shadow-sm">
-                        <div class="flex items-start justify-between gap-2 mb-2">
-                            <div>
-                                <p class="font-bold text-gray-800 text-sm">${_e(r.studentName) || '\u2014'}</p>
-                                <p class="text-[10px] text-gray-400">${_e(r.studentKelas) || ''} &bull; ${_e(r.studentNisn) || ''}</p>
-                            </div>
-                            <span class="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600">
-                                ${viol}\u00d7 pelanggaran
-                            </span>
-                        </div>
-                        <p class="text-xs text-gray-600 bg-amber-50 rounded-lg p-2 mb-3 italic">"${noteShort}"</p>
-                        <div class="flex gap-2">
-                            <button onclick="window.approveAppeal('${r.id}').then(() => window.loadPengawasAppealList())"
-                                class="flex-1 bg-green-500 hover:bg-green-600 active:scale-95 text-white text-xs font-bold py-1.5 rounded-lg transition-all">
-                                &#x2705; Ampuni
-                            </button>
-                            <button onclick="window.rejectAppeal('${r.id}').then(() => window.loadPengawasAppealList())"
-                                class="flex-1 bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xs font-bold py-1.5 rounded-lg transition-all">
-                                &#x274c; Tolak
-                            </button>
+                // Render history — SELALU tampil meski tidak ada pending
+                const historyHtml = history.length === 0
+                    ? '<p class="text-xs text-gray-400 italic text-center py-3 mt-4">Belum ada riwayat banding di ruang ini.</p>'
+                    : `<div class="mt-4">
+                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2">📋 Riwayat Banding (${history.length})</p>
+                        <div class="space-y-2">
+                        ${history.map(r => {
+                            const isApproved = r.appealStatus === 'approved';
+                            const tgl = r.reviewedAt ? new Date(r.reviewedAt).toLocaleString('id-ID') : '—';
+                            const statusBadge = isApproved
+                                ? '<span class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full">✅ Diampuni</span>'
+                                : '<span class="bg-red-100 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full">❌ Ditolak</span>';
+                            return `<div class="bg-white rounded-xl border ${isApproved ? 'border-green-200' : 'border-red-100'} p-3">
+                                <div class="flex items-start justify-between gap-2 mb-1">
+                                    <div>
+                                        <p class="font-bold text-gray-800 text-sm">${_e(r.studentName) || '—'}</p>
+                                        <p class="text-[10px] text-gray-400">${_e(r.studentKelas) || ''} • NISN: ${_e(r.studentNisn) || '—'}</p>
+                                    </div>
+                                    ${statusBadge}
+                                </div>
+                                ${r.guruNote ? `<p class="text-[10px] text-gray-500 italic mt-1">Catatan: "${_e(r.guruNote)}"</p>` : ''}
+                                <p class="text-[10px] text-gray-400 mt-1">Diputus oleh: ${_e(r.guruReviewer)||'—'} · ${tgl}</p>
+                            </div>`;
+                        }).join('')}
                         </div>
                     </div>`;
-                }).join('');
+
+                list.innerHTML = pendingHtml + historyHtml;
 
             } catch(err) {
-                if (list) list.innerHTML = `<p class="text-xs text-red-400">Gagal memuat: ${err.message}</p>`;
+                if (list) list.innerHTML = `<p class="text-xs text-red-400 text-center py-4">❌ Gagal memuat: ${err.message}</p>`;
             }
         };
-
         // Update badge & banner notifikasi banding pending
         window.updateAppealNotifications = function(rows) {
             // Jika fitur banding dinonaktifkan, sembunyikan semua notifikasi
@@ -22145,6 +22281,108 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
 
         // ── Load & Render tabel banding untuk Admin ──
         window._bandingAdminData = [];
+
+        // ══ ADMIN: Load & render request unlock dari pengawas ══
+        window.loadUnlockRequests = async function() {
+            const listEl  = document.getElementById('unlock-requests-list');
+            const badgeEl = document.getElementById('unlock-req-badge');
+            if (!listEl || !window.isFirebaseReady || !window.db) return;
+
+            listEl.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-4 animate-pulse">Memuat...</p>';
+            try {
+                const snap = await window.getDocs(
+                    window.collection(window.db, 'artifacts', window.appId, 'public', 'data', 'unlock_requests')
+                );
+                let reqs = [];
+                snap.forEach(d => reqs.push({ id: d.id, ...d.data() }));
+                reqs.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+
+                const pending = reqs.filter(r => r.status === 'pending');
+                // Update badge
+                if (badgeEl) {
+                    if (pending.length > 0) { badgeEl.textContent = pending.length; badgeEl.classList.remove('hidden'); }
+                    else { badgeEl.classList.add('hidden'); }
+                }
+
+                if (reqs.length === 0) {
+                    listEl.innerHTML = '<p class="text-xs text-green-600 text-center py-4 font-medium">✅ Tidak ada request unlock saat ini.</p>';
+                    return;
+                }
+
+                listEl.innerHTML = reqs.map(r => {
+                    const tgl = r.createdAt ? new Date(r.createdAt).toLocaleString('id-ID') : '—';
+                    const isPending  = r.status === 'pending';
+                    const isApproved = r.status === 'approved';
+                    const isRejected = r.status === 'rejected';
+                    const statusBadge = isPending
+                        ? '<span class="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full">⏳ Menunggu</span>'
+                        : isApproved
+                        ? '<span class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full">✅ Disetujui</span>'
+                        : '<span class="bg-red-100 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full">❌ Ditolak</span>';
+
+                    return `<div class="border ${isPending ? 'border-purple-200 bg-purple-50' : 'border-gray-100 bg-gray-50'} rounded-xl p-3 mb-2">
+                        <div class="flex items-start justify-between gap-2 mb-2">
+                            <div>
+                                <p class="font-bold text-gray-800 text-sm">${_e(r.studentName)||'—'}</p>
+                                <p class="text-[10px] text-gray-400">${_e(r.studentKelas)||''} • NISN: ${_e(r.studentNisn)||'—'} • ${r.violations||0}× pelanggaran</p>
+                                <p class="text-[10px] text-gray-400 mt-0.5">Ruang: ${_e(r.ruang)||'—'} • Diajukan: ${_e(r.pengawasNama)||'—'} • ${tgl}</p>
+                            </div>
+                            ${statusBadge}
+                        </div>
+                        ${isPending ? `<div class="flex gap-2 mt-2">
+                            <button onclick="window.approveUnlockRequest('${r.id}','${_e(r.studentNisn)}')"
+                                class="flex-1 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white text-xs font-bold py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5">
+                                <i data-lucide="unlock" class="w-3 h-3"></i> Setujui & Unlock
+                            </button>
+                            <button onclick="window.rejectUnlockRequest('${r.id}')"
+                                class="flex-1 bg-gray-200 hover:bg-gray-300 active:scale-95 text-gray-700 text-xs font-bold py-1.5 rounded-lg transition-all">
+                                Tolak
+                            </button>
+                        </div>` : (isApproved ? `<p class="text-[10px] text-green-600 font-semibold mt-1">✅ Di-unlock oleh: ${_e(r.approvedBy)||'Admin'} — ${r.approvedAt ? new Date(r.approvedAt).toLocaleString('id-ID') : ''}</p>` : `<p class="text-[10px] text-red-500 font-semibold mt-1">❌ Ditolak oleh: ${_e(r.rejectedBy)||'Admin'}</p>`)}
+                    </div>`;
+                }).join('');
+                if (window.lucide) window.lucide.createIcons();
+
+            } catch(err) {
+                listEl.innerHTML = `<p class="text-xs text-red-400 text-center py-4">Gagal memuat: ${err.message}</p>`;
+            }
+        };
+
+        window.approveUnlockRequest = async function(reqId, nisn) {
+            if (!confirm(`Setujui dan unlock device siswa NISN: ${nisn}?`)) return;
+            const adminNama = window.currentAdminUser || 'Admin';
+            try {
+                // 1. Update status request jadi approved
+                await window.updateDoc(
+                    window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'unlock_requests', reqId),
+                    { status: 'approved', approvedBy: adminNama, approvedAt: Date.now() }
+                );
+                // 2. Jalankan unlock device otomatis via fungsi yang sudah ada
+                const unlockInput = document.getElementById('unlock-device-input');
+                if (unlockInput) {
+                    unlockInput.value = nisn;
+                    await window.unlockDeviceManual();
+                } else {
+                    // Fallback: langsung unlock via Firestore
+                    await window._doUnlockConfirmed(nisn);
+                }
+                // 3. Reload list
+                window.loadUnlockRequests();
+                alert(`✅ Request unlock disetujui! Device siswa NISN ${nisn} berhasil di-unlock.`);
+            } catch(err) { alert('Gagal: ' + err.message); }
+        };
+
+        window.rejectUnlockRequest = async function(reqId) {
+            const alasan = prompt('Alasan penolakan (opsional):') ?? '';
+            const adminNama = window.currentAdminUser || 'Admin';
+            try {
+                await window.updateDoc(
+                    window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'unlock_requests', reqId),
+                    { status: 'rejected', rejectedBy: adminNama, rejectedAt: Date.now(), rejectNote: alasan }
+                );
+                window.loadUnlockRequests();
+            } catch(err) { alert('Gagal: ' + err.message); }
+        };
 
         window.loadBandingAdminList = async function() {
             const container = document.getElementById('banding-admin-list-container');
