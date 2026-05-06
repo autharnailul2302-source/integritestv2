@@ -551,6 +551,8 @@
                         latestTime = data.timestamp;
                         if (data.token) window.currentExamToken = data.token;
                         if (data.examDuration) window.currentExamDuration = parseInt(data.examDuration);
+                        if (data.perSoalTimerEnabled !== undefined) window.perSoalTimerEnabled = data.perSoalTimerEnabled;
+                        if (data.perSoalTimerSec)    window.perSoalTimerSec = parseInt(data.perSoalTimerSec);
                         if (data.minDuration) window.currentMinExamDuration = parseInt(data.minDuration); 
                         if (data.deviceCooldown) window.deviceCooldownMinutes = Math.max(10, parseInt(data.deviceCooldown)); // menit, minimal 10
                         if (data.kkm !== undefined) window.currentKKM = Math.max(0, Math.min(100, parseInt(data.kkm) || 75));
@@ -942,6 +944,9 @@
             const newCooldown = parseInt(document.getElementById('teacher-cooldown-input').value) || 30;
             const newKKM = parseInt(document.getElementById('teacher-kkm-input').value) || 75;
             const newAppealEnabled = document.getElementById('toggle-appeal') ? document.getElementById('toggle-appeal').checked : window.appealEnabled;
+            // ★ v5: Per-soal timer
+            const perSoalTimerEnabled = document.getElementById('toggle-per-soal-timer')?.checked || false;
+            const perSoalTimerSec = parseInt(document.getElementById('teacher-per-soal-timer')?.value) || 90;
 
             if(!newToken) return alert("Token tidak boleh kosong!");
             if(!newDuration || newDuration < 1) return alert("Durasi tidak valid (minimal 1 menit)!");
@@ -961,6 +966,8 @@
                         deviceCooldown: newCooldown,
                         kkm: newKKM,
                         appealEnabled: newAppealEnabled,
+                        perSoalTimerEnabled: perSoalTimerEnabled,
+                        perSoalTimerSec: perSoalTimerSec,
                         // Sertakan nilai tampilan yang sudah ada agar tidak tertimpa null
                         judulUjian:   savedApp.judulUjian  ?? null,
                         subJudul:     savedApp.subJudul    ?? null,
@@ -1544,25 +1551,79 @@
         };
 
         // ---- HELPER: Upload gambar → Base64 ----
-        window.handleImgUpload = function(prefix, input) {
+        // ─── CLOUDINARY CONFIG (soal images) ────────────────────────
+        const _CLD_NAME   = 'dag89cfzn';
+        const _CLD_PRESET = 'integritest_unsigned';
+        const _CLD_URL    = `https://api.cloudinary.com/v1_1/${_CLD_NAME}/image/upload`;
+        const _CLD_FOLDER = 'integritest_soal';
+
+        async function _uploadImgCloudinary(file, folder) {
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('upload_preset', _CLD_PRESET);
+            fd.append('folder', folder || _CLD_FOLDER);
+            // Transformasi otomatis: resize max 900px, compress quality 80
+            fd.append('transformation', 'c_limit,w_900,h_900,q_80,f_auto');
+            const resp = await fetch(_CLD_URL, { method: 'POST', body: fd });
+            if (!resp.ok) throw new Error('Cloudinary upload gagal: ' + resp.status);
+            const data = await resp.json();
+            return data.secure_url; // URL permanen HTTPS
+        }
+
+        function _showImgUploadProgress(prefix, msg, color) {
+            let bar = document.getElementById(`${prefix}-upload-progress`);
+            if (!bar) {
+                // inject progress label di bawah tombol upload
+                const btn = document.getElementById(`${prefix}-img-file`);
+                if (!btn) return;
+                bar = document.createElement('p');
+                bar.id = `${prefix}-upload-progress`;
+                bar.style.cssText = 'font-size:11px;margin-top:4px;font-weight:700;display:flex;align-items:center;gap:4px';
+                btn.parentNode.appendChild(bar);
+            }
+            bar.style.color = color || '#7c3aed';
+            bar.innerHTML = msg;
+            if (!msg) bar.style.display = 'none'; else bar.style.display = 'flex';
+        }
+
+        window.handleImgUpload = async function(prefix, input) {
             const file = input.files[0];
             if (!file) return;
-            if (file.size > 900 * 1024) {
-                alert('Ukuran gambar terlalu besar (maks 800KB). Kompres dulu gambarnya ya!');
-                input.value = '';
-                return;
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Ukuran gambar terlalu besar (maks 5MB).');
+                input.value = ''; return;
             }
+
+            // Tampilkan preview lokal dulu (instant feedback)
             const reader = new FileReader();
             reader.onload = function(e) {
-                const base64 = e.target.result;
                 const preview = document.getElementById(`${prefix}-img-preview`);
                 const img     = document.getElementById(`${prefix}-img-preview-img`);
-                const dataEl  = document.getElementById(`${prefix}-image-data`);
-                img.src = base64;
-                preview.classList.remove('hidden');
-                dataEl.value = base64;
+                if (img)     { img.src = e.target.result; img.style.opacity = '0.5'; }
+                if (preview) preview.classList.remove('hidden');
             };
             reader.readAsDataURL(file);
+
+            // Upload ke Cloudinary
+            _showImgUploadProgress(prefix, '⏳ Mengupload gambar ke Cloudinary...', '#7c3aed');
+            try {
+                const url = await _uploadImgCloudinary(file, _CLD_FOLDER);
+                // Simpan URL (bukan base64) ke hidden field
+                const dataEl = document.getElementById(`${prefix}-image-data`);
+                if (dataEl) dataEl.value = url;
+                // Update preview dengan URL Cloudinary
+                const img = document.getElementById(`${prefix}-img-preview-img`);
+                if (img) { img.src = url; img.style.opacity = '1'; }
+                _showImgUploadProgress(prefix, '✅ Upload berhasil!', '#059669');
+                setTimeout(() => _showImgUploadProgress(prefix, '', ''), 3000);
+            } catch (err) {
+                console.error('[ImgUpload]', err);
+                _showImgUploadProgress(prefix, '❌ Upload gagal — cek koneksi internet', '#dc2626');
+                // Fallback: simpan base64 sementara jika offline
+                const dataEl = document.getElementById(`${prefix}-image-data`);
+                const img    = document.getElementById(`${prefix}-img-preview-img`);
+                if (dataEl && img) { dataEl.value = img.src; img.style.opacity = '1'; }
+            }
         };
 
         // ---- HELPER: Hapus gambar ----
@@ -1854,7 +1915,28 @@
                         const img = document.getElementById('q-img-preview-img');
                         img.src = q.image;
                         document.getElementById('q-img-preview').classList.remove('hidden');
-                        if (!q.image.startsWith('data:')) document.getElementById('q-image-url').value = q.image;
+                        // ★ v5: jika masih base64 lama → migrasi ke Cloudinary di background
+                        if (q.image.startsWith('data:image')) {
+                            console.log('[ImgMigrate] Base64 terdeteksi pada soal', id, '— migrasi...');
+                            (async () => {
+                                try {
+                                    const resp = await fetch(q.image);
+                                    const blob = await resp.blob();
+                                    const file = new File([blob], 'migrate.jpg', { type: blob.type });
+                                    const url  = await _uploadImgCloudinary(file, _CLD_FOLDER + '/migrated');
+                                    await updateDoc(doc(window.db,'artifacts',window.appId,'public','data','questions',id), { image: url });
+                                    document.getElementById('q-image-data').value = url;
+                                    img.src = url;
+                                    if (typeof window.allQuestionsDB !== 'undefined') {
+                                        const qRef = window.allQuestionsDB.find(x => x.id === id);
+                                        if (qRef) qRef.image = url;
+                                    }
+                                    console.log('[ImgMigrate] ✅ Soal', id, 'berhasil dimigrasikan ke:', url);
+                                } catch(e) { console.warn('[ImgMigrate] Gagal:', e); }
+                            })();
+                        } else {
+                            document.getElementById('q-image-url').value = q.image;
+                        }
                     }
                     q.options.forEach((opt, i) => addOptionInput(opt, q.optionImages ? q.optionImages[i] : ''));
                 }
@@ -2101,21 +2183,49 @@
             }
         };
 
-        window.handleOptImgUpload = function(input) {
+        window.handleOptImgUpload = async function(input) {
             const file = input.files[0];
             if (!file) return;
-            if (file.size > 900 * 1024) { alert('Gambar terlalu besar (maks 800KB)!'); input.value=''; return; }
+            if (file.size > 5 * 1024 * 1024) { alert('Gambar terlalu besar (maks 5MB)!'); input.value=''; return; }
+
+            const wrapper = input.closest('.opt-img-wrapper');
+            const preview = wrapper.querySelector('.opt-img-preview');
+            const img     = preview.querySelector('img');
+            const dataEl  = wrapper.querySelector('.opt-image-data');
+
+            // Preview lokal dulu
             const reader = new FileReader();
-            reader.onload = function(e) {
-                const wrapper = input.closest('.opt-img-wrapper');
-                const preview = wrapper.querySelector('.opt-img-preview');
-                const img = preview.querySelector('img');
-                const dataEl = wrapper.querySelector('.opt-image-data');
-                img.src = e.target.result; img.style.display = '';
+            reader.onload = e => {
+                img.src = e.target.result; img.style.display = ''; img.style.opacity = '0.5';
                 preview.classList.remove('hidden');
-                dataEl.value = e.target.result;
             };
             reader.readAsDataURL(file);
+
+            // Status label
+            let statusEl = wrapper.querySelector('.opt-upload-status');
+            if (!statusEl) {
+                statusEl = document.createElement('p');
+                statusEl.className = 'opt-upload-status';
+                statusEl.style.cssText = 'font-size:10px;font-weight:700;margin-top:3px';
+                wrapper.appendChild(statusEl);
+            }
+            statusEl.style.color = '#7c3aed';
+            statusEl.textContent = '⏳ Mengupload...';
+
+            try {
+                const url = await _uploadImgCloudinary(file, _CLD_FOLDER + '/opsi');
+                dataEl.value = url;
+                img.src = url; img.style.opacity = '1';
+                statusEl.style.color = '#059669';
+                statusEl.textContent = '✅ Upload berhasil';
+                setTimeout(() => { statusEl.textContent = ''; }, 3000);
+            } catch(err) {
+                statusEl.style.color = '#dc2626';
+                statusEl.textContent = '❌ Upload gagal';
+                // fallback base64
+                dataEl.value = img.src; img.style.opacity = '1';
+                console.error('[OptImgUpload]', err);
+            }
         };
 
         window.saveQuestionSubmit = async (e) => {
@@ -3409,6 +3519,18 @@ html.dark .ob-dot.active { background: #818cf8; }
                     <div id="timer-box" class="flex items-center gap-2 px-4 py-2 rounded-lg font-mono font-bold text-lg bg-blue-50 text-blue-600">
                         <i data-lucide="clock" class="w-5 h-5"></i> <span id="timer-display">--:--</span>
                     </div>
+                    <!-- ★ v5: Per-Soal Timer Bar (tampil hanya jika diaktifkan) -->
+                    <div id="_per_soal_timer_widget" class="hidden flex-col items-end" style="min-width:90px">
+                        <div class="flex items-center gap-1.5 mb-0.5">
+                            <i data-lucide="timer" class="w-3 h-3 text-violet-500"></i>
+                            <span class="text-[10px] font-bold text-gray-500">Per Soal</span>
+                            <span id="_per_soal_label" class="text-xs font-black" style="color:#10b981">--</span>
+                            <span id="_pacing_guide" class="text-[9px] font-bold hidden sm:inline" style="color:#10b981"></span>
+                        </div>
+                        <div class="w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                            <div id="_per_soal_bar" class="h-full rounded-full" style="width:100%;background:#10b981;transition:width 0.9s linear"></div>
+                        </div>
+                    </div>
                     <button onclick="window.toggleSidebar()" class="ml-2 p-2 rounded-lg hover:bg-slate-100 border border-slate-200 text-slate-700 flex items-center gap-2">
                         <i data-lucide="grid-3x3" class="w-5 h-5"></i> <span class="hidden md:inline text-sm font-semibold">Daftar Soal</span>
                     </button>
@@ -4410,7 +4532,7 @@ html.dark .ob-dot.active { background: #818cf8; }
                     </div>
                     <div class="flex-1 min-w-0">
                         <h1 class="text-lg font-black text-white leading-tight">Selamat Datang, Admin <span style="color:#93c5fd">INTEGRITEST</span></h1>
-                        <p class="text-blue-200 text-xs mt-0.5">Platform CBT Berkarakter · Anti-Cheat 7 Lapis · 2026 v4</p>
+                        <p class="text-blue-200 text-xs mt-0.5">Platform CBT Berkarakter · Anti-Cheat 8 Lapis · 2026 v5</p>
                     </div>
                     <button onclick="window.openAboutModal()" class="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all active:scale-95 hover:bg-white/20" style="background:rgba(255,255,255,0.13);border:1px solid rgba(255,255,255,0.25);color:white;">
                         <i data-lucide="info" class="w-4 h-4"></i>
@@ -5823,7 +5945,7 @@ html.dark .ob-dot.active { background: #818cf8; }
                             <div>
                                 <h3 class="font-black text-white text-base flex items-center gap-2">
                                     Perbandingan Tren Antar Jadwal
-                                    <span class="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-bold tracking-wide">v4</span>
+                                    <span class="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-bold tracking-wide">v5</span>
                                 </h3>
                                 <p class="text-violet-200 text-xs mt-0.5">Bandingkan STS vs UAS, atau kelas XI TKJ 1 vs XI TKJ 2 — lintas waktu & lintas rombel</p>
                             </div>
@@ -6148,6 +6270,70 @@ html.dark .ob-dot.active { background: #818cf8; }
                                 <tr><td colspan="5" class="text-center py-8 text-gray-300 text-sm">
                                     <i data-lucide="tag" class="w-8 h-8 mx-auto mb-2 opacity-30"></i>
                                     <p>Belum ada soal ber-tag KD.<br><span class="text-xs">Beri tag KD/TP pada soal di Bank Soal untuk mengaktifkan asesmen diagnostik.</span></p>
+                                </td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ★ v5: PANEL ANALITIK BUTIR SOAL ★ -->
+                <div class="bg-white rounded-2xl border shadow-sm overflow-hidden mb-6" id="panel-butir-soal">
+                    <div class="px-6 py-4 border-b flex items-center gap-3" style="background:linear-gradient(135deg,#f5f3ff 0%,#ede9fe 100%)">
+                        <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style="background:#7c3aed">
+                            <i data-lucide="flask-conical" class="w-5 h-5 text-white"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-sm font-black flex items-center gap-2" style="color:#4c1d95">
+                                Analitik Butir Soal
+                                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold text-white" style="background:#7c3aed">v5 Baru</span>
+                            </h3>
+                            <p class="text-xs mt-0.5" style="color:#7c3aed">Tingkat Kesukaran · Daya Beda · Reliabilitas per butir soal</p>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <select id="butir-filter-paket" onchange="window.renderButirSoal()" class="px-2 py-1.5 border rounded-lg text-xs bg-white focus:ring-2 outline-none" style="border-color:#c4b5fd;focus:ring-color:#7c3aed">
+                                <option value="all">Semua Paket</option>
+                            </select>
+                            <button onclick="window.exportButirCSV()" class="px-3 py-1.5 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors active:scale-95" style="background:#7c3aed">
+                                <i data-lucide="download" class="w-3.5 h-3.5"></i> CSV
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Summary cards -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y divide-gray-100 border-b" id="butir-summary-cards">
+                        <div class="p-4 text-center"><p class="text-xs text-gray-500 mb-1">Total Soal Dianalisis</p><p id="butir-total" class="text-2xl font-black text-violet-700">—</p></div>
+                        <div class="p-4 text-center"><p class="text-xs text-gray-500 mb-1">Soal Mudah</p><p id="butir-mudah" class="text-2xl font-black text-emerald-600">—</p></div>
+                        <div class="p-4 text-center"><p class="text-xs text-gray-500 mb-1">Soal Sulit</p><p id="butir-sulit" class="text-2xl font-black text-red-500">—</p></div>
+                        <div class="p-4 text-center"><p class="text-xs text-gray-500 mb-1">Perlu Revisi</p><p id="butir-revisi" class="text-2xl font-black text-amber-500">—</p></div>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="px-5 py-2.5 bg-gray-50 border-b flex flex-wrap gap-x-5 gap-y-1.5 text-[11px] text-gray-500">
+                        <span><strong class="text-violet-700">P (Tk. Kesukaran):</strong> &lt;0.30 Sulit · 0.30–0.70 Sedang · &gt;0.70 Mudah</span>
+                        <span><strong class="text-violet-700">D (Daya Beda):</strong> &lt;0.20 Buruk · 0.20–0.40 Cukup · &gt;0.40 Baik</span>
+                        <span><strong class="text-violet-700">Reliabilitas:</strong> Korelasi biser poin (r<sub>pb</sub>)</span>
+                    </div>
+
+                    <!-- Table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs">
+                            <thead>
+                                <tr class="bg-gray-50 border-b text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+                                    <th class="px-4 py-3 text-left w-10">#</th>
+                                    <th class="px-4 py-3 text-left min-w-[200px]">Teks Soal</th>
+                                    <th class="px-4 py-3 text-left w-20">Tipe</th>
+                                    <th class="px-4 py-3 text-center w-16">Peserta</th>
+                                    <th class="px-4 py-3 text-center w-16">P</th>
+                                    <th class="px-4 py-3 text-center w-16">D</th>
+                                    <th class="px-4 py-3 text-center w-20">r<sub>pb</sub></th>
+                                    <th class="px-4 py-3 text-center w-28">Rekomendasi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="butir-soal-body">
+                                <tr><td colspan="8" class="text-center py-10 text-gray-300">
+                                    <i data-lucide="flask-conical" class="w-8 h-8 mx-auto mb-2 opacity-30"></i>
+                                    <p class="text-sm font-semibold text-gray-400">Menunggu data ujian...</p>
+                                    <p class="text-xs text-gray-300">Terisi otomatis setelah ada siswa yang menyelesaikan ujian</p>
                                 </td></tr>
                             </tbody>
                         </table>
@@ -6751,6 +6937,29 @@ Terima kasih 🙏</textarea>
                                     <input type="number" id="teacher-kkm-input" min="0" max="100" step="1" class="w-full px-4 py-2 border rounded-lg font-bold text-center text-green-600 bg-gray-50 focus:ring-2 focus:ring-green-500 outline-none" placeholder="75" value="75">
                                 </div>
                                 <p class="text-xs text-gray-500 mt-1">Nilai minimum lulus (0–100). Digunakan untuk status LULUS/TIDAK LULUS dan statistik.</p>
+                            </div>
+                            <!-- Per-Soal Timer (v5) -->
+                            <div class="col-span-1 sm:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Timer Per-Soal <span class="text-[10px] font-black px-1.5 py-0.5 rounded-full text-white ml-1" style="background:#7c3aed">v5</span></label>
+                                <div class="flex gap-3 items-center">
+                                    <div class="bg-violet-50 p-2 rounded border border-violet-200 flex items-center justify-center shrink-0">
+                                        <i data-lucide="timer" class="w-5 h-5 text-violet-600"></i>
+                                    </div>
+                                    <div class="flex items-center gap-2 flex-1">
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" id="toggle-per-soal-timer" class="sr-only peer"
+                                                onchange="document.getElementById('per-soal-timer-wrap').style.display=this.checked?'flex':'none'">
+                                            <div class="w-10 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-5 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600"></div>
+                                        </label>
+                                        <span class="text-sm text-gray-600">Aktifkan batas waktu per butir soal</span>
+                                    </div>
+                                    <div id="per-soal-timer-wrap" class="hidden items-center gap-2">
+                                        <input type="number" id="teacher-per-soal-timer" min="10" max="600" step="5" value="90"
+                                            class="w-24 px-3 py-2 border rounded-lg font-bold text-center text-violet-600 bg-gray-50 focus:ring-2 focus:ring-violet-500 outline-none" placeholder="90">
+                                        <span class="text-xs text-gray-500">detik / soal</span>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Jika aktif: setiap soal punya countdown sendiri. Soal otomatis pindah ke berikutnya jika habis. Tampil pacing guide di header.</p>
                             </div>
                         </div>
                     </div>
@@ -7481,6 +7690,7 @@ Terima kasih 🙏</textarea>
                                     <th class="px-4 py-3 text-center font-bold">Pelanggaran</th>
                                     <th class="px-4 py-3 text-center font-bold">Status Integritas</th>
                                     <th class="px-4 py-3 text-left font-bold">Rekaman Anomali (Timestamp)</th>
+                                    <th class="px-4 py-3 text-center font-bold">📸 Foto</th>
                                     <th class="px-4 py-3 text-left font-bold">Waktu Ujian</th>
                                     <th class="px-4 py-3 text-center font-bold">Nilai</th>
                                     <th class="px-4 py-3 text-center font-bold">Banding</th>
@@ -7488,7 +7698,7 @@ Terima kasih 🙏</textarea>
                             </thead>
                             <tbody id="log-anomal-tbody" class="divide-y divide-gray-100">
                                 <tr>
-                                    <td colspan="7" class="text-center py-16 text-gray-400">
+                                    <td colspan="9" class="text-center py-16 text-gray-400">
                                         <div class="flex flex-col items-center gap-3">
                                             <i data-lucide="database" class="w-8 h-8 text-gray-300"></i>
                                             <p class="font-medium text-gray-400">Klik tab "Log Anomali" untuk memuat data dari Firebase</p>
@@ -8625,7 +8835,7 @@ Terima kasih 🙏</textarea>
                     &copy; 2026 <span class="text-slate-400 font-semibold">Nailul Authar</span> <span class="text-slate-600">•</span> SMK Negeri 1 Brondong
                 </p>
                 <p class="text-[10px] text-slate-600 font-mono hidden md:block">
-                    <span class="text-white font-black">INTEGRI</span><span style="color:#38bdf8" class="font-black">TEST</span> &nbsp;v4.0
+                    <span class="text-white font-black">INTEGRI</span><span style="color:#38bdf8" class="font-black">TEST</span> &nbsp;v5.0
                 </p>
             </div>
         </footer>
@@ -10508,7 +10718,7 @@ Terima kasih 🙏</textarea>
                 if (pnl) { if (t === tab) pnl.classList.remove('hidden-section'); else pnl.classList.add('hidden-section'); }
             });
 
-            if (tab === 'analitik') { setTimeout(() => window.renderIntegrityDashboard(), 300); }
+            if (tab === 'analitik') { setTimeout(() => { window.renderIntegrityDashboard(); try { window.renderButirSoal(); } catch(e){} }, 300); }
             if (tab === 'soal') {
                 window.backToPaketList(); window.renderPaketGrid();
                 // Jika guru, terapkan filter paket setelah grid render
@@ -12350,6 +12560,11 @@ Terima kasih 🙏</textarea>
                 }
 
                 currentQuestionIndex = 0;
+                // ★ v5: show per-soal timer widget if enabled
+                setTimeout(() => {
+                    const w = document.getElementById('_per_soal_timer_widget');
+                    if (w && window.perSoalTimerEnabled) w.classList.remove('hidden');
+                }, 800);
                 renderQuestion();
                 renderSidebarButtons();
 
@@ -13085,6 +13300,69 @@ Terima kasih 🙏</textarea>
             // Wrapper lama, sekarang diarahkan ke admin login
             e.preventDefault();
             window.handleAdminLogin(e);
+        };
+
+        // ─── PER-SOAL TIMER ENGINE (v5) ──────────────────────────────────
+        let _perSoalTimerInterval = null;
+        let _perSoalTimeLeft      = 0;
+
+        window._startPerSoalTimer = function() {
+            window._clearPerSoalTimer();
+            if (!window.perSoalTimerEnabled) return;
+            _perSoalTimeLeft = window.perSoalTimerSec || 90;
+            window._updatePerSoalTimerUI();
+            _perSoalTimerInterval = setInterval(() => {
+                _perSoalTimeLeft--;
+                window._updatePerSoalTimerUI();
+                if (_perSoalTimeLeft <= 0) {
+                    window._clearPerSoalTimer();
+                    const nextIdx = currentQuestionIndex + 1;
+                    if (nextIdx < currentQuestionList.length) {
+                        currentQuestionIndex = nextIdx;
+                        renderQuestion();
+                        if (typeof updateNavigationButtons === 'function') updateNavigationButtons();
+                        window._startPerSoalTimer();
+                    }
+                }
+            }, 1000);
+        };
+
+        window._clearPerSoalTimer = function() {
+            if (_perSoalTimerInterval) { clearInterval(_perSoalTimerInterval); _perSoalTimerInterval = null; }
+        };
+
+        window._updatePerSoalTimerUI = function() {
+            const total = window.perSoalTimerSec || 90;
+            const pct   = Math.max(0, (_perSoalTimeLeft / total) * 100);
+            const color = pct > 50 ? '#10b981' : pct > 25 ? '#f59e0b' : '#ef4444';
+            const bar   = document.getElementById('_per_soal_bar');
+            const label = document.getElementById('_per_soal_label');
+            if (bar)   { bar.style.width = pct + '%'; bar.style.background = color; bar.style.transition = 'width 0.9s linear,background 0.3s'; }
+            if (label) {
+                const m = Math.floor(_perSoalTimeLeft / 60);
+                const s = (_perSoalTimeLeft % 60).toString().padStart(2,'0');
+                label.textContent = m > 0 ? `${m}:${s}` : `${_perSoalTimeLeft}s`;
+                label.style.color  = color;
+                label.style.fontWeight = '800';
+            }
+            // Pacing guide update
+            const pace = document.getElementById('_pacing_guide');
+            if (pace && window.perSoalTimerEnabled) {
+                const total_q = (currentQuestionList || []).length;
+                const total_t = window.perSoalTimerSec || 90;
+                const ideal   = total_t;
+                const elapsed = total_t - _perSoalTimeLeft;
+                if (elapsed < ideal * 0.7) {
+                    pace.textContent = '✅ Kecepatan ideal';
+                    pace.style.color = '#10b981';
+                } else if (elapsed < ideal) {
+                    pace.textContent = '⚡ Segera lanjutkan';
+                    pace.style.color = '#f59e0b';
+                } else {
+                    pace.textContent = '⏰ Waktu hampir habis!';
+                    pace.style.color = '#ef4444';
+                }
+            }
         };
 
         window.changeQuestion = function(delta) {
@@ -14731,6 +15009,8 @@ Terima kasih 🙏</textarea>
             const btnFinish = document.getElementById('btn-finish-main');
 
             if(btnPrev) btnPrev.disabled = currentQuestionIndex === 0;
+            // ★ v5: restart per-soal timer on every question render
+            if (typeof window._startPerSoalTimer === 'function') window._startPerSoalTimer();
             
             if (currentQuestionIndex === currentQuestionList.length - 1) {
                 if(btnNext) btnNext.classList.add('hidden');
@@ -15233,6 +15513,7 @@ Terima kasih 🙏</textarea>
             else if (/incognito|private/i.test(message))                violationType = 'high';    // -25
             else if (/mengambang|notifikasi|di luar layar/i.test(message)) violationType = 'medium'; // -15
             else if (/fullscreen|layar penuh/i.test(message))           violationType = 'low';     // -10
+            else if (/difoto|kamera lain|flash|frame tidak bergerak/i.test(message)) violationType = 'critical'; // -35
 
             violationLogs.push({ time: Date.now(), message, type: violationType });
 
@@ -15269,6 +15550,8 @@ Terima kasih 🙏</textarea>
             document.removeEventListener("visibilitychange", handleVisibility);
             window.removeEventListener("blur", handleBlur);
             window.removeEventListener("resize", handleResizeToleransi);
+            // --- LAYER 5.5 CLEANUP: hentikan per-soal timer ---
+            if (typeof window._clearPerSoalTimer === 'function') window._clearPerSoalTimer();
             // --- LAYER 6 CLEANUP: hentikan idle timer ---
             if (_idleTimer) { clearInterval(_idleTimer); _idleTimer = null; }
             if (window._idleActivityReset) {
@@ -15464,7 +15747,34 @@ Terima kasih 🙏</textarea>
                 qCount:       qList.length,
                 correctCount: correctCount,
                 forceFinishSignal: false,   // clear sinyal setelah diproses oleh browser siswa
-                kdReport:     kdReport      // ★ Asesmen diagnostik per KD/TP
+                kdReport:     kdReport,     // ★ Asesmen diagnostik per KD/TP
+                // ★ v5: Log per soal untuk Analitik Butir Soal
+                perQuestionLog: (function() {
+                    const log = {};
+                    for (const q of qList) {
+                        if (q.tipe === 'essay') { log[q.id] = { tipe:'essay', answered: !!(userAnswers[q.id] && userAnswers[q.id].text) }; continue; }
+                        if (q.tipe === 'menjodohkan' && Array.isArray(q.pasangan)) {
+                            const um = userAnswers[q.id] || {};
+                            const benarP = q.pasangan.filter((_, i) => um[i] === i).length;
+                            log[q.id] = { tipe:'menjodohkan', answered: Object.keys(um).length > 0, partialScore: q.pasangan.length > 0 ? benarP/q.pasangan.length : 0 };
+                            continue;
+                        }
+                        let isCorrect = false;
+                        const answered = userAnswers[q.id] !== undefined && userAnswers[q.id] !== null;
+                        if (q.tipe === 'truefalse') {
+                            isCorrect = answered && (userAnswers[q.id] === (q.correct === true || q.correct === 'true'));
+                        } else if (q.tipe === 'multiple' && Array.isArray(q.correct)) {
+                            const ua = Array.isArray(userAnswers[q.id]) ? [...userAnswers[q.id]].sort() : [];
+                            const ca = [...q.correct].sort();
+                            isCorrect = ua.length === ca.length && ua.every((v,i) => v === ca[i]);
+                        } else {
+                            const ci = Array.isArray(q.correct) ? q.correct[0] : q.correct;
+                            isCorrect = answered && userAnswers[q.id] === ci;
+                        }
+                        log[q.id] = { tipe: q.tipe || 'single', answered, isCorrect };
+                    }
+                    return log;
+                })()
             };
 
             // ── KEAMANAN: Buat integrity seal pada data hasil ujian ──
@@ -15486,7 +15796,7 @@ Terima kasih 🙏</textarea>
                         hash = (hash * 0x01000193) >>> 0; // FNV prime, keep 32-bit unsigned
                     }
                     resultData._seal = hash.toString(16).toUpperCase().padStart(8, '0');
-                    resultData._sealVersion = 1;
+                    resultData._sealVersion = 2;
                 } catch(e) {}
             })();
 
@@ -16206,7 +16516,7 @@ Terima kasih 🙏</textarea>
         // ============================================================
         // FORMULA SKOR INTEGRITAS (PROGRESIF BERBOBOT)
         // ============================================================
-        // SKOR INTEGRITAS — Sistem Bobot Per Jenis Pelanggaran (v4)
+        // SKOR INTEGRITAS — Sistem Bobot Per Jenis Pelanggaran (v5)
         //
         // Bobot pengurangan per pelanggaran:
         //   high   (pindah tab, incognito)          : -25 poin
@@ -16513,7 +16823,7 @@ Terima kasih 🙏</textarea>
                     <div style="position:relative;text-align:right;flex-shrink:0">
                         <div style="font-size:8px;color:rgba(255,255,255,0.45);margin-bottom:6px">Diterbitkan: ${now}</div>
                         ${makeQRPlaceholder(d.studentNisn || d.studentName || idx)}
-                        <div style="font-size:7px;color:rgba(255,255,255,0.35);margin-top:4px">IntegrityTest Engine v4</div>
+                        <div style="font-size:7px;color:rgba(255,255,255,0.35);margin-top:4px">IntegrityTest Engine v5</div>
                     </div>
                 </div>
 
@@ -17092,6 +17402,12 @@ Terima kasih 🙏</textarea>
                                         title="Export PDF siswa ini">
                                         <i data-lucide="file-text" class="w-3 h-3"></i> PDF
                                     </button>
+                                    <button onclick="window.cetakSertifikatFromRow('${d.id}')"
+                                        class="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border transition-colors"
+                                        style="background:#f5f3ff;color:#7c3aed;border-color:#c4b5fd"
+                                        title="Cetak Sertifikat Digital v5">
+                                        <i data-lucide="file-badge" class="w-3 h-3"></i> Sertifikat
+                                    </button>
                                 </div>
                             </td>
                         </tr>`;
@@ -17108,7 +17424,7 @@ Terima kasih 🙏</textarea>
             if (typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
-        // ── ★ TREN PERBANDINGAN ANTAR JADWAL v4 ─────────────────────────────
+        // ── ★ TREN PERBANDINGAN ANTAR JADWAL v5 ─────────────────────────────
         window._trendMetric = window._trendMetric || 'both';
         window._trendView   = window._trendView   || 'bar';
 
@@ -18076,6 +18392,189 @@ Terima kasih 🙏</textarea>
         };
 
         // ── ★ EXPORT LAPORAN KD (Buka tab baru) ─────────────────────────
+        // ══════════════════════════════════════════════════════════════
+        // ★ v5: SERTIFIKAT DIGITAL
+        // Generate sertifikat per siswa sebagai print-ready HTML window
+        // Dilengkapi QR Code untuk verifikasi keaslian
+        // ══════════════════════════════════════════════════════════════
+        window.cetakSertifikat = function(studentData) {
+            // studentData: { nama, kelas, paketNama, score, kkm, finishedAt, nisn, violationScore }
+            const d = studentData;
+            const lulus = (d.score || 0) >= (d.kkm || window.currentKKM || 75);
+            const tgl = d.finishedAt
+                ? new Date(d.finishedAt).toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' })
+                : new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
+            const noCert = `INTGRT-${(d.nisn||'000').slice(-6)}-${Date.now().toString(36).toUpperCase().slice(-4)}`;
+            const verifyUrl = `https://integritest.web.app/verify?cert=${noCert}&score=${d.score}`;
+
+            const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(verifyUrl)}&color=1e3a8a&bgcolor=ffffff`;
+
+            const escapeHtml = window.escapeHtml || (s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"));
+    const html = `<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Sertifikat – ${d.nama}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter',sans-serif; background:#f8fafc; display:flex; justify-content:center; align-items:center; min-height:100vh; padding:20px; }
+  @media print {
+    body { background:white; padding:0; }
+    .no-print { display:none !important; }
+    .cert { box-shadow:none !important; }
+  }
+  .cert {
+    width:794px; min-height:562px; background:white;
+    border:12px solid #1e3a8a; border-radius:16px;
+    position:relative; overflow:hidden;
+    box-shadow:0 20px 60px rgba(0,0,0,0.15);
+    padding:44px 52px;
+  }
+  .cert::before {
+    content:''; position:absolute; inset:8px;
+    border:2px solid rgba(30,58,138,0.2); border-radius:10px; pointer-events:none;
+  }
+  .corner {
+    position:absolute; width:48px; height:48px;
+    background:linear-gradient(135deg,#1e3a8a,#3b82f6);
+    clip-path:polygon(0 0,100% 0,0 100%);
+  }
+  .corner.tr { top:0; right:0; clip-path:polygon(100% 0,100% 100%,0 0); }
+  .corner.bl { bottom:0; left:0; clip-path:polygon(0 0,100% 100%,0 100%); }
+  .corner.br { bottom:0; right:0; clip-path:polygon(100% 0,100% 100%,0 100%); }
+  .watermark {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-35deg);
+    font-size:80px; font-weight:900; color:rgba(30,58,138,0.04); white-space:nowrap;
+    pointer-events:none; user-select:none;
+  }
+  .header { text-align:center; margin-bottom:24px; }
+  .logo-ring { width:72px; height:72px; border-radius:50%; border:3px solid #1e3a8a; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; background:linear-gradient(135deg,#eff6ff,#dbeafe); }
+  .logo-ring span { font-size:28px; font-weight:900; background:linear-gradient(135deg,#1e3a8a,#3b82f6); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  h1 { font-size:11px; font-weight:700; letter-spacing:.3em; text-transform:uppercase; color:#3b82f6; margin-bottom:4px; }
+  h2 { font-size:28px; font-weight:900; color:#1e293b; margin-bottom:2px; }
+  .sub { font-size:11px; color:#64748b; letter-spacing:.05em; }
+  .divider { height:2px; background:linear-gradient(90deg,transparent,#3b82f6,transparent); margin:18px 0; }
+  .recipient { text-align:center; margin-bottom:20px; }
+  .recipient p.label { font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.1em; margin-bottom:4px; }
+  .recipient h3 { font-size:30px; font-weight:900; color:#1e3a8a; border-bottom:3px solid #3b82f6; display:inline-block; padding-bottom:4px; }
+  .details { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:20px; }
+  .detail-box { background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px 14px; text-align:center; }
+  .detail-box .dlabel { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#94a3b8; margin-bottom:3px; }
+  .detail-box .dval { font-size:18px; font-weight:900; color:#1e3a8a; }
+  .detail-box .dval.score { color: ${lulus ? '#059669' : '#dc2626'}; }
+  .status-badge {
+    display:inline-flex; align-items:center; gap:8px; padding:10px 24px;
+    border-radius:99px; font-size:14px; font-weight:900; letter-spacing:.05em;
+    background:${lulus ? 'linear-gradient(135deg,#d1fae5,#a7f3d0)' : 'linear-gradient(135deg,#fee2e2,#fca5a5)'};
+    color:${lulus ? '#065f46' : '#7f1d1d'};
+    border:2px solid ${lulus ? '#34d399' : '#f87171'};
+    margin:0 auto; display:block; width:fit-content;
+  }
+  .footer { display:flex; justify-content:space-between; align-items:flex-end; margin-top:20px; }
+  .sig { text-align:center; }
+  .sig .sig-line { width:140px; height:2px; background:#1e3a8a; margin:0 auto 6px; }
+  .sig p { font-size:10px; color:#64748b; }
+  .sig p.bold { font-weight:700; color:#1e293b; font-size:11px; }
+  .qr-area { text-align:center; }
+  .qr-area img { width:80px; height:80px; border:2px solid #e2e8f0; border-radius:8px; margin-bottom:4px; }
+  .qr-area p { font-size:9px; color:#94a3b8; }
+  .cert-no { font-family:monospace; font-size:10px; color:#94a3b8; margin-top:2px; }
+  .print-btn {
+    position:fixed; top:20px; right:20px; padding:10px 24px; background:#1e3a8a;
+    color:white; border:none; border-radius:10px; font-size:14px; font-weight:700;
+    cursor:pointer; box-shadow:0 4px 16px rgba(30,58,138,0.4); z-index:999;
+  }
+  .print-btn:hover { background:#1e40af; }
+</style>
+</head>
+<body>
+<button class="no-print print-btn" onclick="window.print()">🖨️ Cetak / Simpan PDF</button>
+<div class="cert">
+  <div class="corner tl"></div><div class="corner tr"></div>
+  <div class="corner bl"></div><div class="corner br"></div>
+  <div class="watermark">INTEGRITEST</div>
+
+  <div class="header">
+    <div class="logo-ring"><span>IT</span></div>
+    <h1>Sertifikat Hasil Ujian</h1>
+    <h2>INTEGRITEST</h2>
+    <p class="sub">Platform CBT Berkarakter · Anti-Cheat 8 Lapis · v5</p>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="recipient">
+    <p class="label">Diberikan kepada</p>
+    <h3>${escapeHtml(d.nama || 'Nama Siswa')}</h3>
+    <p style="font-size:12px;color:#64748b;margin-top:6px">${escapeHtml(d.kelas || '')} &nbsp;·&nbsp; NISN: ${d.nisn || '-'}</p>
+  </div>
+
+  <div class="details">
+    <div class="detail-box">
+      <div class="dlabel">Mata Pelajaran / Paket</div>
+      <div class="dval" style="font-size:13px">${escapeHtml(d.paketNama || '-')}</div>
+    </div>
+    <div class="detail-box">
+      <div class="dlabel">Nilai</div>
+      <div class="dval score">${d.score ?? '-'}</div>
+    </div>
+    <div class="detail-box">
+      <div class="dlabel">Skor Integritas</div>
+      <div class="dval" style="color:#7c3aed">${100 - (d.violationScore || 0)}</div>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-bottom:16px">
+    <div class="status-badge">
+      ${lulus ? '🎉 LULUS' : '📚 PERLU REMEDIAL'}
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="footer">
+    <div class="sig">
+      <div class="sig-line"></div>
+      <p class="bold">Pengawas / Wali Kelas</p>
+      <p>${tgl}</p>
+    </div>
+    <div style="text-align:center">
+      <p style="font-size:10px;color:#64748b">Telah menyelesaikan ujian dengan integritas</p>
+      <p style="font-size:10px;color:#64748b">pada tanggal <strong>${tgl}</strong></p>
+    </div>
+    <div class="qr-area">
+      <img src="${qrSrc}" alt="QR Verifikasi" />
+      <p>Scan untuk verifikasi</p>
+      <p class="cert-no">${noCert}</p>
+    </div>
+  </div>
+</div>
+</body></html>`;
+
+            const win = window.open('', '_blank', 'width=900,height=680');
+            if (!win) return alert('Popup diblokir browser. Izinkan popup untuk halaman ini lalu coba lagi.');
+            win.document.write(html);
+            win.document.close();
+        };
+
+        // Shortcut: cetak dari hasil ujian siswa di tabel admin
+        window.cetakSertifikatFromRow = function(studentId) {
+            const data = (window.dashboardData || []).find(d => d.studentId === studentId || d.id === studentId);
+            if (!data) return alert('Data siswa tidak ditemukan.');
+            const paket = (window.allPaketDB || []).find(p => p.id === data.paketId);
+            window.cetakSertifikat({
+                nama:          data.nama || data.studentName || '-',
+                kelas:         data.kelas || data.studentKelas || '-',
+                nisn:          data.nisn  || data.studentNisn || '-',
+                paketNama:     paket ? paket.nama : (data.paketId || '-'),
+                score:         data.score ?? '-',
+                kkm:           window.currentKKM || 75,
+                finishedAt:    data.finishedAt || data.timestamp || null,
+                violationScore: data.violationScore || 0
+            });
+        };
+
         window.exportKDReport = function() {
             const kdData = window._lastKDData;
             if (!kdData || Object.keys(kdData).length === 0) {
@@ -18122,7 +18621,8 @@ Terima kasih 🙏</textarea>
                     <p style="font-size:12px;font-weight:900;color:#166534">✅ Semua KD di atas 50% — tidak ada yang perlu remedial segera.</p>
                   </div>`;
 
-            const html = `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
+            const escapeHtml = window.escapeHtml || (s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"));
+    const html = `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
 <title>Laporan Diagnostik KD — INTEGRITEST</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
@@ -18199,6 +18699,212 @@ Terima kasih 🙏</textarea>
             win.document.close();
         };
 
+        // ══════════════════════════════════════════════════════════════
+        // ★ v5: ANALITIK BUTIR SOAL ENGINE
+        // Algoritma: Teori Tes Klasik (CTT)
+        //   P  = Tingkat Kesukaran (proportion correct)
+        //   D  = Daya Beda (upper 27% - lower 27%)
+        //   rpb = Point-Biserial Correlation (reliabilitas butir)
+        // ══════════════════════════════════════════════════════════════
+        window._lastButirData = null;
+
+        window.renderButirSoal = function() {
+            const _e = window.escapeHtml || (s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'));
+            const tbody     = document.getElementById('butir-soal-body');
+            const paketSel  = document.getElementById('butir-filter-paket');
+            const rawData   = window.dashboardData || [];
+            if (!tbody) return;
+
+            // Ambil semua hasil ujian yang sudah selesai & punya perQuestionLog
+            const finished = rawData.filter(d =>
+                d.status && !d.status.includes('SEDANG') && d.perQuestionLog && d.paketId
+            );
+
+            if (finished.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-10 text-gray-400 text-sm">Belum ada data ujian dengan log per-soal.<br><span class="text-xs text-gray-300">Data terisi otomatis setelah siswa menyelesaikan ujian.</span></td></tr>';
+                ['butir-total','butir-mudah','butir-sulit','butir-revisi'].forEach(id => {
+                    const el = document.getElementById(id); if (el) el.textContent = '0';
+                });
+                return;
+            }
+
+            // Populate filter paket
+            if (paketSel) {
+                const curVal = paketSel.value;
+                const paketIds = [...new Set(finished.map(d => d.paketId).filter(Boolean))];
+                paketSel.innerHTML = '<option value="all">Semua Paket</option>';
+                paketIds.forEach(pid => {
+                    const p = (window.allPaketDB || []).find(x => x.id === pid);
+                    const opt = document.createElement('option');
+                    opt.value = pid;
+                    opt.textContent = (p && p.nama) ? p.nama : pid;
+                    paketSel.appendChild(opt);
+                });
+                if (curVal && paketSel.querySelector(`option[value="${curVal}"]`)) paketSel.value = curVal;
+            }
+
+            // Filter berdasarkan paket yang dipilih
+            const fPaket  = paketSel ? paketSel.value : 'all';
+            const dataset = fPaket === 'all' ? finished : finished.filter(d => d.paketId === fPaket);
+
+            if (dataset.length < 2) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-400 text-sm">Minimal 2 peserta diperlukan untuk analisis butir soal.</td></tr>';
+                return;
+            }
+
+            // Kumpulkan semua soal ID yang muncul
+            const qIdSet = new Set();
+            dataset.forEach(d => Object.keys(d.perQuestionLog || {}).forEach(id => qIdSet.add(id)));
+            const qIds = [...qIdSet];
+
+            // Lookup teks soal dari allQuestionsDB
+            const qLookup = {};
+            (window.allQuestionsDB || []).forEach(q => { qLookup[q.id] = q; });
+
+            // Hitung skor total tiap siswa (untuk point-biserial)
+            const totalScores = dataset.map(d => d.score || 0);
+            const meanTotal   = totalScores.reduce((a,b) => a+b, 0) / totalScores.length;
+            const sdTotal     = Math.sqrt(totalScores.map(s => (s-meanTotal)**2).reduce((a,b)=>a+b,0) / totalScores.length) || 1;
+
+            // Hitung statistik per butir
+            const butirStats = qIds.map(qId => {
+                const q        = qLookup[qId];
+                const tipe     = q ? (q.tipe || 'single') : 'unknown';
+                if (tipe === 'essay') return null; // skip essay
+
+                // Array: 1 = benar, 0 = salah, per siswa
+                const results = dataset.map(d => {
+                    const log = (d.perQuestionLog || {})[qId];
+                    if (!log) return null;
+                    if (log.tipe === 'menjodohkan') return log.partialScore || 0;
+                    return log.isCorrect ? 1 : 0;
+                }).filter(v => v !== null);
+
+                if (results.length < 2) return null;
+
+                const n = results.length;
+
+                // ── P: Tingkat Kesukaran ──
+                const P = results.reduce((a,b) => a+b, 0) / n;
+
+                // ── D: Daya Beda (upper 27% vs lower 27%) ──
+                const k = Math.max(1, Math.round(n * 0.27));
+                const sortedIdx = dataset
+                    .map((d, i) => ({ score: totalScores[i], result: results[i] }))
+                    .sort((a, b) => b.score - a.score);
+                const upper = sortedIdx.slice(0, k);
+                const lower = sortedIdx.slice(n - k);
+                const Pu = upper.reduce((a,b) => a + (b.result||0), 0) / k;
+                const Pl = lower.reduce((a,b) => a + (b.result||0), 0) / k;
+                const D  = Pu - Pl;
+
+                // ── rpb: Point-Biserial Correlation ──
+                const answerers = dataset.map((d, i) => ({
+                    result: results[i], totalScore: totalScores[i]
+                }));
+                const correct1  = answerers.filter(a => a.result >= 0.5);
+                const meanY1    = correct1.length > 0 ? correct1.reduce((a,b) => a + b.totalScore, 0) / correct1.length : 0;
+                const pq        = P * (1 - P);
+                const rpb       = pq > 0 ? ((meanY1 - meanTotal) / sdTotal) * Math.sqrt(P / (1-P)) : 0;
+                const rpbClamped = Math.max(-1, Math.min(1, rpb));
+
+                // ── Rekomendasi ──
+                let rekomendasi, rekColor, rekBg;
+                if (P > 0.70 && D < 0.20) {
+                    rekomendasi = 'Terlalu Mudah'; rekColor = '#059669'; rekBg = '#d1fae5';
+                } else if (P < 0.30 && D < 0.20) {
+                    rekomendasi = 'Terlalu Sulit'; rekColor = '#dc2626'; rekBg = '#fee2e2';
+                } else if (D < 0.20 || rpbClamped < 0.15) {
+                    rekomendasi = 'Perlu Revisi'; rekColor = '#d97706'; rekBg = '#fef3c7';
+                } else if (D >= 0.40 && rpbClamped >= 0.30) {
+                    rekomendasi = 'Sangat Baik'; rekColor = '#4f46e5'; rekBg = '#ede9fe';
+                } else {
+                    rekomendasi = 'Dapat Dipakai'; rekColor = '#0891b2'; rekBg = '#cffafe';
+                }
+
+                return { qId, q, tipe, n, P, D, rpb: rpbClamped, rekomendasi, rekColor, rekBg };
+            }).filter(Boolean);
+
+            // Simpan untuk export CSV
+            window._lastButirData = butirStats;
+
+            // Update summary cards
+            const total   = butirStats.length;
+            const mudah   = butirStats.filter(s => s.P > 0.70).length;
+            const sulit   = butirStats.filter(s => s.P < 0.30).length;
+            const revisi  = butirStats.filter(s => s.rekomendasi === 'Perlu Revisi' || s.rekomendasi === 'Terlalu Mudah' || s.rekomendasi === 'Terlalu Sulit').length;
+            document.getElementById('butir-total').textContent  = total;
+            document.getElementById('butir-mudah').textContent  = mudah;
+            document.getElementById('butir-sulit').textContent  = sulit;
+            document.getElementById('butir-revisi').textContent = revisi;
+
+            // Render tabel
+            if (butirStats.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-400 text-sm">Tidak ada data soal objektif yang bisa dianalisis.</td></tr>';
+                return;
+            }
+
+            // Warna P bar
+            const pColor = P => P < 0.30 ? '#ef4444' : P > 0.70 ? '#10b981' : '#f59e0b';
+            const dColor = D => D < 0.20 ? '#ef4444' : D >= 0.40 ? '#4f46e5' : '#f59e0b';
+            const rColor = r => r < 0.15 ? '#ef4444' : r >= 0.30 ? '#10b981' : '#f59e0b';
+
+            tbody.innerHTML = butirStats.map((s, i) => {
+                const qText = s.q ? (s.q.text || '').replace(/<[^>]+>/g, '').trim().slice(0, 80) + (s.q.text && s.q.text.length > 80 ? '…' : '') : `Soal ID: ${s.qId}`;
+                const tipePill = { single:'PG', multiple:'Ganda', truefalse:'B/S', menjodohkan:'Jodoh', unknown:'?' }[s.tipe] || s.tipe;
+
+                const pBar = `<div class="flex items-center gap-1.5">
+                    <div style="width:40px;height:5px;background:#f1f5f9;border-radius:99px;overflow:hidden;flex-shrink:0">
+                        <div style="height:100%;border-radius:99px;background:${pColor(s.P)};width:${Math.round(s.P*100)}%"></div>
+                    </div>
+                    <span style="color:${pColor(s.P)};font-weight:800">${s.P.toFixed(2)}</span>
+                </div>`;
+
+                const dVal = `<span style="color:${dColor(s.D)};font-weight:800">${s.D.toFixed(2)}</span>`;
+                const rVal = `<span style="color:${rColor(s.rpb)};font-weight:800">${s.rpb.toFixed(2)}</span>`;
+                const rekPill = `<span style="background:${s.rekBg};color:${s.rekColor};padding:2px 8px;border-radius:99px;font-size:10px;font-weight:800;white-space:nowrap">${s.rekomendasi}</span>`;
+
+                return `<tr class="${i%2===0?'':'bg-gray-50/40'} hover:bg-violet-50/30 transition-colors">
+                    <td class="px-4 py-2.5 text-center text-gray-400 font-mono text-[11px]">${i+1}</td>
+                    <td class="px-4 py-2.5 text-gray-700 text-[11px] leading-snug max-w-[220px]">${_e(qText)}</td>
+                    <td class="px-4 py-2.5"><span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">${tipePill}</span></td>
+                    <td class="px-4 py-2.5 text-center text-gray-600 font-mono">${s.n}</td>
+                    <td class="px-4 py-2.5">${pBar}</td>
+                    <td class="px-4 py-2.5 text-center">${dVal}</td>
+                    <td class="px-4 py-2.5 text-center">${rVal}</td>
+                    <td class="px-4 py-2.5 text-center">${rekPill}</td>
+                </tr>`;
+            }).join('');
+
+            if (typeof lucide !== 'undefined' && window._createIconsSafe) window._createIconsSafe();
+        };
+
+        // Export CSV Analitik Butir Soal
+        window.exportButirCSV = function() {
+            const _e = window.escapeHtml || (s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'));
+            const data = window._lastButirData;
+            if (!data || data.length === 0) return alert('Belum ada data butir soal untuk diekspor. Pastikan ada siswa yang sudah menyelesaikan ujian.');
+            const rows = [['No','Teks Soal','Tipe','Peserta','P (Tk. Kesukaran)','D (Daya Beda)','rpb (Reliabilitas)','Rekomendasi']];
+            data.forEach((s, i) => {
+                const qText = s.q ? (s.q.text || '').replace(/<[^>]+>/g,'').trim() : s.qId;
+                const tipe  = { single:'PG', multiple:'Ganda', truefalse:'B/S', menjodohkan:'Jodoh' }[s.tipe] || s.tipe;
+                rows.push([i+1, qText, tipe, s.n, s.P.toFixed(3), s.D.toFixed(3), s.rpb.toFixed(3), s.rekomendasi]);
+            });
+            const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+            const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8;' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href = url; a.download = `analitik_butir_soal_${new Date().toLocaleDateString('id-ID').replace(/\//g,'-')}.csv`;
+            a.click(); URL.revokeObjectURL(url);
+        };
+
+        // Hook renderButirSoal ke renderIntegrityDashboard
+        const _origRenderDashForButir = window.renderIntegrityDashboard;
+        window.renderIntegrityDashboard = function() {
+            if (_origRenderDashForButir) _origRenderDashForButir.apply(this, arguments);
+            try { window.renderButirSoal(); } catch(e) { console.warn('[ButirSoal] render error:', e); }
+        };
+
         // Reset filter analitik
         window.resetAnalitikFilter = function() {
             const ids = ['analitik-filter-sesi','analitik-filter-ruang','analitik-filter-kelas','analitik-filter-predikat'];
@@ -18251,7 +18957,8 @@ Terima kasih 🙏</textarea>
 
             // ── Jika export satu siswa, langsung tampilkan tanpa rekap ──
             if (singleId) {
-                const html = `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
+                const escapeHtml = window.escapeHtml || (s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"));
+    const html = `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
                 <title>Laporan Siswa — ${_e(withScores[0]?.studentName)||''} · ${judulUjianPdf}</title>
                 <style>
                     *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -18371,7 +19078,7 @@ Terima kasih 🙏</textarea>
                         </div>
                     </div>
                     <div style="padding:10px 28px;background:#0f172a;color:rgba(255,255,255,0.25);font-size:9px;font-style:italic;text-align:center">
-                        Formula: Skor berbobot per jenis (tab=−25, notifikasi=−15, fullscreen=−10). ≥3 pelanggaran=Diskualifikasi. INTEGRITEST Engine v4.
+                        Formula: Skor berbobot per jenis (tab=−25, notifikasi=−15, fullscreen=−10, kamera=−30, foto-layar=−35). ≥3 pelanggaran=Diskualifikasi. INTEGRITEST Engine v5.
                     </div>
                 </div>`;
             }
@@ -18456,14 +19163,15 @@ Terima kasih 🙏</textarea>
                     </div>
                 </div>
                 <div style="padding:12px 32px;background:#0f172a;color:rgba(255,255,255,0.2);font-size:9px;font-style:italic;text-align:center">
-                    Formula: Skor berbobot per jenis (tab=−25, notifikasi=−15, fullscreen=−10). ≥3 pelanggaran=Diskualifikasi. INTEGRITEST Engine v4.
+                    Formula: Skor berbobot per jenis (tab=−25, notifikasi=−15, fullscreen=−10, kamera=−30, foto-layar=−35). ≥3 pelanggaran=Diskualifikasi. INTEGRITEST Engine v5.
                 </div>
             </div>`;
 
             // ── Gabungkan: cover → rekap per kelas → laporan per siswa ──
             const classRekapPages = classNames.map(cls => buildClassRecapPage(cls, classMap[cls])).join('');
 
-            const html = `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
+            const escapeHtml = window.escapeHtml || (s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"));
+    const html = `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
             <title>${judulUjianPdf} — ${schoolName} · ${now}</title>
             <style>
                 *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -18661,7 +19369,8 @@ Terima kasih 🙏</textarea>
                     <div style="font-size:10px;color:#94a3b8;width:30px">${b.pct}%</div>
                 </div>`).join('');
 
-            const html = `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
+            const escapeHtml = window.escapeHtml || (s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"));
+    const html = `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
             <title>Laporan Rekap Kelas ${_e(targetClass)} — ${judulUjianPdf}</title>
             <style>
                 *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -18774,7 +19483,7 @@ Terima kasih 🙏</textarea>
                 </div>
 
                 <div style="padding:10px 28px;background:#0f172a;color:rgba(255,255,255,0.25);font-size:9px;font-style:italic;text-align:center">
-                    Formula Integritas: tab=−25, notifikasi=−15, fullscreen=−10. ≥3 pelanggaran=Diskualifikasi. INTEGRITEST Engine v4.
+                    Formula Integritas: tab=−25, notifikasi=−15, fullscreen=−10, kamera=−30. ≥3 pelanggaran=Diskualifikasi. INTEGRITEST Engine v5.
                 </div>
             </div>
 
@@ -20015,7 +20724,7 @@ Terima kasih 🙏</textarea>
                 ['packet','Paket soal: A, B, atau C (huruf kapital)','A'],
                 ['tipe','Tipe soal: single / multiple / truefalse / essay / menjodohkan  (jika kosong = single)','single'],
                 ['question','Teks pertanyaan/pernyataan. Boleh kosong jika ada question_image','Apa kepanjangan TKJ?'],
-                ['question_image','URL gambar soal Google Drive (opsional)','https://drive.google.com/file/d/ID/view'],
+                ['question_image','URL gambar soal — Cloudinary/Google Drive/URL langsung (opsional)','https://res.cloudinary.com/dag89cfzn/image/upload/... ATAU https://drive.google.com/file/d/ID/view'],
                 [''],
                 ['TIPE: single — Pilihan Tunggal (sheet 1.Pilihan_Tunggal)'],
                 ['  option_a s/d option_d','Teks pilihan A–D. Minimal 4 wajib diisi','Teknik Komputer dan Jaringan'],
@@ -20059,7 +20768,8 @@ Terima kasih 🙏</textarea>
 
         // ---------- DOWNLOAD TEMPLATE WORD ----------
         window.downloadWordTemplate = function() {
-            const html = `<!DOCTYPE html>
+            const escapeHtml = window.escapeHtml || (s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"));
+    const html = `<!DOCTYPE html>
 <html xmlns:o='urn:schemas-microsoft-com:office:office'
       xmlns:w='urn:schemas-microsoft-com:office:word'
       xmlns='http://www.w3.org/TR/REC-html40'>
@@ -21891,7 +22601,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
             if (countEl) countEl.textContent = total + ' siswa';
 
             if (!slice.length) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-12 text-gray-400">
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-12 text-gray-400">
                     <div class="flex flex-col items-center gap-2">
                         <i data-lucide="search-x" class="w-6 h-6 opacity-40"></i>
                         <p>Tidak ada data sesuai filter.</p>
@@ -21990,6 +22700,26 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
                         <span class="px-2.5 py-1 rounded-full text-xs font-bold ${statusColor}">${statusText}</span>
                     </td>
                     <td class="px-4 py-3 max-w-xs min-w-[220px]"><div class="space-y-0">${logHtml}</div></td>
+                    <td class="px-4 py-3 text-center min-w-[100px]">
+                        ${(() => {
+                            const hasVerif = !!r.fotoVerifikasi;
+                            const snapCount = (r.snapshotUrls || []).length;
+                            const total = (hasVerif ? 1 : 0) + snapCount;
+                            if (!hasVerif && snapCount === 0) {
+                                return `<span class="text-gray-300 text-xs italic">Tidak ada</span>`;
+                            }
+                            const badge = snapCount > 0
+                                ? `<span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-black bg-blue-100 text-blue-600">+${snapCount}</span>`
+                                : '';
+                            return `<div class="flex flex-col items-center gap-1.5">
+                                ${hasVerif ? `<img src="${r.fotoVerifikasi}" onclick="window.openFotoModal(${JSON.stringify(JSON.stringify(r))})" class="w-14 h-10 object-cover rounded-lg border-2 border-indigo-300 cursor-pointer hover:scale-110 transition-transform shadow-sm" title="Klik untuk lihat semua foto" onerror="this.style.display='none'" />` : ''}
+                                <button onclick="window.openFotoModal(${JSON.stringify(JSON.stringify(r))})" class="flex items-center gap-1 px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-lg transition-all border border-indigo-200 active:scale-95">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                                    ${total} foto${badge}
+                                </button>
+                            </div>`;
+                        })()}
+                    </td>
                     <td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
                         <div>${startStr}</div>
                         <div class="text-gray-400">\u2192 ${endStr}</div>
@@ -22051,7 +22781,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
             const tbody = document.getElementById('log-anomal-tbody');
             if (!tbody) return;
 
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center py-16 text-gray-400">
+            tbody.innerHTML = `<tr><td colspan="9" class="text-center py-16 text-gray-400">
                 <div class="flex flex-col items-center gap-3">
                     <div class="w-8 h-8 border-4 border-red-200 border-t-red-500 rounded-full animate-spin"></div>
                     <p class="text-sm font-medium">Memuat data anomali dari Firebase...</p>
@@ -22062,7 +22792,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
             });
 
             if (!window.isFirebaseReady || !window.db) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-red-400 font-medium">
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-red-400 font-medium">
                     \u26a0\ufe0f Firebase belum siap. Tunggu koneksi atau refresh halaman.</td></tr>`;
                 return;
             }
@@ -22163,7 +22893,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
             } catch(err) {
                 console.error('[LogAnomal]', err);
                 document.getElementById('log-anomal-tbody').innerHTML = `
-                    <tr><td colspan="7" class="text-center py-10">
+                    <tr><td colspan="9" class="text-center py-10">
                         <p class="text-red-500 font-medium">\u26a0\ufe0f Gagal memuat data</p>
                         <p class="text-xs text-gray-400 mt-1">${err.message}</p>
                         <button onclick="window.renderLogAnomal()" class="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg text-xs font-bold">Coba Lagi</button>
@@ -23776,7 +24506,8 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
                 }).join('');
 
             // ── Susun dokumen HTML lengkap ──
-            const html = `<!DOCTYPE html>
+            const escapeHtml = window.escapeHtml || (s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"));
+    const html = `<!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
@@ -24219,11 +24950,11 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
                     </div>
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2 mb-1">
-                            <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full text-blue-100 border border-blue-300/30" style="background:rgba(255,255,255,0.12)">Platform CBT Berkarakter · 2026 v4</span>
+                            <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full text-blue-100 border border-blue-300/30" style="background:rgba(255,255,255,0.12)">Platform CBT Berkarakter · 2026 v5</span>
                             <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/80 text-white">Multi-Tenant</span>
                         </div>
                         <h2 class="text-2xl font-black text-white leading-tight">Tentang <span style="color:#93c5fd">INTEGRITEST</span></h2>
-                        <p class="text-blue-200 text-xs mt-0.5">CBT berkarakter pertama di Jawa Timur — Anti-Cheat 7 Lapis · Skor Integritas Adaptif</p>
+                        <p class="text-blue-200 text-xs mt-0.5">CBT berkarakter pertama di Jawa Timur — Anti-Cheat 8 Lapis · Skor Integritas Adaptif · Kamera AI</p>
                     </div>
                     <button onclick="window.closeAboutModal()" class="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition hover:bg-white/20 active:scale-90" style="background:rgba(255,255,255,0.12)">
                         <i data-lucide="x" class="w-5 h-5 text-white"></i>
@@ -24253,9 +24984,26 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
                         </p>
                     </div>
                     <!-- 13 keunggulan sistem dari login page -->
-                    <p class="text-xs font-black text-gray-500 uppercase tracking-wider mb-3">Keunggulan Sistem (13 Fitur Inti)</p>
+                    <!-- v5 Changelog Banner -->
+                    <div class="rounded-2xl border mb-5 overflow-hidden" style="border-color:#c4b5fd;background:linear-gradient(135deg,#f5f3ff,#ede9fe)">
+                        <div class="flex items-center gap-2 px-4 py-2.5" style="background:linear-gradient(90deg,#7c3aed,#6d28d9)">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-white"></i>
+                            <p class="text-xs font-black text-white tracking-wide">CHANGELOG — INTEGRITEST v5.0</p>
+                            <span class="ml-auto text-[10px] font-bold bg-white/20 text-white px-2 py-0.5 rounded-full">Mei 2026</span>
+                        </div>
+                        <div class="px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div class="flex items-start gap-2"><span class="mt-0.5 w-4 h-4 rounded-full flex items-center justify-center shrink-0" style="background:#7c3aed"><i data-lucide="camera" class="w-2.5 h-2.5 text-white"></i></span><p class="text-xs text-violet-800"><strong>Kamera Pengawas AI</strong> — Verifikasi wajah & snapshot berkala, anomali otomatis jika wajah hilang</p></div>
+                            <div class="flex items-start gap-2"><span class="mt-0.5 w-4 h-4 rounded-full flex items-center justify-center shrink-0" style="background:#7c3aed"><i data-lucide="brain-circuit" class="w-2.5 h-2.5 text-white"></i></span><p class="text-xs text-violet-800"><strong>Koreksi Esai NLP v5</strong> — Keyword matching bertingkat + bobot sinonim + skor kelengkapan</p></div>
+                            <div class="flex items-start gap-2"><span class="mt-0.5 w-4 h-4 rounded-full flex items-center justify-center shrink-0" style="background:#7c3aed"><i data-lucide="shield-ban" class="w-2.5 h-2.5 text-white"></i></span><p class="text-xs text-violet-800"><strong>Anti-Cheat 8 Lapis</strong> — Kamera off/wajah hilang (−30), deteksi foto layar + flash HP lain (−35)</p></div>
+                            <div class="flex items-start gap-2"><span class="mt-0.5 w-4 h-4 rounded-full flex items-center justify-center shrink-0" style="background:#7c3aed"><i data-lucide="chart-bar" class="w-2.5 h-2.5 text-white"></i></span><p class="text-xs text-violet-800"><strong>Analitik Butir Soal</strong> — Tingkat kesukaran, daya beda, reliabilitas otomatis</p></div>
+                            <div class="flex items-start gap-2"><span class="mt-0.5 w-4 h-4 rounded-full flex items-center justify-center shrink-0" style="background:#7c3aed"><i data-lucide="timer" class="w-2.5 h-2.5 text-white"></i></span><p class="text-xs text-violet-800"><strong>Per-Soal Timer</strong> — Batas waktu per butir soal + pacing guide visual</p></div>
+                            <div class="flex items-start gap-2"><span class="mt-0.5 w-4 h-4 rounded-full flex items-center justify-center shrink-0" style="background:#7c3aed"><i data-lucide="file-badge" class="w-2.5 h-2.5 text-white"></i></span><p class="text-xs text-violet-800"><strong>Sertifikat Digital</strong> — Generate sertifikat PDF + QR verifikasi keaslian otomatis</p></div>
+                        </div>
+                    </div>
+
+                    <p class="text-xs font-black text-gray-500 uppercase tracking-wider mb-3">Keunggulan Sistem (19 Fitur Inti · v5)</p>
                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-5">
-                        <div class="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-100"><div class="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0"><i data-lucide="shield-check" class="w-3 h-3 text-emerald-600"></i></div><span class="text-[11px] font-semibold text-gray-700">Anti-Cheat Engine 7 Lapis</span></div>
+                        <div class="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-100"><div class="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0"><i data-lucide="shield-check" class="w-3 h-3 text-emerald-600"></i></div><span class="text-[11px] font-semibold text-gray-700">Anti-Cheat Engine 8 Lapis</span></div>
                         <div class="flex items-center gap-2 p-2.5 rounded-xl bg-indigo-50 border border-indigo-100"><div class="w-6 h-6 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0"><i data-lucide="bar-chart-2" class="w-3 h-3 text-indigo-600"></i></div><span class="text-[11px] font-semibold text-gray-700">Skor Integritas Adaptif</span></div>
                         <div class="flex items-center gap-2 p-2.5 rounded-xl bg-blue-50 border border-blue-100"><div class="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center shrink-0"><i data-lucide="maximize-2" class="w-3 h-3 text-blue-600"></i></div><span class="text-[11px] font-semibold text-gray-700">Fullscreen Lock Aktif</span></div>
                         <div class="flex items-center gap-2 p-2.5 rounded-xl bg-yellow-50 border border-yellow-100"><div class="w-6 h-6 rounded-lg bg-yellow-100 flex items-center justify-center shrink-0"><i data-lucide="fingerprint" class="w-3 h-3 text-yellow-600"></i></div><span class="text-[11px] font-semibold text-gray-700">Device Fingerprint Verified</span></div>
@@ -24268,6 +25016,12 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
                         <div class="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-100"><div class="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0"><i data-lucide="calendar-check" class="w-3 h-3 text-emerald-600"></i></div><span class="text-[11px] font-semibold text-gray-700">Jadwal Ujian Otomatis</span></div>
                         <div class="flex items-center gap-2 p-2.5 rounded-xl bg-rose-50 border border-rose-100"><div class="w-6 h-6 rounded-lg bg-rose-100 flex items-center justify-center shrink-0"><i data-lucide="file-text" class="w-3 h-3 text-rose-600"></i></div><span class="text-[11px] font-semibold text-gray-700">Laporan PDF Individual</span></div>
                         <div class="flex items-center gap-2 p-2.5 rounded-xl bg-yellow-50 border border-yellow-100 col-span-2 sm:col-span-1"><div class="w-6 h-6 rounded-lg bg-yellow-100 flex items-center justify-center shrink-0"><i data-lucide="smartphone" class="w-3 h-3 text-yellow-600"></i></div><span class="text-[11px] font-semibold text-gray-700">Low-End Device Optimization</span></div>
+                        <!-- ★ BARU v5 ★ -->
+                        <div class="flex items-center gap-2 p-2.5 rounded-xl border relative" style="background:#f5f3ff;border-color:#c4b5fd"><div class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style="background:#ede9fe"><i data-lucide="camera" class="w-3 h-3 text-violet-600"></i></div><span class="text-[11px] font-semibold text-gray-700">Kamera Pengawas AI</span><span class="absolute -top-1.5 -right-1 text-[8px] font-black px-1 py-0.5 rounded-full bg-violet-600 text-white">v5</span></div>
+                        <div class="flex items-center gap-2 p-2.5 rounded-xl border relative" style="background:#f5f3ff;border-color:#c4b5fd"><div class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style="background:#ede9fe"><i data-lucide="brain-circuit" class="w-3 h-3 text-violet-600"></i></div><span class="text-[11px] font-semibold text-gray-700">Koreksi Esai NLP v5</span><span class="absolute -top-1.5 -right-1 text-[8px] font-black px-1 py-0.5 rounded-full bg-violet-600 text-white">v5</span></div>
+                        <div class="flex items-center gap-2 p-2.5 rounded-xl border relative" style="background:#f5f3ff;border-color:#c4b5fd"><div class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style="background:#ede9fe"><i data-lucide="chart-bar" class="w-3 h-3 text-violet-600"></i></div><span class="text-[11px] font-semibold text-gray-700">Analitik Butir Soal</span><span class="absolute -top-1.5 -right-1 text-[8px] font-black px-1 py-0.5 rounded-full bg-violet-600 text-white">v5</span></div>
+                        <div class="flex items-center gap-2 p-2.5 rounded-xl border relative" style="background:#f5f3ff;border-color:#c4b5fd"><div class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style="background:#ede9fe"><i data-lucide="timer" class="w-3 h-3 text-violet-600"></i></div><span class="text-[11px] font-semibold text-gray-700">Per-Soal Timer & Pacing</span><span class="absolute -top-1.5 -right-1 text-[8px] font-black px-1 py-0.5 rounded-full bg-violet-600 text-white">v5</span></div>
+                        <div class="flex items-center gap-2 p-2.5 rounded-xl border relative col-span-2 sm:col-span-1" style="background:#f5f3ff;border-color:#c4b5fd"><div class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style="background:#ede9fe"><i data-lucide="file-badge" class="w-3 h-3 text-violet-600"></i></div><span class="text-[11px] font-semibold text-gray-700">Sertifikat Digital + QR</span><span class="absolute -top-1.5 -right-1 text-[8px] font-black px-1 py-0.5 rounded-full bg-violet-600 text-white">v5</span></div>
                     </div>
                 </div>
 
@@ -24326,12 +25080,12 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
                             <div><p class="font-bold text-gray-800 text-xs mb-0.5">Soal Bergambar & Media</p><p class="text-gray-500 text-xs leading-relaxed">Dukung soal dengan gambar inline. Upload soal bergambar via Word atau tambahkan URL gambar langsung dari editor.</p></div>
                         </div>
                         <div class="flex gap-3 p-4 rounded-2xl bg-white border border-red-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                            <span class="absolute top-2 right-2 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-500 text-white">v4</span>
+                            <span class="absolute top-2 right-2 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-violet-600 text-white">v5</span>
                             <div class="w-9 h-9 rounded-xl shrink-0 flex items-center justify-center" style="background:#fef2f2"><i data-lucide="activity" class="w-4 h-4 text-red-500"></i></div>
                             <div><p class="font-bold text-gray-800 text-xs mb-0.5">Tab Log Anomali</p><p class="text-gray-500 text-xs leading-relaxed">Rekap lengkap seluruh pelanggaran siswa: jumlah anomali, status DQ/peringatan/bersih, log timestamp, filter banding pending, dan export CSV.</p></div>
                         </div>
                         <div class="flex gap-3 p-4 rounded-2xl bg-white border border-amber-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                            <span class="absolute top-2 right-2 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-500 text-white">v4</span>
+                            <span class="absolute top-2 right-2 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-violet-600 text-white">v5</span>
                             <div class="w-9 h-9 rounded-xl shrink-0 flex items-center justify-center" style="background:#fffbeb"><i data-lucide="scale" class="w-4 h-4 text-amber-500"></i></div>
                             <div><p class="font-bold text-gray-800 text-xs mb-0.5">Sistem Banding Siswa</p><p class="text-gray-500 text-xs leading-relaxed">Siswa yang terdiskualifikasi dapat mengajukan banding dengan alasan tertulis. Fitur bisa diaktifkan/nonaktifkan per ujian oleh admin.</p></div>
                         </div>
@@ -24339,6 +25093,38 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
                             <span class="absolute top-2 right-2 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-600 text-white">BARU</span>
                             <div class="w-9 h-9 rounded-xl shrink-0 flex items-center justify-center" style="background:#f0fdf4"><i data-lucide="user-cog" class="w-4 h-4 text-emerald-600"></i></div>
                             <div><p class="font-bold text-gray-800 text-xs mb-0.5">Akun Guru Mapel</p><p class="text-gray-500 text-xs leading-relaxed">Guru bisa kelola soal dan lihat nilai siswa dari paket yang di-assign — tanpa akses ke pengaturan sistem atau paket guru lain.</p></div>
+                        </div>
+
+                        <!-- ★ FITUR BARU v5 ★ -->
+                        <div class="flex gap-3 p-4 rounded-2xl bg-white border border-violet-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden" style="border-left:3px solid #7c3aed">
+                            <span class="absolute top-2 right-2 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-violet-600 text-white">v5</span>
+                            <div class="w-9 h-9 rounded-xl shrink-0 flex items-center justify-center" style="background:#ede9fe"><i data-lucide="camera" class="w-4 h-4 text-violet-600"></i></div>
+                            <div><p class="font-bold text-gray-800 text-xs mb-0.5">Kamera Pengawas AI</p><p class="text-gray-500 text-xs leading-relaxed">Verifikasi wajah saat login + snapshot berkala. Deteksi wajah hilang, frame statis (layar difoto HP lain), dan lonjakan flash kamera — semua tercatat sebagai anomali. Galeri foto per siswa tersedia untuk admin.</p></div>
+                        </div>
+                        <div class="flex gap-3 p-4 rounded-2xl bg-white border border-violet-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden" style="border-left:3px solid #7c3aed">
+                            <span class="absolute top-2 right-2 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-violet-600 text-white">v5</span>
+                            <div class="w-9 h-9 rounded-xl shrink-0 flex items-center justify-center" style="background:#ede9fe"><i data-lucide="brain-circuit" class="w-4 h-4 text-violet-600"></i></div>
+                            <div><p class="font-bold text-gray-800 text-xs mb-0.5">Koreksi Esai NLP v5</p><p class="text-gray-500 text-xs leading-relaxed">Koreksi esai otomatis NLP keyword matching yang disempurnakan — bobot kata kunci bertingkat, deteksi sinonim otomatis, dan skor kelengkapan kalimat. Lebih akurat, tetap ringan tanpa API eksternal.</p></div>
+                        </div>
+                        <div class="flex gap-3 p-4 rounded-2xl bg-white border border-violet-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden" style="border-left:3px solid #7c3aed">
+                            <span class="absolute top-2 right-2 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-violet-600 text-white">v5</span>
+                            <div class="w-9 h-9 rounded-xl shrink-0 flex items-center justify-center" style="background:#ede9fe"><i data-lucide="chart-bar" class="w-4 h-4 text-violet-600"></i></div>
+                            <div><p class="font-bold text-gray-800 text-xs mb-0.5">Dashboard Analitik v5</p><p class="text-gray-500 text-xs leading-relaxed">Grafik interaktif distribusi nilai, heatmap soal tersulit, dan analisis butir soal (tingkat kesukaran, daya beda, reliabilitas). Export ke Excel satu klik.</p></div>
+                        </div>
+                        <div class="flex gap-3 p-4 rounded-2xl bg-white border border-violet-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden" style="border-left:3px solid #7c3aed">
+                            <span class="absolute top-2 right-2 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-violet-600 text-white">v5</span>
+                            <div class="w-9 h-9 rounded-xl shrink-0 flex items-center justify-center" style="background:#ede9fe"><i data-lucide="shield-ban" class="w-4 h-4 text-violet-600"></i></div>
+                            <div><p class="font-bold text-gray-800 text-xs mb-0.5">Anti-Cheat Lapis ke-8: Kamera</p><p class="text-gray-500 text-xs leading-relaxed">Sistem anti-cheat 8 lapis. Lapis baru: (a) deteksi wajah kamera real-time, (b) deteksi frame statis — jika layar sedang difoto HP lain, frame kamera tidak bergerak dan langsung tercatat, (c) deteksi flash mendadak dari kamera lain.</p></div>
+                        </div>
+                        <div class="flex gap-3 p-4 rounded-2xl bg-white border border-violet-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden" style="border-left:3px solid #7c3aed">
+                            <span class="absolute top-2 right-2 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-violet-600 text-white">v5</span>
+                            <div class="w-9 h-9 rounded-xl shrink-0 flex items-center justify-center" style="background:#ede9fe"><i data-lucide="timer" class="w-4 h-4 text-violet-600"></i></div>
+                            <div><p class="font-bold text-gray-800 text-xs mb-0.5">Per-Soal Timer & Pacing Guide</p><p class="text-gray-500 text-xs leading-relaxed">Admin dapat mengatur batas waktu per butir soal. Siswa melihat timer countdown dan panduan pacing — berapa menit ideal per soal agar waktu tidak habis sebelum selesai.</p></div>
+                        </div>
+                        <div class="flex gap-3 p-4 rounded-2xl bg-white border border-violet-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden" style="border-left:3px solid #7c3aed">
+                            <span class="absolute top-2 right-2 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-violet-600 text-white">v5</span>
+                            <div class="w-9 h-9 rounded-xl shrink-0 flex items-center justify-center" style="background:#ede9fe"><i data-lucide="file-badge" class="w-4 h-4 text-violet-600"></i></div>
+                            <div><p class="font-bold text-gray-800 text-xs mb-0.5">Sertifikat Digital Otomatis</p><p class="text-gray-500 text-xs leading-relaxed">Generate sertifikat kelulusan / nilai digital per siswa dalam format PDF siap cetak. Lengkap dengan QR Code verifikasi keaslian, nama siswa, nilai, dan tanda tangan admin.</p></div>
                         </div>
                     </div>
                 </div>
@@ -24356,7 +25142,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr class="border-b border-gray-50"><td class="px-4 py-2.5 text-gray-700 font-medium">Anti-kecurangan real-time (7 lapis)</td><td class="px-4 py-2.5 text-center text-emerald-600 font-bold">✓ Otomatis</td><td class="px-4 py-2.5 text-center font-semibold" style="color:#f59e0b">⚠ Terbatas</td></tr>
+                                <tr class="border-b border-gray-50"><td class="px-4 py-2.5 text-gray-700 font-medium">Anti-kecurangan real-time (8 lapis)</td><td class="px-4 py-2.5 text-center text-emerald-600 font-bold">✓ Otomatis</td><td class="px-4 py-2.5 text-center font-semibold" style="color:#f59e0b">⚠ Terbatas</td></tr>
                                 <tr class="border-b border-gray-50 bg-gray-50/50"><td class="px-4 py-2.5 text-gray-700 font-medium">Skor integritas siswa</td><td class="px-4 py-2.5 text-center text-emerald-600 font-bold">✓ Ada</td><td class="px-4 py-2.5 text-center font-semibold" style="color:#ef4444">✕ Tidak ada</td></tr>
                                 <tr class="border-b border-gray-50"><td class="px-4 py-2.5 text-gray-700 font-medium">Monitoring real-time multi-ruang</td><td class="px-4 py-2.5 text-center text-emerald-600 font-bold">✓ Ada</td><td class="px-4 py-2.5 text-center font-semibold" style="color:#f59e0b">⚠ Jarang</td></tr>
                                 <tr class="border-b border-gray-50 bg-gray-50/50"><td class="px-4 py-2.5 text-gray-700 font-medium">Jadwal ujian otomatis</td><td class="px-4 py-2.5 text-center text-emerald-600 font-bold">✓ Ada</td><td class="px-4 py-2.5 text-center font-semibold" style="color:#f59e0b">⚠ Sebagian ada</td></tr>
@@ -24368,9 +25154,16 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
                                 <tr class="border-b border-gray-50 bg-gray-50/50"><td class="px-4 py-2.5 text-gray-700 font-medium">Notifikasi WA orang tua otomatis <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600 ml-1">BARU</span></td><td class="px-4 py-2.5 text-center text-emerald-600 font-bold">✓ Ada</td><td class="px-4 py-2.5 text-center font-semibold" style="color:#ef4444">✕ Tidak ada</td></tr>
                                 <tr class="border-b border-gray-50"><td class="px-4 py-2.5 text-gray-700 font-medium">Pembahasan soal terkontrol admin <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600 ml-1">BARU</span></td><td class="px-4 py-2.5 text-center text-emerald-600 font-bold">✓ Ada</td><td class="px-4 py-2.5 text-center font-semibold" style="color:#ef4444">✕ Tidak ada</td></tr>
                                 <tr class="border-b border-gray-50 bg-gray-50/50"><td class="px-4 py-2.5 text-gray-700 font-medium">Device fingerprinting (1 siswa 1 HP) <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-600 ml-1">BARU</span></td><td class="px-4 py-2.5 text-center text-emerald-600 font-bold">✓ Ada</td><td class="px-4 py-2.5 text-center font-semibold" style="color:#ef4444">✕ Tidak ada</td></tr>
-                                <tr class="border-b border-gray-50"><td class="px-4 py-2.5 text-gray-700 font-medium">Log anomali & rekap pelanggaran <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-500 ml-1">v4</span></td><td class="px-4 py-2.5 text-center text-emerald-600 font-bold">✓ Ada</td><td class="px-4 py-2.5 text-center font-semibold" style="color:#ef4444">✕ Tidak ada</td></tr>
-                                <tr class="border-b border-gray-50 bg-gray-50/50"><td class="px-4 py-2.5 text-gray-700 font-medium">Sistem banding siswa (on/off) <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-500 ml-1">v4</span></td><td class="px-4 py-2.5 text-center text-emerald-600 font-bold">✓ Ada</td><td class="px-4 py-2.5 text-center font-semibold" style="color:#ef4444">✕ Tidak ada</td></tr>
-                                <tr class="bg-gray-50/50"><td class="px-4 py-2.5 text-gray-700 font-medium rounded-bl-xl">Multi-Tenant (kelola banyak sekolah) <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-600 ml-1">BARU</span></td><td class="px-4 py-2.5 text-center text-emerald-600 font-bold">✓ Ada</td><td class="px-4 py-2.5 text-center font-semibold rounded-br-xl" style="color:#ef4444">✕ Tidak ada</td></tr>
+                                <tr class="border-b border-gray-50"><td class="px-4 py-2.5 text-gray-700 font-medium">Log anomali & rekap pelanggaran <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-600 ml-1">v5</span></td><td class="px-4 py-2.5 text-center text-emerald-600 font-bold">✓ Ada</td><td class="px-4 py-2.5 text-center font-semibold" style="color:#ef4444">✕ Tidak ada</td></tr>
+                                <tr class="border-b border-gray-50 bg-gray-50/50"><td class="px-4 py-2.5 text-gray-700 font-medium">Sistem banding siswa (on/off) <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-600 ml-1">v5</span></td><td class="px-4 py-2.5 text-center text-emerald-600 font-bold">✓ Ada</td><td class="px-4 py-2.5 text-center font-semibold" style="color:#ef4444">✕ Tidak ada</td></tr>
+                                <tr class="bg-gray-50/50"><td class="px-4 py-2.5 text-gray-700 font-medium">Multi-Tenant (kelola banyak sekolah) <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-600 ml-1">BARU</span></td><td class="px-4 py-2.5 text-center text-emerald-600 font-bold">✓ Ada</td><td class="px-4 py-2.5 text-center font-semibold" style="color:#ef4444">✕ Tidak ada</td></tr>
+                                <tr class="border-t-2 border-violet-200 bg-violet-50/50"><td class="px-4 py-2.5 text-violet-800 font-bold" colspan="3" style="font-size:10px;letter-spacing:.05em;text-transform:uppercase">✨ Fitur Baru v5</td></tr>
+                                <tr class="border-b border-gray-50"><td class="px-4 py-2.5 text-gray-700 font-medium">Kamera pengawas + anti-foto-layar (frame diff + flash) <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-600 ml-1">v5</span></td><td class="px-4 py-2.5 text-center text-emerald-600 font-bold">✓ Ada</td><td class="px-4 py-2.5 text-center font-semibold" style="color:#ef4444">✕ Tidak ada</td></tr>
+                                <tr class="border-b border-gray-50 bg-gray-50/50"><td class="px-4 py-2.5 text-gray-700 font-medium">Koreksi esai NLP v5 (bobot bertingkat) <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-600 ml-1">v5</span></td><td class="px-4 py-2.5 text-center text-emerald-600 font-bold">✓ Ada</td><td class="px-4 py-2.5 text-center font-semibold" style="color:#ef4444">✕ Tidak ada</td></tr>
+                                <tr class="border-b border-gray-50"><td class="px-4 py-2.5 text-gray-700 font-medium">Anti-cheat 8 lapis (kamera aktif) <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-600 ml-1">v5</span></td><td class="px-4 py-2.5 text-center text-emerald-600 font-bold">✓ Ada</td><td class="px-4 py-2.5 text-center font-semibold" style="color:#f59e0b">⚠ Terbatas</td></tr>
+                                <tr class="border-b border-gray-50 bg-gray-50/50"><td class="px-4 py-2.5 text-gray-700 font-medium">Analitik butir soal (IRT/daya beda) <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-600 ml-1">v5</span></td><td class="px-4 py-2.5 text-center text-emerald-600 font-bold">✓ Ada</td><td class="px-4 py-2.5 text-center font-semibold" style="color:#ef4444">✕ Tidak ada</td></tr>
+                                <tr class="border-b border-gray-50"><td class="px-4 py-2.5 text-gray-700 font-medium">Per-soal timer & pacing guide <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-600 ml-1">v5</span></td><td class="px-4 py-2.5 text-center text-emerald-600 font-bold">✓ Ada</td><td class="px-4 py-2.5 text-center font-semibold" style="color:#ef4444">✕ Tidak ada</td></tr>
+                                <tr class="bg-gray-50/50"><td class="px-4 py-2.5 text-gray-700 font-medium rounded-bl-xl">Sertifikat digital otomatis + QR verifikasi <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-600 ml-1">v5</span></td><td class="px-4 py-2.5 text-center text-emerald-600 font-bold">✓ Ada</td><td class="px-4 py-2.5 text-center font-semibold rounded-br-xl" style="color:#ef4444">✕ Tidak ada</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -24447,6 +25240,22 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
                             <div class="flex items-center gap-2 mb-2"><div class="w-7 h-7 rounded-lg bg-sky-600 flex items-center justify-center"><i data-lucide="qr-code" class="w-3.5 h-3.5 text-white"></i></div><p class="font-black text-sky-900 text-xs">QR Code & Kartu Peserta</p></div>
                             <p class="text-xs text-sky-700 leading-relaxed">Generate kartu peserta ujian dengan QR Code otomatis yang bisa dicetak langsung dari dashboard admin tanpa software tambahan.</p>
                         </div>
+                        <!-- ★ BARU v5 ★ -->
+                        <div class="p-4 rounded-2xl border relative" style="background:#f5f3ff;border-color:#c4b5fd">
+                            <span class="absolute top-2 right-2 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-violet-600 text-white">v5</span>
+                            <div class="flex items-center gap-2 mb-2"><div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:#6d28d9"><i data-lucide="text-search" class="w-3.5 h-3.5 text-white"></i></div><p class="font-black text-xs" style="color:#4c1d95">NLP Engine v5 — Keyword Matching Plus</p></div>
+                            <p class="text-xs leading-relaxed" style="color:#5b21b6">Koreksi esai berbasis NLP yang disempurnakan: ekstrak kata kunci rubrik guru → bobot bertingkat (wajib/penting/tambahan) → deteksi sinonim → skor kelengkapan kalimat. Akurat, ringan, tanpa API eksternal.</p>
+                        </div>
+                        <div class="p-4 rounded-2xl border relative" style="background:#f5f3ff;border-color:#c4b5fd">
+                            <span class="absolute top-2 right-2 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-violet-600 text-white">v5</span>
+                            <div class="flex items-center gap-2 mb-2"><div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:#6d28d9"><i data-lucide="camera" class="w-3.5 h-3.5 text-white"></i></div><p class="font-black text-xs" style="color:#4c1d95">MediaDevices API + Face Detection</p></div>
+                            <p class="text-xs leading-relaxed" style="color:#5b21b6">WebRTC MediaDevices API untuk akses kamera browser. Verifikasi wajah menggunakan Face Detection API (Shape Detection). Snapshot berkala tersimpan ke Firebase Storage.</p>
+                        </div>
+                        <div class="p-4 rounded-2xl border relative col-span-1 sm:col-span-2" style="background:#f5f3ff;border-color:#c4b5fd">
+                            <span class="absolute top-2 right-2 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-violet-600 text-white">v5</span>
+                            <div class="flex items-center gap-2 mb-2"><div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:#4f46e5"><i data-lucide="chart-column" class="w-3.5 h-3.5 text-white"></i></div><p class="font-black text-xs" style="color:#312e81">Chart.js v4 + Analitik Butir Soal</p></div>
+                            <p class="text-xs leading-relaxed" style="color:#3730a3">Dashboard analitik v5 menggunakan Chart.js untuk visualisasi interaktif: distribusi nilai, heatmap soal, dan analisis butir soal berbasis teori IRT — tingkat kesukaran, daya beda, dan reliabilitas soal secara otomatis.</p>
+                        </div>
                     </div>
                 </div>
 
@@ -24454,7 +25263,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
 
             <!-- Footer -->
             <div class="px-7 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between gap-3 shrink-0">
-                <p class="text-xs text-gray-400">INTEGRITEST © 2026 · Platform CBT Berkarakter · Jawa Timur</p>
+                <p class="text-xs text-gray-400">INTEGRITEST © 2026 · Platform CBT Berkarakter · v5 · Jawa Timur</p>
                 <button onclick="window.closeAboutModal()" class="flex items-center gap-1.5 px-5 py-2 rounded-xl font-bold text-sm text-white transition active:scale-95" style="background:linear-gradient(135deg,#1e3a8a,#2563eb)">
                     <i data-lucide="x" class="w-4 h-4"></i> Tutup
                 </button>
@@ -24859,5 +25668,600 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
         }
     })();
     </script>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     INTEGRITEST CAMERA MODULE v1.1
+     Fitur:
+       1. Foto verifikasi identitas saat ujian dimulai
+       2. Snapshot otomatis berkala (setiap 2 menit)
+       3. Deteksi wajah hilang / pindah tab (via Face Detection API + fallback)
+       4. Anti-2-kamera: deteksi frame statis (layar difoto) + deteksi flash HP lain
+     Upload: Cloudinary (unsigned preset)
+     Simpan URL: Firestore → exam_results/{docId}
+═══════════════════════════════════════════════════════════════════════ -->
+<script>
+(function() {
+    // ─── KONFIGURASI CLOUDINARY ───────────────────────────────────────
+    const CLOUD_NAME    = 'dag89cfzn';
+    const UPLOAD_PRESET = 'integritest_unsigned';
+    const UPLOAD_URL    = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
+
+    // ─── STATE ───────────────────────────────────────────────────────
+    let _camStream        = null;
+    let _snapshotInterval = null;
+    let _faceCheckInterval= null;
+    let _faceAbsentCount  = 0;
+    const SNAPSHOT_MS     = 2 * 60 * 1000;
+    const FACE_CHECK_MS   = 5000;
+    const FACE_ABSENT_MAX = 3;
+
+    // ─── STATE ANTI-2-KAMERA (v5.1) ──────────────────────────────────
+    // Mendeteksi siswa yang menodongkan HP ke layar untuk difoto
+    // Teknik: analisis frame-diff (foto = frame statis) + deteksi flash
+    let _prevFrameData      = null;   // pixel data frame sebelumnya
+    let _staticFrameCount   = 0;      // counter frame terlalu statis (layar difoto diam)
+    let _brightSpikeCount   = 0;      // counter lonjakan kecerahan mendadak (flash HP lain)
+    let _antiPhotoInterval  = null;
+    let _prevBrightness     = null;
+    const STATIC_THRESH     = 3;      // 3× frame statis berturut → indikasi foto sedang ditodong
+    const BRIGHT_SPIKE_THRESH = 2;    // 2× flash terang mendadak → indikasi flash kamera lain
+    const ANTI_PHOTO_MS     = 3000;   // analisis tiap 3 detik
+    const PIXEL_DIFF_THRESH = 8;      // rata-rata diff pixel < 8 = frame terlalu statis
+    const BRIGHTNESS_JUMP   = 40;     // lonjakan brightness > 40 = indikasi flash kamera lain
+
+    // ─── HELPER: kompres base64 ke JPEG kecil ────────────────────────
+    function captureFrame(videoEl, quality = 0.6) {
+        const canvas = document.createElement('canvas');
+        canvas.width  = 320;
+        canvas.height = 240;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(videoEl, 0, 0, 320, 240);
+        return canvas.toDataURL('image/jpeg', quality);
+    }
+
+    // ─── UPLOAD ke Cloudinary ────────────────────────────────────────
+    async function uploadToCloudinary(base64, folder) {
+        try {
+            const fd = new FormData();
+            fd.append('file', base64);
+            fd.append('upload_preset', UPLOAD_PRESET);
+            fd.append('folder', `integritest/${folder}`);
+            const res  = await fetch(UPLOAD_URL, { method: 'POST', body: fd });
+            const data = await res.json();
+            return data.secure_url || null;
+        } catch(e) {
+            console.warn('[Camera] Upload gagal:', e);
+            return null;
+        }
+    }
+
+    // ─── SIMPAN URL ke Firestore ──────────────────────────────────────
+    async function saveUrlToFirestore(field, url) {
+        if (!window.isFirebaseReady || !window.db || !window.currentExamDocId || !url) return;
+        try {
+            const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
+            await updateDoc(
+                doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', window.currentExamDocId),
+                { [field]: url, [`${field}_at`]: Date.now() }
+            );
+            console.log(`[Camera] ${field} tersimpan →`, url);
+        } catch(e) {
+            console.warn('[Camera] Simpan Firestore gagal:', e);
+        }
+    }
+
+    // ─── SIMPAN array snapshot URLs ──────────────────────────────────
+    async function appendSnapshotUrl(url) {
+        if (!window.isFirebaseReady || !window.db || !window.currentExamDocId || !url) return;
+        try {
+            const { doc, updateDoc, arrayUnion } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
+            await updateDoc(
+                doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', window.currentExamDocId),
+                { snapshotUrls: arrayUnion({ url, at: Date.now() }) }
+            );
+        } catch(e) {
+            console.warn('[Camera] Append snapshot gagal:', e);
+        }
+    }
+
+    // ─── BUAT VIDEO ELEMENT TERSEMBUNYI ──────────────────────────────
+    function createHiddenVideo() {
+        let v = document.getElementById('_cam_video_hidden');
+        if (v) return v;
+        v = document.createElement('video');
+        v.id = '_cam_video_hidden';
+        v.setAttribute('playsinline', '');
+        v.setAttribute('muted', '');
+        v.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;top:-9999px;left:-9999px;';
+        document.body.appendChild(v);
+        return v;
+    }
+
+    // ─── INISIALISASI KAMERA ─────────────────────────────────────────
+    async function initCamera() {
+        if (_camStream) return true; // sudah aktif
+        try {
+            _camStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+                audio: false
+            });
+            const v = createHiddenVideo();
+            v.srcObject = _camStream;
+            await v.play();
+            console.log('[Camera] Kamera aktif ✅');
+            if (window._showCamStatusBar) window._showCamStatusBar({ type:'ok', text:'Kamera Aktif ✅' });
+            return true;
+        } catch(e) {
+            console.warn('[Camera] Kamera tidak bisa diakses:', e.message);
+            // Catat ke Firestore bahwa siswa menolak kamera
+            setTimeout(() => saveUrlToFirestore('cameraError', 'DENIED: ' + e.message), 2000);
+            return false;
+        }
+    }
+
+    // ─── STOP KAMERA ─────────────────────────────────────────────────
+    function stopCamera() {
+        if (_snapshotInterval)    { clearInterval(_snapshotInterval);    _snapshotInterval   = null; }
+        if (_faceCheckInterval)   { clearInterval(_faceCheckInterval);   _faceCheckInterval  = null; }
+        if (_antiPhotoInterval)   { clearInterval(_antiPhotoInterval);   _antiPhotoInterval  = null; }
+        _prevFrameData = null; _prevBrightness = null;
+        _staticFrameCount = 0; _brightSpikeCount = 0;
+        if (_camStream) {
+            _camStream.getTracks().forEach(t => t.stop());
+            _camStream = null;
+        }
+        if (window._showCamStatusBar) window._showCamStatusBar({ type:'off', text:'Kamera Off' });
+        // Remove status bar after delay
+        setTimeout(() => { const b = document.getElementById('_cam_status_bar'); if (b) b.remove(); }, 3000);
+        console.log('[Camera] Kamera dimatikan.');
+    }
+
+    // ─── FITUR 1: FOTO VERIFIKASI SAAT MULAI ────────────────────────
+    async function ambilFotoVerifikasi() {
+        const ok = await initCamera();
+        if (!ok) return;
+
+        // Tunggu sebentar agar kamera stabil
+        await new Promise(r => setTimeout(r, 1500));
+
+        const v    = document.getElementById('_cam_video_hidden');
+        const b64  = captureFrame(v, 0.8);
+        const nisn = (window._loginData && window._loginData.studentNisn) || 'unknown';
+
+        // Tampilkan preview singkat ke siswa (2 detik)
+        showCameraPreview(b64);
+
+        // Upload di background
+        const url = await uploadToCloudinary(b64, `verifikasi/${nisn}`);
+        await saveUrlToFirestore('fotoVerifikasi', url);
+    }
+
+    // ─── FITUR 2: SNAPSHOT BERKALA ───────────────────────────────────
+    function mulaiSnapshotBerkala() {
+        if (_snapshotInterval) return;
+        _snapshotInterval = setInterval(async () => {
+            if (window._examFinished) { clearInterval(_snapshotInterval); return; }
+            const v = document.getElementById('_cam_video_hidden');
+            if (!v || !_camStream) return;
+            const b64  = captureFrame(v, 0.5);
+            const nisn = (window._loginData && window._loginData.studentNisn) || 'unknown';
+            const url  = await uploadToCloudinary(b64, `snapshots/${nisn}`);
+            await appendSnapshotUrl(url);
+        }, SNAPSHOT_MS);
+        console.log('[Camera] Snapshot berkala dimulai (tiap 2 menit)');
+    }
+
+    // ─── HELPER: hitung rata-rata kecerahan frame ────────────────────
+    function calcBrightness(pixelData) {
+        let sum = 0;
+        // Sample setiap 20 pixel untuk performa
+        for (let i = 0; i < pixelData.length; i += 80) {
+            sum += (pixelData[i] * 0.299 + pixelData[i+1] * 0.587 + pixelData[i+2] * 0.114);
+        }
+        return sum / (pixelData.length / 80);
+    }
+
+    // ─── HELPER: hitung rata-rata perbedaan antar frame ──────────────
+    function calcFrameDiff(currData, prevData) {
+        if (!prevData || currData.length !== prevData.length) return 255;
+        let diff = 0;
+        for (let i = 0; i < currData.length; i += 80) {
+            diff += Math.abs(currData[i] - prevData[i])
+                  + Math.abs(currData[i+1] - prevData[i+1])
+                  + Math.abs(currData[i+2] - prevData[i+2]);
+        }
+        return diff / (currData.length / 80 * 3);
+    }
+
+    // ─── FITUR 4: DETEKSI 2 KAMERA / FOTO LAYAR ──────────────────────
+    // Skenario yang dideteksi:
+    //   A) Siswa menodongkan HP satunya ke layar → kamera menangkap layar statis
+    //      (frame hampir tidak berubah = diff sangat kecil)
+    //   B) HP lain memfoto dari samping → ada lonjakan kecerahan flash
+    function mulaiAntiDuaKamera() {
+        if (_antiPhotoInterval) return;
+
+        const offscreenCanvas = document.createElement('canvas');
+        offscreenCanvas.width  = 160; // resolusi kecil, cukup untuk analisis
+        offscreenCanvas.height = 120;
+        const ctx = offscreenCanvas.getContext('2d');
+
+        _antiPhotoInterval = setInterval(() => {
+            if (window._examFinished) { clearInterval(_antiPhotoInterval); return; }
+            const v = document.getElementById('_cam_video_hidden');
+            if (!v || !_camStream || v.readyState < 2) return;
+
+            try {
+                ctx.drawImage(v, 0, 0, 160, 120);
+                const frame = ctx.getImageData(0, 0, 160, 120);
+                const pixels = frame.data;
+
+                const brightness = calcBrightness(pixels);
+                const diff       = calcFrameDiff(pixels, _prevFrameData);
+
+                // ── Cek A: Frame terlalu statis (layar sedang difoto) ──
+                if (_prevFrameData !== null && diff < PIXEL_DIFF_THRESH) {
+                    _staticFrameCount++;
+                    console.log(`[AntiCam] Frame statis ${_staticFrameCount}/${STATIC_THRESH} (diff=${diff.toFixed(1)})`);
+                    if (_staticFrameCount >= STATIC_THRESH) {
+                        _staticFrameCount = 0;
+                        _prevFrameData = null;
+                        const b64 = captureFrame(v, 0.7);
+                        uploadToCloudinary(b64, `anomali/${(window._loginData||{}).studentNisn||'unknown'}`)
+                            .then(url => { if (url) appendSnapshotUrl(url + '#LAYAR_DIFOTO'); });
+                        if (typeof registerViolation === 'function') {
+                            registerViolation('Terdeteksi layar sedang difoto oleh kamera lain (frame tidak bergerak)!');
+                        }
+                        return;
+                    }
+                } else {
+                    _staticFrameCount = 0;
+                }
+
+                // ── Cek B: Flash mendadak (HP lain memfoto dari samping) ──
+                if (_prevBrightness !== null && (brightness - _prevBrightness) > BRIGHTNESS_JUMP) {
+                    _brightSpikeCount++;
+                    console.log(`[AntiCam] Flash terdeteksi ${_brightSpikeCount}/${BRIGHT_SPIKE_THRESH} (Δbright=${(brightness-_prevBrightness).toFixed(1)})`);
+                    if (_brightSpikeCount >= BRIGHT_SPIKE_THRESH) {
+                        _brightSpikeCount = 0;
+                        const b64 = captureFrame(v, 0.7);
+                        uploadToCloudinary(b64, `anomali/${(window._loginData||{}).studentNisn||'unknown'}`)
+                            .then(url => { if (url) appendSnapshotUrl(url + '#FLASH_KAMERA_LAIN'); });
+                        if (typeof registerViolation === 'function') {
+                            registerViolation('Terdeteksi kilatan cahaya mendadak — indikasi kamera/HP lain sedang memfoto layar!');
+                        }
+                    }
+                } else if (_prevBrightness !== null && (brightness - _prevBrightness) <= 5) {
+                    _brightSpikeCount = 0; // reset jika tidak ada spike
+                }
+
+                _prevFrameData  = pixels.slice(); // simpan frame saat ini
+                _prevBrightness = brightness;
+
+            } catch(e) { /* ignore */ }
+        }, ANTI_PHOTO_MS);
+
+        console.log('[AntiCam] Deteksi 2-kamera aktif ✅ (frame-diff + flash detection)');
+    }
+
+    // ─── FITUR 3: DETEKSI WAJAH HILANG ───────────────────────────────
+    async function mulaiDeteksiWajah() {
+        // Cek apakah Face Detection API tersedia
+        if (typeof FaceDetector === 'undefined') {
+            console.log('[Camera] FaceDetector API tidak tersedia, pakai fallback visibilitychange');
+            // Fallback: monitor document.hidden saja (sudah ada di app, ini tambahan khusus camera)
+            return;
+        }
+        let detector;
+        try { detector = new FaceDetector({ fastMode: true }); } catch(e) { return; }
+
+        _faceCheckInterval = setInterval(async () => {
+            if (window._examFinished) { clearInterval(_faceCheckInterval); return; }
+            const v = document.getElementById('_cam_video_hidden');
+            if (!v || !_camStream || v.readyState < 2) return;
+            try {
+                const faces = await detector.detect(v);
+                if (faces.length === 0) {
+                    _faceAbsentCount++;
+                    console.log(`[Camera] Wajah tidak terdeteksi (${_faceAbsentCount}/${FACE_ABSENT_MAX})`);
+                    if (_faceAbsentCount >= FACE_ABSENT_MAX) {
+                        _faceAbsentCount = 0;
+                        // Ambil snapshot saat tidak terdeteksi
+                        const b64  = captureFrame(v, 0.6);
+                        const nisn = (window._loginData && window._loginData.studentNisn) || 'unknown';
+                        const url  = await uploadToCloudinary(b64, `anomali/${nisn}`);
+                        await appendSnapshotUrl(url + '#WAJAH_HILANG');
+                        // Daftarkan sebagai pelanggaran
+                        if (typeof registerViolation === 'function') {
+                            registerViolation('Wajah tidak terdeteksi di kamera selama 15 detik!');
+                            if (window._showCamStatusBar) window._showCamStatusBar({ type:'warn', text:'⚠️ Wajah tidak terdeteksi' });
+                        }
+                    }
+                } else {
+                    _faceAbsentCount = 0; // reset jika wajah terdeteksi kembali
+                }
+            } catch(e) {}
+        }, FACE_CHECK_MS);
+        console.log('[Camera] Deteksi wajah aktif ✅');
+    }
+
+    // ─── PREVIEW KAMERA SINGKAT (UI) ─────────────────────────────────
+    // ─── STATE DARK MODE KAMERA ──────────────────────────────────────
+    let _camDarkMode = (localStorage.getItem('_integritest_cam_dark') === '1') || false;
+
+    function _applyCamDark(modal) {
+        const isDark = _camDarkMode;
+        modal.style.background = isDark
+            ? 'linear-gradient(135deg,#0f172a,#1e293b)'
+            : 'linear-gradient(135deg,#f8fafc,#f1f5f9)';
+        modal.style.border = isDark ? '1px solid #334155' : '1px solid #e2e8f0';
+        modal.style.color  = isDark ? '#e2e8f0' : '#1e293b';
+        // Update all child text colors
+        modal.querySelectorAll('[data-cam-text]').forEach(el => {
+            el.style.color = isDark ? '#94a3b8' : '#64748b';
+        });
+        modal.querySelectorAll('[data-cam-title]').forEach(el => {
+            el.style.color = isDark ? '#4ade80' : '#16a34a';
+        });
+        modal.querySelectorAll('[data-cam-dark-btn]').forEach(btn => {
+            btn.textContent = isDark ? '☀️' : '🌙';
+            btn.title = isDark ? 'Mode Terang' : 'Mode Gelap';
+        });
+    }
+
+    function showCameraPreview(base64) {
+        const existing = document.getElementById('_cam_preview_modal');
+        if (existing) existing.remove();
+
+        const div = document.createElement('div');
+        div.id = '_cam_preview_modal';
+        div.style.cssText = `
+            position: fixed; bottom: 80px; right: 20px; z-index: 99999;
+            border-radius: 16px; padding: 14px 14px 10px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+            animation: slideInUp 0.3s ease; min-width: 160px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        `;
+        div.innerHTML = `
+            <div style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px">
+                <p data-cam-title style="font-size:11px;font-weight:800;margin:0">📸 Verifikasi Berhasil</p>
+                <button data-cam-dark-btn onclick="window._toggleCamDark()" title="Mode Gelap"
+                    style="background:none;border:none;cursor:pointer;font-size:14px;padding:0;line-height:1">🌙</button>
+            </div>
+            <div style="position:relative;border-radius:10px;overflow:hidden">
+                <img src="${base64}" style="width:130px;height:98px;object-fit:cover;display:block;" />
+                <div style="position:absolute;bottom:4px;right:4px;background:rgba(16,185,129,0.9);border-radius:99px;padding:2px 6px;font-size:9px;font-weight:800;color:#fff">✓ Tersimpan</div>
+            </div>
+            <p data-cam-text style="font-size:10px;margin:0;text-align:center">Dikirim ke server ✓<br><span style="font-size:9px;opacity:0.7">Auto-close 4 detik</span></p>
+            <div style="width:100%;height:2px;background:#e2e8f0;border-radius:99px;overflow:hidden">
+                <div id="_cam_preview_progress" style="height:100%;background:#10b981;width:100%;transition:width 4s linear"></div>
+            </div>
+        `;
+        document.body.appendChild(div);
+        _applyCamDark(div);
+
+        // Progress bar countdown
+        requestAnimationFrame(() => {
+            const bar = div.querySelector('#_cam_preview_progress');
+            if (bar) { bar.style.transition = 'width 4s linear'; bar.style.width = '0%'; }
+        });
+
+        setTimeout(() => { if (div.parentNode) div.remove(); }, 4000);
+    }
+
+    // ─── TOGGLE DARK MODE KAMERA ─────────────────────────────────────
+    window._toggleCamDark = function() {
+        _camDarkMode = !_camDarkMode;
+        try { localStorage.setItem('_integritest_cam_dark', _camDarkMode ? '1' : '0'); } catch(e){}
+        // Re-apply ke semua camera modals yang sedang tampil
+        [document.getElementById('_cam_preview_modal'), document.getElementById('_cam_anomaly_modal')]
+            .filter(Boolean).forEach(_applyCamDark);
+        // Apply ke cam-status-bar jika ada
+        const bar = document.getElementById('_cam_status_bar');
+        if (bar) {
+            bar.style.background = _camDarkMode ? 'rgba(15,23,42,0.95)' : 'rgba(255,255,255,0.95)';
+            bar.style.color = _camDarkMode ? '#94a3b8' : '#374151';
+            bar.style.borderColor = _camDarkMode ? '#334155' : '#e5e7eb';
+        }
+    };
+
+    // ─── KAMERA STATUS BAR (persistent, pojok bawah selama ujian) ────
+    window._showCamStatusBar = function(status) {
+        let bar = document.getElementById('_cam_status_bar');
+        if (!bar) {
+            bar = document.createElement('div');
+            bar.id = '_cam_status_bar';
+            bar.style.cssText = `
+                position:fixed;bottom:16px;left:16px;z-index:9999;
+                padding:6px 12px;border-radius:99px;font-size:11px;font-weight:700;
+                display:flex;align-items:center;gap:6px;border:1px solid;
+                box-shadow:0 2px 12px rgba(0,0,0,0.15);
+                font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+                transition:background 0.3s,color 0.3s;
+            `;
+            document.body.appendChild(bar);
+        }
+        bar.style.background = _camDarkMode ? 'rgba(15,23,42,0.95)' : 'rgba(255,255,255,0.95)';
+        bar.style.color      = _camDarkMode ? '#94a3b8' : '#374151';
+        bar.style.borderColor= _camDarkMode ? '#334155' : '#e5e7eb';
+
+        const icons = { ok:'🟢', warn:'🟡', error:'🔴', off:'⚫' };
+        const icon  = icons[status.type] || '⚫';
+        bar.innerHTML = `
+            <span>${icon}</span>
+            <span>${status.text}</span>
+            <button onclick="window._toggleCamDark()" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0;opacity:0.7"
+                title="${_camDarkMode ? 'Mode Terang' : 'Mode Gelap'}">${_camDarkMode ? '☀️' : '🌙'}</button>
+        `;
+    };
+
+    // ─── HOOK KE startExamFromWelcome ────────────────────────────────
+    // Tunggu sampai fungsi asli ada, lalu wrap
+    function hookStartExam() {
+        const origFn = window.startExamFromWelcome;
+        if (typeof origFn !== 'function') {
+            setTimeout(hookStartExam, 500);
+            return;
+        }
+        window.startExamFromWelcome = async function(paketId) {
+            // Jalankan fungsi asli terlebih dahulu
+            await origFn.call(this, paketId);
+            // Setelah ujian dimulai, aktifkan kamera
+            console.log('[Camera] Ujian dimulai — mengaktifkan modul kamera...');
+            const ok = await initCamera();
+            if (ok) {
+                await ambilFotoVerifikasi();
+                mulaiSnapshotBerkala();
+                await mulaiDeteksiWajah();
+                mulaiAntiDuaKamera(); // ★ v5.1: deteksi 2 kamera / foto layar
+            }
+        };
+        console.log('[Camera] Hook ke startExamFromWelcome ✅');
+    }
+
+    // ─── HOOK KE finishExam ──────────────────────────────────────────
+    function hookFinishExam() {
+        // finishExam adalah fungsi biasa (bukan window), hook via polling
+        // Kita pantau window._examFinished untuk cleanup kamera
+        const observer = setInterval(() => {
+            if (window._examFinished) {
+                clearInterval(observer);
+                stopCamera();
+            }
+        }, 2000);
+    }
+
+    // ─── INJECT STYLE ANIMASI ────────────────────────────────────────
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideInUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to   { transform: translateY(0);    opacity: 1; }
+        }
+    `;
+    document.head.appendChild(style);
+
+    // ─── INIT ────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+        hookStartExam();
+        hookFinishExam();
+        console.log('[Camera] Modul kamera INTEGRITEST siap ✅');
+    });
+
+    // Expose ke window untuk debug
+    window._cameraModule = { stopCamera, initCamera, ambilFotoVerifikasi };
+
+    // ─── MODAL GALERI FOTO SISWA (untuk panel Log Anomali) ────────────
+    window.openFotoModal = function(rJson) {
+        const r = JSON.parse(rJson);
+        const nama = r.studentName || '—';
+        const nisn = r.studentNisn || '—';
+        const kelas = r.studentKelas || '—';
+        const fotoVerif = r.fotoVerifikasi || null;
+        const snapshots = (r.snapshotUrls || []).slice().sort((a, b) => (a.at || 0) - (b.at || 0));
+
+        // Buat atau ambil modal yang sudah ada
+        let modal = document.getElementById('_foto-modal-galeri');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = '_foto-modal-galeri';
+            modal.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);padding:16px;';
+            modal.onclick = function(e) { if (e.target === modal) window.closeFotoModal(); };
+            document.body.appendChild(modal);
+        }
+
+        const allPhotos = [];
+        if (fotoVerif) allPhotos.push({ url: fotoVerif, label: '📸 Verifikasi Awal', at: r.fotoVerifikasi_at || null, isAnomali: false });
+        snapshots.forEach((s, i) => {
+            const isAnomali = typeof s.url === 'string' && s.url.includes('#WAJAH_HILANG');
+            const url = isAnomali ? s.url.replace('#WAJAH_HILANG','') : s.url;
+            const label = isAnomali ? `⚠️ Wajah Hilang #${i+1}` : `🎞️ Snapshot #${i+1}`;
+            allPhotos.push({ url, label, at: s.at || null, isAnomali });
+        });
+
+        const photosHtml = allPhotos.length === 0
+            ? `<div class="col-span-full flex flex-col items-center gap-3 py-12 text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                <p class="text-sm">Belum ada foto tersimpan untuk siswa ini.</p>
+               </div>`
+            : allPhotos.map((p, idx) => {
+                const timeStr = p.at ? new Date(p.at).toLocaleString('id-ID', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '—';
+                const borderCls = p.isAnomali ? 'border-red-400' : idx === 0 ? 'border-indigo-400' : 'border-gray-200';
+                const labelCls  = p.isAnomali ? 'bg-red-50 text-red-600' : idx === 0 ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-50 text-gray-600';
+                return `<div class="flex flex-col gap-1.5">
+                    <div class="relative group cursor-pointer" onclick="window._fotoZoom('${p.url}','${p.label}','${timeStr}')">
+                        <img src="${p.url}" alt="${p.label}" class="w-full aspect-[4/3] object-cover rounded-xl border-2 ${borderCls} shadow-sm transition-all group-hover:scale-[1.03] group-hover:shadow-lg" onerror="this.parentElement.parentElement.style.display='none'" />
+                        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-xl transition-all flex items-center justify-center">
+                            <svg class="opacity-0 group-hover:opacity-100 transition-opacity" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg>
+                        </div>
+                    </div>
+                    <div class="px-1">
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${labelCls}">${p.label}</span>
+                        <p class="text-[10px] text-gray-400 font-mono mt-0.5">${timeStr}</p>
+                    </div>
+                </div>`;
+            }).join('');
+
+        modal.innerHTML = `
+            <div style="background:white;border-radius:20px;width:100%;max-width:780px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,0.4);">
+                <!-- Header -->
+                <div style="padding:18px 22px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+                    <div>
+                        <h2 style="font-size:16px;font-weight:900;color:#1e293b;margin:0;">📸 Galeri Foto — ${escapeHtml(nama)}</h2>
+                        <p style="font-size:11px;color:#94a3b8;margin:2px 0 0;font-family:monospace;">NISN: ${escapeHtml(nisn)} · Kelas: ${escapeHtml(kelas)} · ${allPhotos.length} foto</p>
+                    </div>
+                    <button onclick="window.closeFotoModal()" style="width:34px;height:34px;border-radius:10px;border:none;background:#f1f5f9;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;color:#64748b;transition:background .15s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">✕</button>
+                </div>
+                <!-- Legend -->
+                <div style="padding:10px 22px;background:#f8fafc;border-bottom:1px solid #f1f5f9;display:flex;flex-wrap:wrap;gap:12px;flex-shrink:0;">
+                    <span style="font-size:11px;color:#6366f1;font-weight:700;">🔵 Verifikasi Awal</span>
+                    <span style="font-size:11px;color:#64748b;font-weight:600;">⬜ Snapshot Berkala</span>
+                    <span style="font-size:11px;color:#dc2626;font-weight:700;">🔴 Anomali Wajah Hilang</span>
+                </div>
+                <!-- Grid Foto -->
+                <div style="overflow-y:auto;padding:18px 22px;flex:1;">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;">
+                        ${photosHtml}
+                    </div>
+                </div>
+                <!-- Footer -->
+                <div style="padding:12px 22px;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;flex-shrink:0;background:#fafafa;">
+                    <button onclick="window.closeFotoModal()" style="padding:8px 20px;background:#6366f1;color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:background .15s;" onmouseover="this.style.background='#4f46e5'" onmouseout="this.style.background='#6366f1'">Tutup</button>
+                </div>
+            </div>`;
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    };
+
+    window.closeFotoModal = function() {
+        const modal = document.getElementById('_foto-modal-galeri');
+        if (modal) modal.style.display = 'none';
+        const zoom  = document.getElementById('_foto-zoom-overlay');
+        if (zoom)  zoom.remove();
+        document.body.style.overflow = '';
+    };
+
+    // Zoom satu foto (full screen)
+    window._fotoZoom = function(url, label, timeStr) {
+        let z = document.getElementById('_foto-zoom-overlay');
+        if (!z) {
+            z = document.createElement('div');
+            z.id = '_foto-zoom-overlay';
+            z.style.cssText = 'position:fixed;inset:0;z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.92);padding:20px;cursor:zoom-out;';
+            z.onclick = function() { z.remove(); };
+            document.body.appendChild(z);
+        }
+        z.innerHTML = `
+            <img src="${url}" style="max-width:100%;max-height:80vh;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.5);object-fit:contain;" onerror="this.parentElement.remove()" />
+            <div style="margin-top:14px;text-align:center;">
+                <p style="color:white;font-size:13px;font-weight:700;margin:0;">${label}</p>
+                <p style="color:#94a3b8;font-size:11px;font-family:monospace;margin:4px 0 0;">${timeStr}</p>
+                <p style="color:#475569;font-size:11px;margin:6px 0 0;">Klik di mana saja untuk menutup</p>
+            </div>`;
+    };
+
+})();
+</script>
 
 </html>
