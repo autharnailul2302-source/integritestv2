@@ -16778,13 +16778,19 @@ Terima kasih 🙏</textarea>
                     dedupMap.set(key, item);
                 } else {
                     const existing = dedupMap.get(key);
+                    const existLive = existing.status === 'SEDANG MENGERJAKAN' || existing.status.includes('MELANJUTKAN');
+                    const newLive   = item.status === 'SEDANG MENGERJAKAN' || item.status.includes('MELANJUTKAN');
                     const existFinished = existing.status.includes('SELESAI') || existing.status.includes('DISKUALIFIKASI');
                     const newFinished   = item.status.includes('SELESAI') || item.status.includes('DISKUALIFIKASI');
-                    // Prioritas: SELESAI/DQ > SEDANG MENGERJAKAN; jika sama, ambil terbaru
-                    if (!existFinished && newFinished) {
-                        dedupMap.set(key, item);
+                    // Prioritas: SEDANG MENGERJAKAN/MELANJUTKAN selalu menang (siswa sedang ujian sekarang)
+                    if (newLive && !existLive) {
+                        dedupMap.set(key, item); // data live baru menimpa data lama (termasuk SELESAI)
+                    } else if (!newLive && existLive) {
+                        // pertahankan existing yang live
+                    } else if (!existFinished && newFinished) {
+                        dedupMap.set(key, item); // SELESAI/DQ > status lain (selain live)
                     } else if (existFinished === newFinished && item.timestamp > existing.timestamp) {
-                        dedupMap.set(key, item);
+                        dedupMap.set(key, item); // sama status, ambil terbaru
                     }
                 }
             });
