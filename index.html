@@ -601,6 +601,18 @@
                 if (cameraStatusEl) cameraStatusEl.innerHTML = window.cameraEnabled
                     ? '<span class="text-green-600 font-bold">✅ Aktif — Kamera pengawas AI digunakan</span>'
                     : '<span class="text-red-500 font-bold">❌ Nonaktif — Kamera tidak digunakan (hemat RAM)</span>';
+                // Sync toleransi diam (idle)
+                const idleMenit = latestDoc.idleThresholdMenit || 5;
+                window._idleThresholdMenit = idleMenit;
+                if (typeof _IDLE_THRESHOLD_MS !== 'undefined') {
+                    // update variabel runtime jika ujian sedang berjalan
+                }
+                window._IDLE_THRESHOLD_MS_CURRENT = idleMenit * 60 * 1000;
+                const idleInput = document.getElementById('setting-idle-menit');
+                if (idleInput && document.activeElement !== idleInput) {
+                    idleInput.value = idleMenit;
+                    idleInput.dispatchEvent(new Event('input'));
+                }
                 // Selalu update tampilan token di panel pengawas
                 if (window.updatePengawasTokenDisplay) window.updatePengawasTokenDisplay();
                 if (window.refreshAdminTokenQr) window.refreshAdminTokenQr(window.currentExamToken);
@@ -965,6 +977,8 @@
             // ★ v5: Per-soal timer
             const perSoalTimerEnabled = document.getElementById('toggle-per-soal-timer')?.checked || false;
             const perSoalTimerSec = parseInt(document.getElementById('teacher-per-soal-timer')?.value) || 90;
+            // ★ Toleransi diam (idle)
+            const newIdleMenit = Math.min(60, Math.max(1, parseInt(document.getElementById('setting-idle-menit')?.value) || 5));
 
             if(!newToken) return alert("Token tidak boleh kosong!");
             if(!newDuration || newDuration < 1) return alert("Durasi tidak valid (minimal 1 menit)!");
@@ -986,6 +1000,7 @@
                         appealEnabled: newAppealEnabled,
                         cameraEnabled: newCameraEnabled,
                         perSoalTimerSec: perSoalTimerSec,
+                        idleThresholdMenit: newIdleMenit,
                         // Sertakan nilai tampilan yang sudah ada agar tidak tertimpa null
                         judulUjian:   savedApp.judulUjian  ?? null,
                         subJudul:     savedApp.subJudul    ?? null,
@@ -1909,7 +1924,7 @@
             // Reset mode koreksi ke AI otomatis (default)
             const modeAiReset = document.getElementById('q-essay-mode-ai');
             if (modeAiReset) { modeAiReset.checked = true; if (typeof window._setEssayMode === 'function') window._setEssayMode('ai'); }
-            // Reset KD tag
+            // Reset TP tag
             const kdTagEl = document.getElementById('q-kd-tag');
             if (kdTagEl) kdTagEl.value = '';
 
@@ -1961,7 +1976,7 @@
                         document.getElementById('q-correct').value = Array.isArray(q.correct) ? q.correct[0] : q.correct;
                     }
                     document.getElementById('q-text').value = q.text || '';
-                    // Load KD tag
+                    // Load TP tag
                     const _kdTagEl = document.getElementById('q-kd-tag');
                     if (_kdTagEl) _kdTagEl.value = q.kdTag || '';
                     const isAktif = q.aktif !== false;
@@ -2361,7 +2376,7 @@
             if (!text && !image) return alert("Soal harus memiliki teks pertanyaan atau gambar soal!");
             if (tipe !== 'truefalse' && tipe !== 'essay' && tipe !== 'menjodohkan' && options.every(o => !o) && optionImages.every(i => !i)) return alert("Minimal satu pilihan jawaban harus diisi!");
 
-            // ★ Ambil KD tag
+            // ★ Ambil TP tag
             const kdTag = (document.getElementById('q-kd-tag')?.value || '').trim();
 
             const data = { paketId, packet, text, options, optionImages, correct, tipe, image, token, aktif, kdTag, updatedAt: Date.now() };
@@ -3761,18 +3776,18 @@ html.dark .ob-dot.active { background: #818cf8; }
                                 <p class="text-xs text-gray-400 mt-2">Pilih jawaban yang benar.</p>
                             </div>
                         </div>
-                        <!-- ★ KD / TP TAG ★ -->
+                        <!-- ★ TP / TP TAG ★ -->
                         <div class="bg-indigo-50 rounded-xl border border-indigo-200 p-4">
                             <p class="text-xs font-bold text-indigo-700 uppercase tracking-wide mb-2 flex items-center gap-1.5">
                                 <i data-lucide="tag" class="w-3.5 h-3.5"></i> Tag Kompetensi Dasar / Tujuan Pembelajaran
                                 <span class="ml-auto text-[10px] font-normal text-indigo-400">Opsional — untuk asesmen diagnostik</span>
                             </p>
                             <input type="text" id="q-kd-tag"
-                                placeholder="Contoh: KD 3.2 · TP 1.4 · Operasi Hitung"
+                                placeholder="Contoh: TP 3.2 · TP 1.4 · Operasi Hitung"
                                 class="w-full px-3 py-2 border border-indigo-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400 text-sm bg-white transition-colors font-medium"
                                 maxlength="80">
                             <p class="text-xs text-indigo-500 mt-1.5 leading-relaxed">
-                                Soal ber-tag KD memungkinkan laporan <strong>asesmen diagnostik</strong>: "Siswa ini lemah di KD 3.2 tapi kuat di KD 3.5". Pisahkan dengan koma jika lebih dari satu.
+                                Soal ber-tag TP memungkinkan laporan <strong>asesmen diagnostik</strong>: "Siswa ini lemah di TP 3.2 tapi kuat di TP 3.5". Pisahkan dengan koma jika lebih dari satu.
                             </p>
                         </div>
 
@@ -6335,7 +6350,7 @@ html.dark .ob-dot.active { background: #818cf8; }
                     <div id="analitik-pager"></div>
                 </div>
 
-                <!-- ★ PANEL ASESMEN DIAGNOSTIK PER KD/TP ★ -->
+                <!-- ★ PANEL ASESMEN DIAGNOSTIK PER TP/TP ★ -->
                 <div class="bg-white rounded-2xl border shadow-sm overflow-hidden mb-6" id="kd-diagnostic-panel">
                     <div class="px-6 py-4 border-b flex items-center gap-3" style="background:linear-gradient(135deg,#eef2ff 0%,#f0fdf4 100%)">
                         <div class="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shrink-0">
@@ -6343,10 +6358,10 @@ html.dark .ob-dot.active { background: #818cf8; }
                         </div>
                         <div class="flex-1">
                             <h3 class="text-sm font-black text-indigo-900 flex items-center gap-2">
-                                Asesmen Diagnostik per KD / TP
+                                Asesmen Diagnostik per TP / TP
                                 <span class="text-[10px] bg-indigo-600 text-white px-2 py-0.5 rounded-full font-bold">Merdeka Belajar</span>
                             </h3>
-                            <p class="text-xs text-indigo-500 mt-0.5">Penguasaan rata-rata kelas per Kompetensi Dasar — dari soal ber-tag KD</p>
+                            <p class="text-xs text-indigo-500 mt-0.5">Penguasaan rata-rata kelas per Kompetensi Dasar — dari soal ber-tag TP</p>
                         </div>
                         <button onclick="window.exportKDReport()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors">
                             <i data-lucide="download" class="w-3.5 h-3.5"></i> Export
@@ -6366,7 +6381,7 @@ html.dark .ob-dot.active { background: #818cf8; }
                             <tbody id="kd-diagnostic-body">
                                 <tr><td colspan="5" class="text-center py-8 text-gray-300 text-sm">
                                     <i data-lucide="tag" class="w-8 h-8 mx-auto mb-2 opacity-30"></i>
-                                    <p>Belum ada soal ber-tag KD.<br><span class="text-xs">Beri tag KD/TP pada soal di Bank Soal untuk mengaktifkan asesmen diagnostik.</span></p>
+                                    <p>Belum ada soal ber-tag TP.<br><span class="text-xs">Beri tag TP/TP pada soal di Bank Soal untuk mengaktifkan asesmen diagnostik.</span></p>
                                 </td></tr>
                             </tbody>
                         </table>
@@ -7254,6 +7269,38 @@ Terima kasih 🙏</textarea>
                             <div class="w-12 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-500"></div>
                         </label>
                     </div>
+                    <!-- ══ TOLERANSI DIAM (IDLE) ══ -->
+                    <div class="flex items-start justify-between gap-4 py-4 border-t border-gray-100">
+                        <div class="flex-1">
+                            <p class="text-sm font-bold text-amber-800">⏱️ Toleransi Diam (Idle Detection)</p>
+                            <p class="text-xs text-amber-700 mt-0.5">Berapa menit HP boleh diam tanpa aktivitas sebelum dianggap curang. Naikkan untuk mapel seperti <strong>Matematika</strong> yang butuh waktu berpikir lama.</p>
+                            <div class="flex items-center gap-3 mt-2">
+                                <div class="flex items-center gap-2">
+                                    <input type="number" id="setting-idle-menit" min="1" max="60" value="5"
+                                        class="w-20 px-3 py-1.5 border-2 border-amber-300 rounded-lg font-bold text-center text-amber-700 bg-amber-50 focus:ring-2 focus:ring-amber-400 outline-none text-sm"
+                                        oninput="
+                                            const v = Math.min(60, Math.max(1, parseInt(this.value)||5));
+                                            const lbl = document.getElementById('idle-menit-label');
+                                            if(lbl) lbl.textContent = v + ' menit';
+                                            const hint = document.getElementById('idle-hint');
+                                            if(hint) hint.textContent = v <= 3 ? '⚡ Ketat — cocok untuk PG biasa' : v <= 7 ? '✅ Normal — seimbang' : v <= 15 ? '📐 Longgar — cocok untuk Matematika/Esai' : '🔓 Sangat longgar — hanya deteksi jika benar-benar ditinggal';
+                                        ">
+                                    <span class="text-sm font-bold text-amber-700">menit</span>
+                                </div>
+                                <div class="flex flex-col">
+                                    <span id="idle-menit-label" class="text-xs font-bold text-amber-600">5 menit</span>
+                                    <span id="idle-hint" class="text-xs text-amber-500">✅ Normal — seimbang</span>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 mt-2 flex-wrap">
+                                <button type="button" onclick="document.getElementById('setting-idle-menit').value=3;document.getElementById('setting-idle-menit').dispatchEvent(new Event('input'))" class="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-red-100 text-red-700 hover:bg-red-200 border border-red-200">3 mnt — Ketat</button>
+                                <button type="button" onclick="document.getElementById('setting-idle-menit').value=5;document.getElementById('setting-idle-menit').dispatchEvent(new Event('input'))" class="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-200">5 mnt — Normal</button>
+                                <button type="button" onclick="document.getElementById('setting-idle-menit').value=10;document.getElementById('setting-idle-menit').dispatchEvent(new Event('input'))" class="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-green-100 text-green-700 hover:bg-green-200 border border-green-200">10 mnt — Matematika</button>
+                                <button type="button" onclick="document.getElementById('setting-idle-menit').value=20;document.getElementById('setting-idle-menit').dispatchEvent(new Event('input'))" class="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-200">20 mnt — Esai/Uraian</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="mt-4 flex justify-end">
                         <button onclick="window.saveSettings()" class="bg-gray-800 hover:bg-gray-900 text-white px-6 py-2 rounded-xl font-bold shadow-md active:scale-95 transition-transform flex items-center gap-2">
                             <i data-lucide="save" class="w-4 h-4"></i> Simpan Pengaturan
@@ -9286,6 +9333,31 @@ Terima kasih 🙏</textarea>
                 <p class="text-sm font-semibold text-gray-700" id="note-student-name">Nama Siswa</p>
                 <p class="text-xs text-gray-400" id="note-auto-text">Catatan otomatis sistem...</p>
             </div>
+            <!-- Bagian Klarifikasi DQ -->
+            <div id="note-dq-section" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-xl">
+                <div class="flex items-start gap-2 mb-2">
+                    <input type="checkbox" id="note-dq-invalid-cb" onchange="window._toggleDQAlasan()" class="mt-0.5 accent-red-600 w-4 h-4 cursor-pointer">
+                    <label for="note-dq-invalid-cb" class="text-sm font-bold text-red-700 cursor-pointer leading-snug">
+                        ⚠️ Diskualifikasi Tidak Valid (Kesalahan Sistem)
+                    </label>
+                </div>
+                <p class="text-xs text-red-500 mb-2 ml-6">Centang jika DQ disebabkan kesalahan sistem, bukan kecurangan siswa.</p>
+                <div id="note-dq-alasan-wrap" class="hidden ml-6">
+                    <label class="block text-xs font-bold text-red-600 uppercase tracking-wider mb-1">Alasan Klarifikasi <span class="text-red-400">*</span></label>
+                    <select id="note-dq-alasan-select" onchange="window._toggleDQAlasanLain()" class="w-full px-3 py-2 border border-red-300 rounded-lg text-sm bg-white text-gray-700 mb-2 focus:ring-2 focus:ring-red-400 outline-none">
+                        <option value="">-- Pilih alasan --</option>
+                        <option value="Gangguan koneksi internet / jaringan tidak stabil">Gangguan koneksi internet / jaringan tidak stabil</option>
+                        <option value="Laptop / komputer siswa hang atau restart sendiri">Laptop / komputer siswa hang atau restart sendiri</option>
+                        <option value="Listrik padam / browser tertutup paksa">Listrik padam / browser tertutup paksa</option>
+                        <option value="Kamera / sensor wajah error (false positive)">Kamera / sensor wajah error (false positive)</option>
+                        <option value="Siswa terpaksa keluar ruangan atas izin pengawas">Siswa terpaksa keluar ruangan atas izin pengawas</option>
+                        <option value="lain">Lainnya (tulis manual)...</option>
+                    </select>
+                    <input type="text" id="note-dq-alasan-lain" placeholder="Tulis alasan lain di sini..." class="hidden w-full px-3 py-2 border border-red-300 rounded-lg text-sm bg-white text-gray-700 mb-2 focus:ring-2 focus:ring-red-400 outline-none">
+                    <p class="text-xs text-orange-600 font-semibold">✅ Setelah disimpan, status siswa ini akan ditandai <span class="bg-orange-100 px-1 rounded">DQ — Dikecualikan Pengawas</span> di laporan.</p>
+                </div>
+            </div>
+
             <div class="mb-4">
                 <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Catatan Tambahan Pengawas <span class="text-gray-400 font-normal">(opsional)</span></label>
                 <textarea id="note-custom-input" rows="4" placeholder='Contoh: "Siswa sempat izin ke toilet" atau "Laptop siswa sempat nge-lag namun tetap jujur."' class="w-full px-3 py-2.5 border rounded-xl text-sm bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none resize-none text-gray-700"></textarea>
@@ -9295,6 +9367,53 @@ Terima kasih 🙏</textarea>
                 <button onclick="document.getElementById('modal-note').classList.add('hidden')" class="px-4 py-2 border rounded-xl text-gray-600 text-sm font-medium hover:bg-gray-50">Batal</button>
                 <button onclick="window.saveStudentNote()" class="px-5 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-sm hover:bg-blue-700">
                     <i data-lucide="save" class="w-4 h-4"></i> Simpan Catatan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: IZIN KELUAR SISWA (Pause Deteksi) -->
+    <div id="modal-izin-keluar" class="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full mx-4 animate-fade-in">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <i data-lucide="door-open" class="w-5 h-5 text-amber-500"></i>
+                    Izin Keluar Sementara
+                </h3>
+                <button onclick="document.getElementById('modal-izin-keluar').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <input type="hidden" id="izin-student-id">
+            <p class="text-sm font-semibold text-gray-700 mb-1">Siswa: <span id="izin-student-name" class="text-amber-700">-</span></p>
+            <p class="text-xs text-gray-400 mb-4">Deteksi diam (idle) dijeda selama durasi izin. Kamera &amp; tab focus tetap aktif.</p>
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Durasi Izin</label>
+                <div class="grid grid-cols-2 gap-2 mb-2">
+                    <button type="button" onclick="document.getElementById('izin-durasi').value=5" class="px-3 py-2.5 rounded-xl text-sm font-bold border-2 border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors">5 menit<br><span class="text-[10px] font-normal text-amber-500">Toilet cepat</span></button>
+                    <button type="button" onclick="document.getElementById('izin-durasi').value=10" class="px-3 py-2.5 rounded-xl text-sm font-bold border-2 border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors">10 menit<br><span class="text-[10px] font-normal text-amber-500">Toilet + cuci tangan</span></button>
+                    <button type="button" onclick="document.getElementById('izin-durasi').value=15" class="px-3 py-2.5 rounded-xl text-sm font-bold border-2 border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">15 menit<br><span class="text-[10px] font-normal text-blue-500">Minum obat / mual</span></button>
+                    <button type="button" onclick="document.getElementById('izin-durasi').value=20" class="px-3 py-2.5 rounded-xl text-sm font-bold border-2 border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">20 menit<br><span class="text-[10px] font-normal text-blue-500">Darurat medis</span></button>
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                    <input type="number" id="izin-durasi" min="1" max="60" value="5" class="w-20 px-3 py-1.5 border-2 border-gray-300 rounded-lg font-bold text-center text-gray-700 bg-gray-50 focus:ring-2 focus:ring-amber-400 outline-none text-sm">
+                    <span class="text-sm text-gray-500">menit (custom)</span>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Alasan <span class="text-gray-400 font-normal">(opsional)</span></label>
+                <select id="izin-alasan" class="w-full px-3 py-2 border rounded-xl text-sm bg-gray-50 text-gray-700 focus:ring-2 focus:ring-amber-400 outline-none">
+                    <option value="Toilet">Ke toilet</option>
+                    <option value="Minum obat">Minum obat</option>
+                    <option value="Kondisi tidak sehat">Kondisi tidak sehat</option>
+                    <option value="Darurat">Darurat</option>
+                    <option value="Lainnya">Lainnya</option>
+                </select>
+            </div>
+            <div class="flex gap-2 justify-end">
+                <button onclick="document.getElementById('modal-izin-keluar').classList.add('hidden')" class="px-4 py-2 border rounded-xl text-gray-600 text-sm font-medium hover:bg-gray-50">Batal</button>
+                <button onclick="window.kirimIzinKeluar()" class="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-sm">
+                    <i data-lucide="door-open" class="w-4 h-4"></i> Beri Izin
                 </button>
             </div>
         </div>
@@ -9397,7 +9516,7 @@ Terima kasih 🙏</textarea>
             </div>
             <div id="motivational-message" class="mb-6 px-4 py-3 rounded-lg font-bold text-sm md:text-base border-l-4"></div>
 
-            <!-- ★ PROFIL KD SISWA — hanya muncul jika ada kdReport ★ -->
+            <!-- ★ PROFIL TP SISWA — hanya muncul jika ada kdReport ★ -->
             <div id="kd-profile-student" class="hidden mb-6 text-left">
                 <div class="rounded-xl border border-indigo-200 overflow-hidden">
                     <div class="px-4 py-3 flex items-center gap-2" style="background:linear-gradient(135deg,#eef2ff,#f0fdf4)">
@@ -9406,7 +9525,7 @@ Terima kasih 🙏</textarea>
                         </div>
                         <div>
                             <p class="text-xs font-black text-indigo-800">Profil Kompetensi Kamu</p>
-                            <p class="text-[10px] text-indigo-500">Asesmen Diagnostik per KD / TP</p>
+                            <p class="text-[10px] text-indigo-500">Asesmen Diagnostik per TP / TP</p>
                         </div>
                     </div>
                     <div id="kd-profile-rows" class="divide-y divide-gray-100 bg-white"></div>
@@ -11708,7 +11827,7 @@ Terima kasih 🙏</textarea>
                 <!-- Info soal (hanya di mode preview) -->
                 <div style="background:white;border-radius:12px;border:1px solid #e2e8f0;padding:14px 18px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:11px;color:#64748b;">
                     <div><span style="font-weight:700;">ID:</span> <span style="font-family:monospace;">${q.id}</span></div>
-                    ${q.kdTag ? `<div><span style="font-weight:700;">KD/Tag:</span> ${_e(q.kdTag)}</div>` : ''}
+                    ${q.kdTag ? `<div><span style="font-weight:700;">TP/Tag:</span> ${_e(q.kdTag)}</div>` : ''}
                     <div><span style="font-weight:700;">Tipe:</span> ${q.tipe || 'pilihan_ganda'}</div>
                     <div><span style="font-weight:700;">Soal ke-</span>${index+1} dari ${total}</div>
                 </div>
@@ -12544,7 +12663,7 @@ Terima kasih 🙏</textarea>
                                 ? `<span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold">Ganda</span>`
                                 : '';
 
-                // ★ Badge KD/TP
+                // ★ Badge TP/TP
                 const kdBadge = q.kdTag
                     ? q.kdTag.split(',').map(k => k.trim()).filter(Boolean)
                         .map(k => `<span class="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold">${_e(k)}</span>`).join(' ')
@@ -15809,6 +15928,22 @@ Terima kasih 🙏</textarea>
                                     console.log('[IntegriTest] Sinyal paksa-selesai diterima dari admin — menyelesaikan ujian otomatis...');
                                     finishExam(false); // false = hitung nilai normal dari jawaban siswa
                                 }
+                                // ★ CEK SINYAL IZIN KELUAR
+                                if (ds.id === window.currentExamDocId) {
+                                    var izin = ds.data().izinKeluar;
+                                    if (izin && izin.aktif && izin.until > Date.now()) {
+                                        if (!window._izinKeluarAktif) {
+                                            window._izinKeluarAktif = true;
+                                            window._izinKeluarUntil = izin.until;
+                                            window._lastActivityTime = Date.now(); // reset idle agar tidak langsung trigger
+                                            _tampilkanBannerIzin(izin);
+                                        }
+                                    } else if (window._izinKeluarAktif) {
+                                        window._izinKeluarAktif = false;
+                                        _sembunyikanBannerIzin();
+                                        window._lastActivityTime = Date.now(); // reset idle saat izin selesai
+                                    }
+                                }
                             });
                         }).catch(() => {});
                     } catch(e) {}
@@ -15842,12 +15977,54 @@ Terima kasih 🙏</textarea>
             });
             window._idleActivityReset = _resetIdleTimer; // simpan referensi untuk cleanup
 
+            // ★ BANNER IZIN KELUAR — tampil di layar siswa saat izin aktif
+            function _tampilkanBannerIzin(izin) {
+                var existing = document.getElementById('_banner-izin-keluar');
+                if (existing) existing.remove();
+                var banner = document.createElement('div');
+                banner.id = '_banner-izin-keluar';
+                banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9998;background:linear-gradient(135deg,#d97706,#f59e0b);color:white;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(217,119,6,0.5);font-family:system-ui,sans-serif;';
+                var sisamenit = Math.ceil((izin.until - Date.now()) / 60000);
+                banner.innerHTML = '<div style="display:flex;align-items:center;gap:10px;">' +
+                    '<span style="font-size:22px;">&#9208;</span>' +
+                    '<div><p style="font-weight:900;font-size:14px;margin:0;">IZIN KELUAR AKTIF — ' + (izin.alasan||'Toilet') + '</p>' +
+                    '<p style="font-size:11px;margin:0;opacity:0.9;">Deteksi diam dijeda. Sisa waktu: <span id="_izin-countdown">' + sisamenit + '</span> menit</p></div></div>' +
+                    '<span style="font-size:11px;opacity:0.8;">Diizinkan oleh ' + (izin.by||'Pengawas') + '</span>';
+                document.body.appendChild(banner);
+                // Countdown di banner
+                window._izinCountdownTimer = setInterval(function() {
+                    var el = document.getElementById('_izin-countdown');
+                    if (!el) { clearInterval(window._izinCountdownTimer); return; }
+                    var sisa = Math.max(0, Math.ceil((window._izinKeluarUntil - Date.now()) / 60000));
+                    el.textContent = sisa;
+                    if (sisa <= 0) { clearInterval(window._izinCountdownTimer); }
+                }, 10000);
+            }
+            function _sembunyikanBannerIzin() {
+                var b = document.getElementById('_banner-izin-keluar');
+                if (b) b.remove();
+                if (window._izinCountdownTimer) clearInterval(window._izinCountdownTimer);
+            }
+
             _idleTimer = setInterval(function() {
                 if (window._examFinished) return;
                 if (isWarningActive) return;
-                if (Date.now() - _lastActivityTime >= _IDLE_THRESHOLD_MS) {
+                // Skip deteksi jika izin keluar sedang aktif
+                if (window._izinKeluarAktif && window._izinKeluarUntil > Date.now()) {
+                    _lastActivityTime = Date.now(); // terus reset agar tidak menumpuk
+                    return;
+                }
+                if (window._izinKeluarAktif && window._izinKeluarUntil <= Date.now()) {
+                    window._izinKeluarAktif = false;
+                    _sembunyikanBannerIzin();
+                    _lastActivityTime = Date.now();
+                }
+                // Gunakan threshold dari pengaturan admin jika tersedia, fallback 5 menit
+                const threshold = window._IDLE_THRESHOLD_MS_CURRENT || _IDLE_THRESHOLD_MS;
+                const menitLabel = Math.round(threshold / 60000);
+                if (Date.now() - _lastActivityTime >= threshold) {
                     _lastActivityTime = Date.now(); // reset agar tidak trigger berulang
-                    registerViolation("Terdeteksi tidak ada aktivitas selama lebih dari 5 menit (diam terlalu lama \u2014 indikasi baca catatan fisik).");
+                    registerViolation('Terdeteksi tidak ada aktivitas selama lebih dari ' + menitLabel + ' menit (diam terlalu lama — indikasi baca catatan fisik).');
                 }
             }, _IDLE_CHECK_INTERVAL_MS);
 
@@ -16334,7 +16511,7 @@ Terima kasih 🙏</textarea>
             const _paketData = (window.allPaketDB || []).find(p => p.id === (currentStudent || {}).paketId);
             const nilaiMaksimal = (_paketData && _paketData.nilaiMaksimal && _paketData.nilaiMaksimal > 0) ? _paketData.nilaiMaksimal : 100;
 
-            // ── ★ Hitung skor per KD untuk asesmen diagnostik ──
+            // ── ★ Hitung skor per TP untuk asesmen diagnostik ──
             const _kdMap = {};
             for (const q of qList) {
                 if (!q.kdTag || q.tipe === 'essay') continue;
@@ -16419,7 +16596,7 @@ Terima kasih 🙏</textarea>
                 qCount:       qList.length,
                 correctCount: correctCount,
                 forceFinishSignal: false,   // clear sinyal setelah diproses oleh browser siswa
-                kdReport:     kdReport,     // ★ Asesmen diagnostik per KD/TP
+                kdReport:     kdReport,     // ★ Asesmen diagnostik per TP/TP
                 // ★ v5: Log per soal untuk Analitik Butir Soal
                 perQuestionLog: (function() {
                     const log = {};
@@ -16582,7 +16759,7 @@ Terima kasih 🙏</textarea>
                     motivationalEl.className = "mb-6 px-4 py-3 rounded-lg font-bold text-sm md:text-base border-l-4 bg-green-100 text-green-800 border-green-500";
                 }
 
-                // ★ Tampilkan profil KD diagnostik untuk siswa
+                // ★ Tampilkan profil TP diagnostik untuk siswa
                 const kdProfileDiv = document.getElementById('kd-profile-student');
                 const kdRowsDiv    = document.getElementById('kd-profile-rows');
                 if (kdProfileDiv && kdRowsDiv && kdReport && kdReport.length > 0) {
@@ -18075,7 +18252,15 @@ Terima kasih 🙏</textarea>
                                         title="Tambah/Edit Catatan Pengawas">
                                         <i data-lucide="pencil" class="w-3 h-3"></i> Catatan
                                     </button>
+                                    ${((d.status||'').includes('SEDANG') || (d.status||'').includes('MENGERJAKAN')) ? `
+                                    <button onclick="window.openIzinKeluarModal('${d.id}','${(d.studentName||'').replace(/'/g,String.fromCharCode(39))}')"
+                                        class="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border transition-colors ${window._izinAktif && window._izinAktif[d.id] ? 'bg-orange-100 text-orange-700 border-orange-300 animate-pulse' : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200'}"
+                                        title="Beri izin keluar sementara — deteksi diam dijeda">
+                                        <i data-lucide="${window._izinAktif && window._izinAktif[d.id] ? 'timer' : 'door-open'}" class="w-3 h-3"></i>
+                                        ${window._izinAktif && window._izinAktif[d.id] ? 'Izin Aktif' : 'Izin Keluar'}
+                                    </button>` : ''}
                                     <button onclick="window.exportSinglePDF('${d.id}')"
+
                                         class="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200 transition-colors"
                                         title="Export PDF siswa ini">
                                         <i data-lucide="file-text" class="w-3 h-3"></i> PDF
@@ -18096,7 +18281,7 @@ Terima kasih 🙏</textarea>
             const pagerEl = document.getElementById('analitik-pager');
             if (pagerEl) pagerEl.innerHTML = renderPagerHTML('analitik', sorted.length, pgA.page, pgA.perPage);
 
-            // ★ Render panel diagnostik KD
+            // ★ Render panel diagnostik TP
             window.renderKDDiagnostic(withScores);
 
             if (typeof lucide !== 'undefined') window._createIconsSafe();
@@ -19009,7 +19194,7 @@ Terima kasih 🙏</textarea>
             try { window._longBuildSiswaList(); } catch(e) {}
         };
 
-        // ── ★ ASESMEN DIAGNOSTIK PER KD ──────────────────────────────────
+        // ── ★ ASESMEN DIAGNOSTIK PER TP ──────────────────────────────────
         window.renderKDDiagnostic = function(withScores) {
             const container = document.getElementById('kd-diagnostic-body');
             if (!container) return;
@@ -19033,8 +19218,8 @@ Terima kasih 🙏</textarea>
             const entries = Object.entries(kdAgg);
             if (entries.length === 0) {
                 container.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-gray-300 text-sm">
-                    <p class="font-medium text-gray-400">Belum ada data KD.</p>
-                    <p class="text-xs mt-1">Beri tag KD/TP pada soal di Bank Soal, lalu siswa selesaikan ujian.</p>
+                    <p class="font-medium text-gray-400">Belum ada data TP.</p>
+                    <p class="text-xs mt-1">Beri tag TP/TP pada soal di Bank Soal, lalu siswa selesaikan ujian.</p>
                 </td></tr>`;
                 return;
             }
@@ -19069,7 +19254,7 @@ Terima kasih 🙏</textarea>
             if (typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
-        // ── ★ EXPORT LAPORAN KD (Buka tab baru) ─────────────────────────
+        // ── ★ EXPORT LAPORAN TP (Buka tab baru) ─────────────────────────
         // ══════════════════════════════════════════════════════════════
         // ★ v5: SERTIFIKAT DIGITAL
         // Generate sertifikat per siswa sebagai print-ready HTML window
@@ -19256,7 +19441,7 @@ Terima kasih 🙏</textarea>
         window.exportKDReport = function() {
             const kdData = window._lastKDData;
             if (!kdData || Object.keys(kdData).length === 0) {
-                return alert('Belum ada data KD untuk diekspor.\nPastikan soal sudah diberi tag KD dan siswa sudah menyelesaikan ujian.');
+                return alert('Belum ada data TP untuk diekspor.\nPastikan soal sudah diberi tag TP dan siswa sudah menyelesaikan ujian.');
             }
             const rows = Object.entries(kdData)
                 .map(([kd, v]) => ({ kd, persen: Math.round((v.totalBenar / v.totalSoal) * 100), ...v }))
@@ -19292,16 +19477,16 @@ Terima kasih 🙏</textarea>
             const rekomendasiHtml = weakKDs.length > 0
                 ? `<div style="margin-bottom:24px;padding:14px 18px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px">
                     <p style="font-size:12px;font-weight:900;color:#c2410c;margin-bottom:6px">⚠️ Rekomendasi Remedial</p>
-                    <p style="font-size:12px;color:#9a3412;line-height:1.6">KD berikut perlu remedial/pengayaan karena penguasaan kelas di bawah 50%:<br>
+                    <p style="font-size:12px;color:#9a3412;line-height:1.6">TP berikut perlu remedial/pengayaan karena penguasaan kelas di bawah 50%:<br>
                     <strong>${weakKDs.map(k => _e(k)).join(' &nbsp;·&nbsp; ')}</strong></p>
                   </div>`
                 : `<div style="margin-bottom:24px;padding:14px 18px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px">
-                    <p style="font-size:12px;font-weight:900;color:#166534">✅ Semua KD di atas 50% — tidak ada yang perlu remedial segera.</p>
+                    <p style="font-size:12px;font-weight:900;color:#166534">✅ Semua TP di atas 50% — tidak ada yang perlu remedial segera.</p>
                   </div>`;
 
             const escapeHtml = window.escapeHtml || (s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"));
     const html = `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
-<title>Laporan Diagnostik KD — INTEGRITEST</title>
+<title>Laporan Diagnostik TP — INTEGRITEST</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293b;padding:32px}
@@ -19316,7 +19501,7 @@ Terima kasih 🙏</textarea>
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div>
         <p style="font-size:11px;opacity:.7;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">INTEGRITEST · Asesmen Diagnostik</p>
-        <h1 style="font-size:22px;font-weight:900;margin-bottom:2px">Laporan Penguasaan KD / TP</h1>
+        <h1 style="font-size:22px;font-weight:900;margin-bottom:2px">Laporan Penguasaan TP / TP</h1>
         <p style="font-size:13px;opacity:.8">Merdeka Belajar — Profil Kompetensi Kelas</p>
       </div>
       <div style="text-align:right;font-size:11px;opacity:.75">
@@ -19328,15 +19513,15 @@ Terima kasih 🙏</textarea>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
     <div class="card" style="text-align:center">
       <p style="font-size:28px;font-weight:900;color:#4f46e5">${rows.length}</p>
-      <p style="font-size:11px;color:#64748b;margin-top:2px">Total KD Diuji</p>
+      <p style="font-size:11px;color:#64748b;margin-top:2px">Total TP Diuji</p>
     </div>
     <div class="card" style="text-align:center">
       <p style="font-size:28px;font-weight:900;color:#10b981">${rows.filter(r=>r.persen>=75).length}</p>
-      <p style="font-size:11px;color:#64748b;margin-top:2px">KD Kuat (≥75%)</p>
+      <p style="font-size:11px;color:#64748b;margin-top:2px">TP Kuat (≥75%)</p>
     </div>
     <div class="card" style="text-align:center">
       <p style="font-size:28px;font-weight:900;color:#ef4444">${weakKDs.length}</p>
-      <p style="font-size:11px;color:#64748b;margin-top:2px">KD Perlu Remedial (&lt;50%)</p>
+      <p style="font-size:11px;color:#64748b;margin-top:2px">TP Perlu Remedial (&lt;50%)</p>
     </div>
   </div>
 
@@ -19344,7 +19529,7 @@ Terima kasih 🙏</textarea>
 
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-      <h2 style="font-size:15px;font-weight:900;color:#1e293b">Rincian per KD — diurutkan dari terendah</h2>
+      <h2 style="font-size:15px;font-weight:900;color:#1e293b">Rincian per TP — diurutkan dari terendah</h2>
     </div>
     <table>
       <thead><tr>
@@ -20221,25 +20406,158 @@ Terima kasih 🙏</textarea>
             document.getElementById('note-student-name').textContent = student.studentName || '-';
             document.getElementById('note-auto-text').textContent = '💬 Catatan otomatis: ' + autoNote.note.slice(0, 100) + '...';
             document.getElementById('note-custom-input').value = window._studentNotes[studentId] || '';
+
+            // Tampilkan bagian klarifikasi DQ hanya jika siswa berstatus DQ
+            const dqSection = document.getElementById('note-dq-section');
+            const dqCb = document.getElementById('note-dq-invalid-cb');
+            const dqAlasanWrap = document.getElementById('note-dq-alasan-wrap');
+            const dqSelect = document.getElementById('note-dq-alasan-select');
+            const dqLain = document.getElementById('note-dq-alasan-lain');
+            if (isDQ) {
+                dqSection.classList.remove('hidden');
+                // Restore state tersimpan
+                const saved = window._studentNotes[studentId + '_dq'] || {};
+                dqCb.checked = saved.invalid || false;
+                dqAlasanWrap.classList.toggle('hidden', !dqCb.checked);
+                dqSelect.value = saved.alasanSelect || '';
+                dqLain.value = saved.alasanLain || '';
+                dqLain.classList.toggle('hidden', dqSelect.value !== 'lain');
+            } else {
+                dqSection.classList.add('hidden');
+                dqCb.checked = false;
+                dqAlasanWrap.classList.add('hidden');
+                dqSelect.value = '';
+                dqLain.value = '';
+                dqLain.classList.add('hidden');
+            }
+
             document.getElementById('modal-note').classList.remove('hidden');
             if (typeof lucide !== 'undefined') window._createIconsSafe();
+        };
+
+        window._toggleDQAlasan = function() {
+            const cb = document.getElementById('note-dq-invalid-cb');
+            document.getElementById('note-dq-alasan-wrap').classList.toggle('hidden', !cb.checked);
+        };
+
+        window._toggleDQAlasanLain = function() {
+            const sel = document.getElementById('note-dq-alasan-select');
+            document.getElementById('note-dq-alasan-lain').classList.toggle('hidden', sel.value !== 'lain');
         };
 
         window.saveStudentNote = function() {
             const id = document.getElementById('note-student-id').value;
             const note = document.getElementById('note-custom-input').value.trim();
             window._studentNotes[id] = note;
+
+            // Simpan status klarifikasi DQ
+            const dqCb = document.getElementById('note-dq-invalid-cb');
+            const dqSelect = document.getElementById('note-dq-alasan-select');
+            const dqLain = document.getElementById('note-dq-alasan-lain');
+            const isDQInvalid = dqCb && dqCb.checked;
+            const alasanSelect = dqSelect ? dqSelect.value : '';
+            const alasanLain = dqLain ? dqLain.value.trim() : '';
+            const alasanFinal = alasanSelect === 'lain' ? alasanLain : alasanSelect;
+
+            window._studentNotes[id + '_dq'] = {
+                invalid: isDQInvalid,
+                alasanSelect,
+                alasanLain,
+                alasanFinal,
+                timestamp: isDQInvalid ? new Date().toLocaleString('id-ID') : ''
+            };
+
             // Sisipkan ke dashboardData agar PDF bisa akses
             const data = dashboardData || [];
             const student = data.find(d => d.id === id);
-            if (student) student._customNote = note;
+            if (student) {
+                student._customNote = note;
+                student._dqInvalid = isDQInvalid;
+                student._dqAlasan = isDQInvalid ? alasanFinal : '';
+                student._dqTimestamp = isDQInvalid ? new Date().toLocaleString('id-ID') : '';
+                // Tandai status khusus di data agar tabel bisa menampilkan badge
+                if (isDQInvalid) {
+                    student._statusOverride = 'DQ — Dikecualikan Pengawas';
+                } else {
+                    delete student._statusOverride;
+                }
+            }
+
             document.getElementById('modal-note').classList.add('hidden');
-            // Toast notifikasi kecil
+
+            // Toast notifikasi
             const toast = document.createElement('div');
-            toast.className = 'fixed bottom-6 right-6 z-[999] bg-gray-900 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xl animate-fade-in';
-            toast.textContent = '✅ Catatan pengawas disimpan';
+            toast.className = 'fixed bottom-6 right-6 z-[999] text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xl animate-fade-in';
+            toast.style.background = isDQInvalid ? '#b45309' : '#111827';
+            toast.textContent = isDQInvalid
+                ? '⚠️ Catatan + Klarifikasi DQ disimpan'
+                : '✅ Catatan pengawas disimpan';
             document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 2500);
+            setTimeout(() => toast.remove(), 3000);
+        };
+
+        // ── IZIN KELUAR SISWA (Pause Deteksi Idle) ────────────────────────────────
+        window._izinAktif = {}; // { studentId: { until, alasan } }
+
+        window.openIzinKeluarModal = function(studentId, studentName) {
+            document.getElementById('izin-student-id').value = studentId;
+            document.getElementById('izin-student-name').textContent = studentName || '-';
+            document.getElementById('izin-durasi').value = 5;
+            document.getElementById('izin-alasan').value = 'Toilet';
+            document.getElementById('modal-izin-keluar').classList.remove('hidden');
+            if (typeof lucide !== 'undefined') window._createIconsSafe();
+        };
+
+        window.kirimIzinKeluar = function() {
+            const id      = document.getElementById('izin-student-id').value;
+            const durasi  = Math.min(60, Math.max(1, parseInt(document.getElementById('izin-durasi').value) || 5));
+            const alasan  = document.getElementById('izin-alasan').value;
+            const until   = Date.now() + durasi * 60 * 1000;
+            const namaPgw = window.currentPengawasName || window.currentStaffName || 'Pengawas';
+
+            window._izinAktif[id] = { until, alasan, durasi };
+
+            // Kirim sinyal ke Firebase
+            if (window.isFirebaseReady && window.db) {
+                const dataDash = dashboardData || [];
+                const student  = dataDash.find(d => d.id === id);
+                const docId    = (student && student._docId) || id;
+                try {
+                    window.updateDoc(
+                        window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', docId),
+                        { izinKeluar: { aktif: true, until, alasan, durasi, by: namaPgw, ts: Date.now() } }
+                    ).catch(function(){});
+                } catch(e) {}
+            }
+
+            document.getElementById('modal-izin-keluar').classList.add('hidden');
+
+            // Auto-cabut setelah waktu habis
+            setTimeout(function() {
+                delete window._izinAktif[id];
+                if (window.isFirebaseReady && window.db) {
+                    const dataDash = dashboardData || [];
+                    const student  = dataDash.find(d => d.id === id);
+                    const docId    = (student && student._docId) || id;
+                    try {
+                        window.updateDoc(
+                            window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', docId),
+                            { izinKeluar: { aktif: false, until: 0 } }
+                        ).catch(function(){});
+                    } catch(e) {}
+                }
+                if (window.renderIntegrityDashboard) window.renderIntegrityDashboard();
+            }, durasi * 60 * 1000);
+
+            // Toast konfirmasi
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-6 right-6 z-[999] text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xl';
+            toast.style.background = '#d97706';
+            toast.textContent = '⏸ Izin ' + alasan + ' diberikan — ' + durasi + ' menit';
+            document.body.appendChild(toast);
+            setTimeout(function(){ toast.remove(); }, 3500);
+
+            if (window.renderIntegrityDashboard) window.renderIntegrityDashboard();
         };
 
         // ── Auto-update analitik ketika data berubah ──
@@ -21336,11 +21654,11 @@ Terima kasih 🙏</textarea>
             // ── Sheet 1: Pilihan Tunggal (single) ──
             const ws1 = XLSX.utils.aoa_to_sheet([
                 ['packet','tipe','question','question_image','option_a','image_a','option_b','image_b','option_c','image_c','option_d','image_d','option_e','image_e','correct','kd_tag'],
-                ['A','single','Apa kepanjangan dari TKJ?','','Teknik Komputer dan Jaringan','','Teknologi Komunikasi Jaringan','','Teknik Komunikasi dan Jaringan','','Teknologi Komputer dan Jaringan','','','','A','KD 3.1'],
-                ['A','single','Protokol untuk mengirim email adalah...','','SMTP','','HTTP','','FTP','','SSH','','DNS','','A','KD 3.2'],
-                ['B','single','Perhatikan topologi jaringan berikut!','https://drive.google.com/file/d/GANTI_ID/view','Star','','Bus','','Ring','','Mesh','','','','A','KD 3.1'],
-                ['C','single','Pilih gambar yang menunjukkan kabel UTP!','','','https://drive.google.com/file/d/ID_A/view','','https://drive.google.com/file/d/ID_B/view','','https://drive.google.com/file/d/ID_C/view','','https://drive.google.com/file/d/ID_D/view','','','A','KD 3.3'],
-                ['','single','Soal Non Paket — tidak masuk paket A/B/C (kosongkan kolom packet)','','Pilihan A','','Pilihan B','','Pilihan C','','Pilihan D','','','','B','KD 3.1'],
+                ['A','single','Apa kepanjangan dari TKJ?','','Teknik Komputer dan Jaringan','','Teknologi Komunikasi Jaringan','','Teknik Komunikasi dan Jaringan','','Teknologi Komputer dan Jaringan','','','','A','TP 3.1'],
+                ['A','single','Protokol untuk mengirim email adalah...','','SMTP','','HTTP','','FTP','','SSH','','DNS','','A','TP 3.2'],
+                ['B','single','Perhatikan topologi jaringan berikut!','https://drive.google.com/file/d/GANTI_ID/view','Star','','Bus','','Ring','','Mesh','','','','A','TP 3.1'],
+                ['C','single','Pilih gambar yang menunjukkan kabel UTP!','','','https://drive.google.com/file/d/ID_A/view','','https://drive.google.com/file/d/ID_B/view','','https://drive.google.com/file/d/ID_C/view','','https://drive.google.com/file/d/ID_D/view','','','A','TP 3.3'],
+                ['','single','Soal Non Paket — tidak masuk paket A/B/C (kosongkan kolom packet)','','Pilihan A','','Pilihan B','','Pilihan C','','Pilihan D','','','','B','TP 3.1'],
             ]);
             ws1['!cols'] = [{wch:8},{wch:12},{wch:45},{wch:38},{wch:26},{wch:38},{wch:26},{wch:38},{wch:26},{wch:38},{wch:26},{wch:38},{wch:26},{wch:38},{wch:10},{wch:14}];
             XLSX.utils.book_append_sheet(wb, ws1, '1.Pilihan_Tunggal');
@@ -21348,9 +21666,9 @@ Terima kasih 🙏</textarea>
             // ── Sheet 2: Jawaban Ganda (multiple) ──
             const ws2 = XLSX.utils.aoa_to_sheet([
                 ['packet','tipe','question','question_image','option_a','image_a','option_b','image_b','option_c','image_c','option_d','image_d','option_e','image_e','correct_multiple','kd_tag'],
-                ['A','multiple','Manakah yang termasuk perangkat jaringan? (pilih semua)','','Switch','','Router','','Monitor','','Keyboard','','Hub','','A,B,E','KD 3.1'],
-                ['B','multiple','Protokol yang bekerja di Layer 7 OSI adalah...','','HTTP','','FTP','','IP','','TCP','','SMTP','','A,B,E','KD 3.2'],
-                ['','multiple','Soal Non Paket — kosongkan kolom packet untuk non-paket','','Opsi A','','Opsi B','','Opsi C','','Opsi D','','','','A,C','KD 3.1'],
+                ['A','multiple','Manakah yang termasuk perangkat jaringan? (pilih semua)','','Switch','','Router','','Monitor','','Keyboard','','Hub','','A,B,E','TP 3.1'],
+                ['B','multiple','Protokol yang bekerja di Layer 7 OSI adalah...','','HTTP','','FTP','','IP','','TCP','','SMTP','','A,B,E','TP 3.2'],
+                ['','multiple','Soal Non Paket — kosongkan kolom packet untuk non-paket','','Opsi A','','Opsi B','','Opsi C','','Opsi D','','','','A,C','TP 3.1'],
             ]);
             ws2['!cols'] = [{wch:8},{wch:12},{wch:52},{wch:38},{wch:22},{wch:35},{wch:22},{wch:35},{wch:22},{wch:35},{wch:22},{wch:35},{wch:22},{wch:35},{wch:20},{wch:14}];
             XLSX.utils.book_append_sheet(wb, ws2, '2.Jawaban_Ganda');
@@ -21358,10 +21676,10 @@ Terima kasih 🙏</textarea>
             // ── Sheet 3: Benar/Salah (truefalse) ──
             const ws3 = XLSX.utils.aoa_to_sheet([
                 ['packet','tipe','question','question_image','correct_tf','kd_tag'],
-                ['A','truefalse','Switch adalah perangkat Layer 2 dalam model OSI.','','TRUE','KD 3.1'],
-                ['B','truefalse','IP address kelas C memiliki range 192.168.0.0 - 255.255.','','FALSE','KD 3.2'],
-                ['A','truefalse','Kabel UTP cat6 mendukung kecepatan hingga 10 Gbps.','','TRUE','KD 3.3'],
-                ['','truefalse','Soal Non Paket — kosongkan kolom packet untuk non-paket.','','TRUE','KD 3.1'],
+                ['A','truefalse','Switch adalah perangkat Layer 2 dalam model OSI.','','TRUE','TP 3.1'],
+                ['B','truefalse','IP address kelas C memiliki range 192.168.0.0 - 255.255.','','FALSE','TP 3.2'],
+                ['A','truefalse','Kabel UTP cat6 mendukung kecepatan hingga 10 Gbps.','','TRUE','TP 3.3'],
+                ['','truefalse','Soal Non Paket — kosongkan kolom packet untuk non-paket.','','TRUE','TP 3.1'],
             ]);
             ws3['!cols'] = [{wch:8},{wch:12},{wch:62},{wch:38},{wch:12},{wch:14}];
             XLSX.utils.book_append_sheet(wb, ws3, '3.Benar_Salah');
@@ -21369,9 +21687,9 @@ Terima kasih 🙏</textarea>
             // ── Sheet 4: Esai/Uraian (essay) ──
             const ws4 = XLSX.utils.aoa_to_sheet([
                 ['packet','tipe','question','question_image','essay_rubrik','essay_skor_maks','kd_tag'],
-                ['A','essay','Jelaskan perbedaan hub dan switch dalam jaringan komputer!','','Jawaban harus mencakup: (1) Hub bekerja di Layer 1 dan meneruskan ke semua port; (2) Switch bekerja di Layer 2 menggunakan MAC address; (3) Switch lebih efisien karena mengirim ke port tujuan saja.','10','KD 3.1'],
-                ['B','essay','Sebutkan dan jelaskan minimal 3 topologi jaringan beserta kelebihan dan kekurangannya!','','Sebutkan min 3 dari: Star/Bus/Ring/Mesh/Tree. Tiap topologi: +1 nama, +1 kelebihan, +1 kekurangan.','10','KD 3.2'],
-                ['','essay','Soal Non Paket — kosongkan kolom packet untuk non-paket','','Rubrik penilaian untuk soal non-paket diisi di sini.','10','KD 3.1'],
+                ['A','essay','Jelaskan perbedaan hub dan switch dalam jaringan komputer!','','Jawaban harus mencakup: (1) Hub bekerja di Layer 1 dan meneruskan ke semua port; (2) Switch bekerja di Layer 2 menggunakan MAC address; (3) Switch lebih efisien karena mengirim ke port tujuan saja.','10','TP 3.1'],
+                ['B','essay','Sebutkan dan jelaskan minimal 3 topologi jaringan beserta kelebihan dan kekurangannya!','','Sebutkan min 3 dari: Star/Bus/Ring/Mesh/Tree. Tiap topologi: +1 nama, +1 kelebihan, +1 kekurangan.','10','TP 3.2'],
+                ['','essay','Soal Non Paket — kosongkan kolom packet untuk non-paket','','Rubrik penilaian untuk soal non-paket diisi di sini.','10','TP 3.1'],
             ]);
             ws4['!cols'] = [{wch:8},{wch:8},{wch:55},{wch:38},{wch:72},{wch:16},{wch:14}];
             XLSX.utils.book_append_sheet(wb, ws4, '4.Esai_Uraian');
@@ -21379,9 +21697,9 @@ Terima kasih 🙏</textarea>
             // ── Sheet 5: Menjodohkan (menjodohkan) ──
             const ws5 = XLSX.utils.aoa_to_sheet([
                 ['packet','tipe','question','question_image','pair_1_kiri','pair_1_kanan','pair_2_kiri','pair_2_kanan','pair_3_kiri','pair_3_kanan','pair_4_kiri','pair_4_kanan','pair_5_kiri','pair_5_kanan','kd_tag'],
-                ['A','menjodohkan','Jodohkan perangkat berikut dengan fungsinya!','','Switch','Mengelola MAC address LAN','Router','Routing antar jaringan berbeda','Hub','Broadcast ke semua port','Modem','Konversi sinyal digital ke analog','','','KD 3.1'],
-                ['B','menjodohkan','Pasangkan lapisan OSI dengan fungsinya!','','Physical Layer','Transmisi bit via media fisik','Data Link Layer','Frame antar node langsung','Network Layer','Pengalamatan dan routing','Transport Layer','Menjamin pengiriman end-to-end','','','KD 3.2'],
-                ['','menjodohkan','Soal Non Paket — kosongkan kolom packet untuk non-paket','','Item Kiri 1','Item Kanan 1','Item Kiri 2','Item Kanan 2','Item Kiri 3','Item Kanan 3','','','','','KD 3.1'],
+                ['A','menjodohkan','Jodohkan perangkat berikut dengan fungsinya!','','Switch','Mengelola MAC address LAN','Router','Routing antar jaringan berbeda','Hub','Broadcast ke semua port','Modem','Konversi sinyal digital ke analog','','','TP 3.1'],
+                ['B','menjodohkan','Pasangkan lapisan OSI dengan fungsinya!','','Physical Layer','Transmisi bit via media fisik','Data Link Layer','Frame antar node langsung','Network Layer','Pengalamatan dan routing','Transport Layer','Menjamin pengiriman end-to-end','','','TP 3.2'],
+                ['','menjodohkan','Soal Non Paket — kosongkan kolom packet untuk non-paket','','Item Kiri 1','Item Kanan 1','Item Kiri 2','Item Kanan 2','Item Kiri 3','Item Kanan 3','','','','','TP 3.1'],
             ]);
             ws5['!cols'] = [{wch:8},{wch:14},{wch:48},{wch:35},{wch:28},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:14}];
             XLSX.utils.book_append_sheet(wb, ws5, '5.Menjodohkan');
@@ -21389,12 +21707,12 @@ Terima kasih 🙏</textarea>
             // ── Sheet 6: Gabungan semua tipe dalam 1 sheet ──
             const ws6 = XLSX.utils.aoa_to_sheet([
                 ['packet','tipe','question','question_image','option_a','image_a','option_b','image_b','option_c','image_c','option_d','image_d','option_e','image_e','correct','correct_multiple','correct_tf','essay_rubrik','essay_skor_maks','pair_1_kiri','pair_1_kanan','pair_2_kiri','pair_2_kanan','pair_3_kiri','pair_3_kanan','pair_4_kiri','pair_4_kanan','pair_5_kiri','pair_5_kanan','kd_tag'],
-                ['A','single','Soal pilihan tunggal contoh','','Opsi A','','Opsi B','','Opsi C','','Opsi D','','','','A','','','','','','','','','','','','','','','KD 3.1'],
-                ['A','multiple','Soal jawaban ganda contoh','','Opsi A','','Opsi B','','Opsi C','','Opsi D','','Opsi E','','','A,C,E','','','','','','','','','','','','','','KD 3.2'],
-                ['B','truefalse','Pernyataan benar/salah contoh','','','','','','','','','','','','','','TRUE','','','','','','','','','','','','','KD 3.1'],
-                ['B','essay','Pertanyaan esai contoh','','','','','','','','','','','','','','','Rubrik penilaian di sini','10','','','','','','','','','','','KD 3.3'],
-                ['A','menjodohkan','Soal menjodohkan contoh','','','','','','','','','','','','','','','','','Item kiri 1','Item kanan 1','Item kiri 2','Item kanan 2','Item kiri 3','Item kanan 3','','','','','KD 3.4'],
-                ['','single','Soal Non Paket — kosongkan kolom packet (akan minta paket tujuan saat import)','','Opsi A','','Opsi B','','Opsi C','','Opsi D','','','','A','','','','','','','','','','','','','','','KD 3.1'],
+                ['A','single','Soal pilihan tunggal contoh','','Opsi A','','Opsi B','','Opsi C','','Opsi D','','','','A','','','','','','','','','','','','','','','TP 3.1'],
+                ['A','multiple','Soal jawaban ganda contoh','','Opsi A','','Opsi B','','Opsi C','','Opsi D','','Opsi E','','','A,C,E','','','','','','','','','','','','','','TP 3.2'],
+                ['B','truefalse','Pernyataan benar/salah contoh','','','','','','','','','','','','','','TRUE','','','','','','','','','','','','','TP 3.1'],
+                ['B','essay','Pertanyaan esai contoh','','','','','','','','','','','','','','','Rubrik penilaian di sini','10','','','','','','','','','','','TP 3.3'],
+                ['A','menjodohkan','Soal menjodohkan contoh','','','','','','','','','','','','','','','','','Item kiri 1','Item kanan 1','Item kiri 2','Item kanan 2','Item kiri 3','Item kanan 3','','','','','TP 3.4'],
+                ['','single','Soal Non Paket — kosongkan kolom packet (akan minta paket tujuan saat import)','','Opsi A','','Opsi B','','Opsi C','','Opsi D','','','','A','','','','','','','','','','','','','','','TP 3.1'],
             ]);
             ws6['!cols'] = Array(30).fill(null).map((_,i) => ({wch: i < 4 ? 12 : i === 29 ? 14 : 18}));
             XLSX.utils.book_append_sheet(wb, ws6, '6.Gabungan_Semua_Tipe');
@@ -21409,7 +21727,7 @@ Terima kasih 🙏</textarea>
                 ['tipe','Tipe soal: single / multiple / truefalse / essay / menjodohkan  (jika kosong = single)','single'],
                 ['question','Teks pertanyaan/pernyataan. Boleh kosong jika ada question_image','Apa kepanjangan TKJ?'],
                 ['question_image','URL gambar soal — Cloudinary/Google Drive/URL langsung (opsional)','https://res.cloudinary.com/dag89cfzn/image/upload/... ATAU https://drive.google.com/file/d/ID/view'],
-                ['kd_tag','Kompetensi Dasar yang diuji soal ini (opsional, untuk asesmen diagnostik)','KD 3.1  atau  KD 3.1, KD 3.2'],
+                ['kd_tag','Kompetensi Dasar yang diuji soal ini (opsional, untuk asesmen diagnostik)','TP 3.1  atau  TP 3.1, TP 3.2'],
                 [''],
                 ['TENTANG NON PAKET:'],
                 ['  Jika kolom packet dikosongkan (atau diisi selain A/B/C), soal dianggap "Non Paket".','',''],
@@ -21566,22 +21884,22 @@ Terima kasih 🙏</textarea>
                         { text: 'A' }, { text: 'single' }, { text: 'Apa kepanjangan dari TKJ?' },
                         { text: 'Teknik Komputer dan Jaringan' }, { text: 'Teknologi Komunikasi Jaringan' },
                         { text: 'Teknik Komunikasi dan Jaringan' }, { text: 'Teknologi Komputer dan Jaringan' },
-                        { text: '' }, { text: 'A', color: GREEN_TXT, bold: true }, { text: 'KD 3.1' },
+                        { text: '' }, { text: 'A', color: GREEN_TXT, bold: true }, { text: 'TP 3.1' },
                     ]),
                     dataRow([
                         { text: 'B' }, { text: 'single' }, { text: 'Protokol untuk mengirim email adalah...' },
                         { text: 'SMTP' }, { text: 'HTTP' }, { text: 'FTP' }, { text: 'SSH' }, { text: 'DNS' },
-                        { text: 'A', color: GREEN_TXT, bold: true }, { text: 'KD 3.2' },
+                        { text: 'A', color: GREEN_TXT, bold: true }, { text: 'TP 3.2' },
                     ], GRAY_ALT),
                     dataRow([
                         { text: 'C' }, { text: 'single' }, { text: 'Perangkat yang menghubungkan dua jaringan berbeda adalah...' },
                         { text: 'Switch' }, { text: 'Hub' }, { text: 'Router' }, { text: 'Repeater' }, { text: '' },
-                        { text: 'C', color: GREEN_TXT, bold: true }, { text: 'KD 3.1' },
+                        { text: 'C', color: GREEN_TXT, bold: true }, { text: 'TP 3.1' },
                     ]),
                     dataRow([
                         { text: '' }, { text: 'single' }, { text: 'Soal Non Paket — kosongkan kolom packet, pilih paket tujuan saat import', italic: true, color: '92400E' },
                         { text: 'Pilihan A' }, { text: 'Pilihan B' }, { text: 'Pilihan C' }, { text: 'Pilihan D' }, { text: '' },
-                        { text: 'A', color: GREEN_TXT, bold: true }, { text: 'KD 3.1' },
+                        { text: 'A', color: GREEN_TXT, bold: true }, { text: 'TP 3.1' },
                     ], YELLOW_BG),
                     addRow(10),
                 ],
@@ -21599,17 +21917,17 @@ Terima kasih 🙏</textarea>
                     dataRow([
                         { text: 'A' }, { text: 'multiple' }, { text: 'Manakah yang termasuk perangkat jaringan? (pilih semua yang benar)' },
                         { text: 'Switch' }, { text: 'Router' }, { text: 'Monitor' }, { text: 'Keyboard' }, { text: 'Hub' },
-                        { text: 'A,B,E', color: GREEN_TXT, bold: true }, { text: 'KD 3.1' },
+                        { text: 'A,B,E', color: GREEN_TXT, bold: true }, { text: 'TP 3.1' },
                     ]),
                     dataRow([
                         { text: 'B' }, { text: 'multiple' }, { text: 'Protokol yang bekerja di Layer 7 OSI adalah...' },
                         { text: 'HTTP' }, { text: 'FTP' }, { text: 'IP' }, { text: 'TCP' }, { text: 'SMTP' },
-                        { text: 'A,B,E', color: GREEN_TXT, bold: true }, { text: 'KD 3.2' },
+                        { text: 'A,B,E', color: GREEN_TXT, bold: true }, { text: 'TP 3.2' },
                     ], GRAY_ALT),
                     dataRow([
                         { text: '' }, { text: 'multiple' }, { text: 'Soal Non Paket — kosongkan kolom packet', italic: true, color: '92400E' },
                         { text: 'Opsi A' }, { text: 'Opsi B' }, { text: 'Opsi C' }, { text: 'Opsi D' }, { text: '' },
-                        { text: 'A,C', color: GREEN_TXT, bold: true }, { text: 'KD 3.1' },
+                        { text: 'A,C', color: GREEN_TXT, bold: true }, { text: 'TP 3.1' },
                     ], YELLOW_BG),
                     addRow(10),
                 ],
@@ -21952,23 +22270,23 @@ Simpan sebagai <b>.docx</b> sebelum diimport (file template sudah berformat .doc
       <td>A</td><td>single</td><td>Apa kepanjangan dari TKJ?</td>
       <td>Teknik Komputer dan Jaringan</td><td>Teknologi Komunikasi Jaringan</td>
       <td>Teknik Komunikasi dan Jaringan</td><td>Teknologi Komputer dan Jaringan</td>
-      <td></td><td class="k">A</td><td>KD 3.1</td>
+      <td></td><td class="k">A</td><td>TP 3.1</td>
     </tr>
     <tr>
       <td>B</td><td>single</td><td>Protokol untuk mengirim email adalah...</td>
-      <td>SMTP</td><td>HTTP</td><td>FTP</td><td>SSH</td><td>DNS</td><td class="k">A</td><td>KD 3.2</td>
+      <td>SMTP</td><td>HTTP</td><td>FTP</td><td>SSH</td><td>DNS</td><td class="k">A</td><td>TP 3.2</td>
     </tr>
     <tr>
       <td>C</td><td>single</td><td>Perangkat yang menghubungkan dua jaringan berbeda adalah...</td>
-      <td>Switch</td><td>Hub</td><td>Router</td><td>Repeater</td><td></td><td class="k">C</td><td>KD 3.1</td>
+      <td>Switch</td><td>Hub</td><td>Router</td><td>Repeater</td><td></td><td class="k">C</td><td>TP 3.1</td>
     </tr>
     <tr style="background:#fffbeb;">
       <td style="color:#b45309;font-weight:bold;" title="Kosongkan untuk Non Paket"></td>
       <td>single</td><td><em style="color:#92400e;">Soal Non Paket &mdash; kosongkan kolom packet, pilih paket tujuan saat import</em></td>
       <td>Pilihan A</td><td>Pilihan B</td><td>Pilihan C</td><td>Pilihan D</td><td></td>
-      <td class="k">A</td><td>KD 3.1</td>
+      <td class="k">A</td><td>TP 3.1</td>
     </tr>
-    <tr><td colspan="10" class="add-row">&#10133; Tambahkan soal baru di bawah baris ini. Kolom kd_tag diisi KD yang diuji, contoh: KD 3.1 (boleh kosong).</td></tr>
+    <tr><td colspan="10" class="add-row">&#10133; Tambahkan soal baru di bawah baris ini. Kolom kd_tag diisi TP yang diuji, contoh: TP 3.1 (boleh kosong).</td></tr>
   </tbody>
 </table>
 
@@ -21992,16 +22310,16 @@ Simpan sebagai <b>.docx</b> sebelum diimport (file template sudah berformat .doc
   <tbody>
     <tr>
       <td>A</td><td>multiple</td><td>Manakah yang termasuk perangkat jaringan? (pilih semua yang benar)</td>
-      <td>Switch</td><td>Router</td><td>Monitor</td><td>Keyboard</td><td>Hub</td><td class="k">A,B,E</td><td>KD 3.1</td>
+      <td>Switch</td><td>Router</td><td>Monitor</td><td>Keyboard</td><td>Hub</td><td class="k">A,B,E</td><td>TP 3.1</td>
     </tr>
     <tr>
       <td>B</td><td>multiple</td><td>Protokol yang bekerja di Layer 7 OSI adalah...</td>
-      <td>HTTP</td><td>FTP</td><td>IP</td><td>TCP</td><td>SMTP</td><td class="k">A,B,E</td><td>KD 3.2</td>
+      <td>HTTP</td><td>FTP</td><td>IP</td><td>TCP</td><td>SMTP</td><td class="k">A,B,E</td><td>TP 3.2</td>
     </tr>
     <tr style="background:#fffbeb;">
       <td style="color:#b45309;font-weight:bold;"></td>
       <td>multiple</td><td><em style="color:#92400e;">Soal Non Paket &mdash; kosongkan kolom packet</em></td>
-      <td>Opsi A</td><td>Opsi B</td><td>Opsi C</td><td>Opsi D</td><td></td><td class="k">A,C</td><td>KD 3.1</td>
+      <td>Opsi A</td><td>Opsi B</td><td>Opsi C</td><td>Opsi D</td><td></td><td class="k">A,C</td><td>TP 3.1</td>
     </tr>
     <tr><td colspan="10" class="add-row">&#10133; Tambahkan soal baru di bawah baris ini.</td></tr>
   </tbody>
@@ -22021,10 +22339,10 @@ Simpan sebagai <b>.docx</b> sebelum diimport (file template sudah berformat .doc
     <tr><th>packet</th><th>tipe</th><th>question</th><th>question_image</th><th>correct_tf</th><th>kd_tag</th></tr>
   </thead>
   <tbody>
-    <tr><td>A</td><td>truefalse</td><td>Switch adalah perangkat Layer 2 dalam model OSI.</td><td></td><td class="k">TRUE</td><td>KD 3.1</td></tr>
-    <tr><td>B</td><td>truefalse</td><td>IP address kelas C memiliki range 192.168.0.0 &ndash; 192.168.255.255.</td><td></td><td class="kf">FALSE</td><td>KD 3.2</td></tr>
-    <tr><td>A</td><td>truefalse</td><td>Kabel UTP kategori 6 mendukung kecepatan hingga 10 Gbps.</td><td></td><td class="k">TRUE</td><td>KD 3.1</td></tr>
-    <tr style="background:#fffbeb;"><td style="color:#b45309;font-weight:bold;"></td><td>truefalse</td><td><em style="color:#92400e;">Soal Non Paket &mdash; kosongkan kolom packet</em></td><td></td><td class="k">TRUE</td><td>KD 3.1</td></tr>
+    <tr><td>A</td><td>truefalse</td><td>Switch adalah perangkat Layer 2 dalam model OSI.</td><td></td><td class="k">TRUE</td><td>TP 3.1</td></tr>
+    <tr><td>B</td><td>truefalse</td><td>IP address kelas C memiliki range 192.168.0.0 &ndash; 192.168.255.255.</td><td></td><td class="kf">FALSE</td><td>TP 3.2</td></tr>
+    <tr><td>A</td><td>truefalse</td><td>Kabel UTP kategori 6 mendukung kecepatan hingga 10 Gbps.</td><td></td><td class="k">TRUE</td><td>TP 3.1</td></tr>
+    <tr style="background:#fffbeb;"><td style="color:#b45309;font-weight:bold;"></td><td>truefalse</td><td><em style="color:#92400e;">Soal Non Paket &mdash; kosongkan kolom packet</em></td><td></td><td class="k">TRUE</td><td>TP 3.1</td></tr>
     <tr><td colspan="6" class="add-row">&#10133; Tambahkan soal baru di bawah baris ini.</td></tr>
   </tbody>
 </table>
@@ -22046,18 +22364,18 @@ Simpan sebagai <b>.docx</b> sebelum diimport (file template sudah berformat .doc
     <tr>
       <td>A</td><td>essay</td><td>Jelaskan perbedaan hub dan switch dalam jaringan komputer!</td><td></td>
       <td>Jawaban harus mencakup: (1) Hub Layer 1 meneruskan ke semua port; (2) Switch Layer 2 menggunakan MAC address; (3) Switch lebih efisien karena kirim ke port tujuan saja.</td>
-      <td>10</td><td>KD 3.1</td>
+      <td>10</td><td>TP 3.1</td>
     </tr>
     <tr>
       <td>B</td><td>essay</td><td>Sebutkan minimal 3 topologi jaringan beserta kelebihan dan kekurangannya!</td><td></td>
       <td>Min 3 dari: Star / Bus / Ring / Mesh / Tree. Tiap topologi: +1 nama, +1 kelebihan, +1 kekurangan.</td>
-      <td>10</td><td>KD 3.2</td>
+      <td>10</td><td>TP 3.2</td>
     </tr>
     <tr style="background:#fffbeb;">
       <td style="color:#b45309;font-weight:bold;"></td><td>essay</td>
       <td><em style="color:#92400e;">Soal Non Paket &mdash; kosongkan kolom packet</em></td><td></td>
       <td>Rubrik penilaian untuk soal non-paket diisi di sini.</td>
-      <td>10</td><td>KD 3.1</td>
+      <td>10</td><td>TP 3.1</td>
     </tr>
     <tr><td colspan="7" class="add-row">&#10133; Tambahkan soal baru di bawah baris ini.</td></tr>
   </tbody>
@@ -22092,14 +22410,14 @@ Simpan sebagai <b>.docx</b> sebelum diimport (file template sudah berformat .doc
       <td>Switch</td><td>Mengelola MAC</td>
       <td>Router</td><td>Routing jaringan</td>
       <td>Hub</td><td>Broadcast semua port</td>
-      <td>Modem</td><td>Konversi sinyal</td><td>KD 3.1</td>
+      <td>Modem</td><td>Konversi sinyal</td><td>TP 3.1</td>
     </tr>
     <tr>
       <td>B</td><td>menjodohkan</td><td>Pasangkan lapisan OSI dengan fungsinya!</td><td></td>
       <td>Physical Layer</td><td>Transmisi bit</td>
       <td>Data Link</td><td>Frame antar node</td>
       <td>Network Layer</td><td>Routing paket</td>
-      <td>Transport</td><td>Pengiriman end-to-end</td><td>KD 3.2</td>
+      <td>Transport</td><td>Pengiriman end-to-end</td><td>TP 3.2</td>
     </tr>
     <tr style="background:#fffbeb;">
       <td style="color:#b45309;font-weight:bold;"></td><td>menjodohkan</td>
@@ -22107,7 +22425,7 @@ Simpan sebagai <b>.docx</b> sebelum diimport (file template sudah berformat .doc
       <td>Item Kiri 1</td><td>Item Kanan 1</td>
       <td>Item Kiri 2</td><td>Item Kanan 2</td>
       <td>Item Kiri 3</td><td>Item Kanan 3</td>
-      <td></td><td></td><td>KD 3.1</td>
+      <td></td><td></td><td>TP 3.1</td>
     </tr>
     <tr><td colspan="13" class="add-row">&#10133; Tambahkan soal baru di bawah baris ini. Untuk 5 pasang tambahkan kolom pair_5_kiri dan pair_5_kanan.</td></tr>
   </tbody>
@@ -22212,7 +22530,7 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                 // Normalisasi: jika bukan A/B/C → tandai 'NP' (Non-Paket / akan pakai paket tujuan)
                 const packet = ['A','B','C'].includes(packetRaw) ? packetRaw : 'NP';
 
-                const kdTag  = g(['kd_tag','kdTag','kd','KD','kompetensi_dasar','KD_tag']);
+                const kdTag  = g(['kd_tag','kdTag','kd','TP','kompetensi_dasar','KD_tag']);
 
                 const base = {
                     packet, text, tipe, aktif: true,
