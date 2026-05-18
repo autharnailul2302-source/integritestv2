@@ -78,6 +78,8 @@
     
     <!-- Mammoth.js for Word import -->
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <!-- docx.js for generating real .docx files -->
+    <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
 
     <!-- QRCode.js — generate QR token untuk pengawas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -21457,7 +21459,326 @@ Terima kasih 🙏</textarea>
         };
 
         // ---------- DOWNLOAD TEMPLATE WORD ----------
-        window.downloadWordTemplate = function() {
+        window.downloadWordTemplate = async function() {
+            if (!window.docx) {
+                alert('Library docx.js belum siap, coba lagi sebentar.');
+                return;
+            }
+            const {
+                Document, Packer, Paragraph, Table, TableRow, TableCell,
+                TextRun, HeadingLevel, AlignmentType, WidthType, BorderStyle,
+                ShadingType, TableLayoutType, VerticalAlign
+            } = window.docx;
+
+            // Warna tema
+            const BLUE       = '1D4ED8';
+            const BLUE_LIGHT = 'EFF6FF';
+            const BLUE_DARK  = '1E3A8A';
+            const YELLOW_BG  = 'FEFCE8';
+            const YELLOW_BR  = 'FDE68A';
+            const GREEN_TXT  = '15803D';
+            const RED_TXT    = 'DC2626';
+            const GRAY_BORDER= 'D1D5DB';
+            const GRAY_ALT   = 'F8FAFC';
+            const WHITE      = 'FFFFFF';
+
+            // Helper: buat TableCell dengan styling
+            function cell(text, opts = {}) {
+                const {
+                    bold = false, color = '111827', bg = WHITE,
+                    isHeader = false, width, colSpan = 1, italic = false
+                } = opts;
+                return new TableCell({
+                    columnSpan: colSpan,
+                    width: width ? { size: width, type: WidthType.PERCENTAGE } : undefined,
+                    verticalAlign: VerticalAlign.CENTER,
+                    shading: bg !== WHITE ? { type: ShadingType.CLEAR, fill: bg } : undefined,
+                    borders: {
+                        top:    { style: BorderStyle.SINGLE, size: 4, color: isHeader ? '93C5FD' : GRAY_BORDER },
+                        bottom: { style: BorderStyle.SINGLE, size: 4, color: isHeader ? '93C5FD' : GRAY_BORDER },
+                        left:   { style: BorderStyle.SINGLE, size: 4, color: isHeader ? '93C5FD' : GRAY_BORDER },
+                        right:  { style: BorderStyle.SINGLE, size: 4, color: isHeader ? '93C5FD' : GRAY_BORDER },
+                    },
+                    children: [new Paragraph({
+                        children: [new TextRun({ text: String(text ?? ''), bold, color: isHeader ? WHITE : color, italics: italic, size: isHeader ? 16 : 17 })],
+                        spacing: { before: 40, after: 40 },
+                    })],
+                });
+            }
+
+            // Helper: buat baris header tabel
+            function headerRow(cols) {
+                return new TableRow({
+                    tableHeader: true,
+                    children: cols.map(({ text, w }) =>
+                        cell(text, { isHeader: true, bold: true, bg: BLUE, width: w })
+                    ),
+                });
+            }
+
+            // Helper: baris data biasa
+            function dataRow(cells, bgColor = WHITE) {
+                return new TableRow({
+                    children: cells.map(({ text, color, bold, italic }) =>
+                        cell(text, { bg: bgColor, color: color ?? '111827', bold: bold ?? false, italic: italic ?? false })
+                    ),
+                });
+            }
+
+            // Helper: baris info tambahkan soal
+            function addRow(colCount) {
+                return new TableRow({
+                    children: [cell('+ Tambahkan soal baru di bawah baris ini.', { colSpan: colCount, color: '9CA3AF', italic: true, bg: WHITE })],
+                });
+            }
+
+            // Helper: heading seksi
+            function sectionHeading(text) {
+                return new Paragraph({
+                    text,
+                    heading: HeadingLevel.HEADING_2,
+                    spacing: { before: 320, after: 80 },
+                    shading: { type: ShadingType.CLEAR, fill: BLUE_LIGHT },
+                    border: { left: { style: BorderStyle.SINGLE, size: 20, color: BLUE } },
+                    indent: { left: 200 },
+                    children: [new TextRun({ text, bold: true, color: BLUE_DARK, size: 22 })],
+                });
+            }
+
+            // Helper: sub text
+            function subText(text) {
+                return new Paragraph({
+                    children: [new TextRun({ text, color: '6B7280', size: 17 })],
+                    spacing: { before: 40, after: 100 },
+                });
+            }
+
+            // ── TABEL 1: PILIHAN TUNGGAL ──
+            const tSingle = new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                rows: [
+                    headerRow([
+                        { text: 'packet', w: 5 }, { text: 'tipe', w: 7 }, { text: 'question', w: 26 },
+                        { text: 'option_a', w: 13 }, { text: 'option_b', w: 13 }, { text: 'option_c', w: 12 },
+                        { text: 'option_d', w: 12 }, { text: 'option_e', w: 5 }, { text: 'correct', w: 4 }, { text: 'kd_tag', w: 3 },
+                    ]),
+                    dataRow([
+                        { text: 'A' }, { text: 'single' }, { text: 'Apa kepanjangan dari TKJ?' },
+                        { text: 'Teknik Komputer dan Jaringan' }, { text: 'Teknologi Komunikasi Jaringan' },
+                        { text: 'Teknik Komunikasi dan Jaringan' }, { text: 'Teknologi Komputer dan Jaringan' },
+                        { text: '' }, { text: 'A', color: GREEN_TXT, bold: true }, { text: 'KD 3.1' },
+                    ]),
+                    dataRow([
+                        { text: 'B' }, { text: 'single' }, { text: 'Protokol untuk mengirim email adalah...' },
+                        { text: 'SMTP' }, { text: 'HTTP' }, { text: 'FTP' }, { text: 'SSH' }, { text: 'DNS' },
+                        { text: 'A', color: GREEN_TXT, bold: true }, { text: 'KD 3.2' },
+                    ], GRAY_ALT),
+                    dataRow([
+                        { text: 'C' }, { text: 'single' }, { text: 'Perangkat yang menghubungkan dua jaringan berbeda adalah...' },
+                        { text: 'Switch' }, { text: 'Hub' }, { text: 'Router' }, { text: 'Repeater' }, { text: '' },
+                        { text: 'C', color: GREEN_TXT, bold: true }, { text: 'KD 3.1' },
+                    ]),
+                    dataRow([
+                        { text: '' }, { text: 'single' }, { text: 'Soal Non Paket — kosongkan kolom packet, pilih paket tujuan saat import', italic: true, color: '92400E' },
+                        { text: 'Pilihan A' }, { text: 'Pilihan B' }, { text: 'Pilihan C' }, { text: 'Pilihan D' }, { text: '' },
+                        { text: 'A', color: GREEN_TXT, bold: true }, { text: 'KD 3.1' },
+                    ], YELLOW_BG),
+                    addRow(10),
+                ],
+            });
+
+            // ── TABEL 2: JAWABAN GANDA ──
+            const tMulti = new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                rows: [
+                    headerRow([
+                        { text: 'packet', w: 5 }, { text: 'tipe', w: 7 }, { text: 'question', w: 28 },
+                        { text: 'option_a', w: 11 }, { text: 'option_b', w: 11 }, { text: 'option_c', w: 11 },
+                        { text: 'option_d', w: 11 }, { text: 'option_e', w: 5 }, { text: 'correct_multiple', w: 8 }, { text: 'kd_tag', w: 3 },
+                    ]),
+                    dataRow([
+                        { text: 'A' }, { text: 'multiple' }, { text: 'Manakah yang termasuk perangkat jaringan? (pilih semua yang benar)' },
+                        { text: 'Switch' }, { text: 'Router' }, { text: 'Monitor' }, { text: 'Keyboard' }, { text: 'Hub' },
+                        { text: 'A,B,E', color: GREEN_TXT, bold: true }, { text: 'KD 3.1' },
+                    ]),
+                    dataRow([
+                        { text: 'B' }, { text: 'multiple' }, { text: 'Protokol yang bekerja di Layer 7 OSI adalah...' },
+                        { text: 'HTTP' }, { text: 'FTP' }, { text: 'IP' }, { text: 'TCP' }, { text: 'SMTP' },
+                        { text: 'A,B,E', color: GREEN_TXT, bold: true }, { text: 'KD 3.2' },
+                    ], GRAY_ALT),
+                    dataRow([
+                        { text: '' }, { text: 'multiple' }, { text: 'Soal Non Paket — kosongkan kolom packet', italic: true, color: '92400E' },
+                        { text: 'Opsi A' }, { text: 'Opsi B' }, { text: 'Opsi C' }, { text: 'Opsi D' }, { text: '' },
+                        { text: 'A,C', color: GREEN_TXT, bold: true }, { text: 'KD 3.1' },
+                    ], YELLOW_BG),
+                    addRow(10),
+                ],
+            });
+
+            // ── TABEL 3: BENAR / SALAH ──
+            const tTF = new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                rows: [
+                    headerRow([
+                        { text: 'packet', w: 6 }, { text: 'tipe', w: 10 }, { text: 'question', w: 65 },
+                        { text: 'question_image', w: 12 }, { text: 'correct_tf', w: 7 },
+                    ]),
+                    dataRow([
+                        { text: 'A' }, { text: 'truefalse' }, { text: 'IP Address versi 4 (IPv4) terdiri dari 32 bit.' },
+                        { text: '' }, { text: 'TRUE', color: GREEN_TXT, bold: true },
+                    ]),
+                    dataRow([
+                        { text: 'B' }, { text: 'truefalse' }, { text: 'Router bekerja pada layer 2 (Data Link) model OSI.' },
+                        { text: '' }, { text: 'FALSE', color: RED_TXT, bold: true },
+                    ], GRAY_ALT),
+                    addRow(5),
+                ],
+            });
+
+            // ── TABEL 4: ESSAY ──
+            const tEssay = new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                rows: [
+                    headerRow([
+                        { text: 'packet', w: 5 }, { text: 'tipe', w: 6 }, { text: 'question', w: 30 },
+                        { text: 'question_image', w: 6 }, { text: 'rubrik_penilaian', w: 47 }, { text: 'skor_maks', w: 6 },
+                    ]),
+                    dataRow([
+                        { text: 'A' }, { text: 'essay' }, { text: 'Jelaskan perbedaan antara TCP dan UDP!' },
+                        { text: '' }, { text: 'Skor 4: menyebut connection-oriented vs connectionless, reliability, speed, use-case. Skor 3: 3 poin. Skor 2: 2 poin. Skor 1: 1 poin.' },
+                        { text: '4' },
+                    ]),
+                    dataRow([
+                        { text: 'B' }, { text: 'essay' }, { text: 'Apa fungsi dari subnet mask?' },
+                        { text: '' }, { text: 'Skor 4: definisi lengkap + contoh. Skor 3: definisi + 1 poin. Skor 2: definisi saja. Skor 1: sebagian.' },
+                        { text: '4' },
+                    ], GRAY_ALT),
+                    addRow(6),
+                ],
+            });
+
+            // ── TABEL 5: MENJODOHKAN ──
+            const tJodoh = new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                rows: [
+                    headerRow([
+                        { text: 'packet', w: 4 }, { text: 'tipe', w: 8 }, { text: 'question', w: 20 },
+                        { text: 'left_1', w: 9 }, { text: 'right_1', w: 9 },
+                        { text: 'left_2', w: 9 }, { text: 'right_2', w: 9 },
+                        { text: 'left_3', w: 9 }, { text: 'right_3', w: 9 },
+                        { text: 'left_4', w: 7 }, { text: 'right_4', w: 7 },
+                    ]),
+                    dataRow([
+                        { text: 'A' }, { text: 'menjodohkan' }, { text: 'Jodohkan perangkat jaringan berikut!' },
+                        { text: 'Router' }, { text: 'Menghubungkan jaringan berbeda' },
+                        { text: 'Switch' }, { text: 'Membagi segmen dalam LAN' },
+                        { text: 'Repeater' }, { text: 'Memperkuat sinyal' },
+                        { text: 'Hub' }, { text: 'Broadcast ke semua port' },
+                    ]),
+                    addRow(11),
+                ],
+            });
+
+            // ── BANGUN DOKUMEN ──
+            const doc = new Document({
+                sections: [{
+                    properties: {
+                        page: {
+                            size: { width: 16838, height: 11906 }, // A4 landscape (twips)
+                            margin: { top: 851, right: 1021, bottom: 851, left: 1021 },
+                        },
+                    },
+                    children: [
+                        // Judul
+                        new Paragraph({
+                            children: [
+                                new TextRun({ text: '📄 Template Soal INTEGRITEST — Semua Tipe Soal', bold: true, color: BLUE, size: 28 }),
+                            ],
+                            spacing: { after: 120 },
+                            border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: BLUE } },
+                        }),
+
+                        // Catatan petunjuk
+                        new Paragraph({
+                            children: [
+                                new TextRun({ text: '⚠ PETUNJUK: ', bold: true }),
+                                new TextRun('Kolom '),
+                                new TextRun({ text: 'packet', bold: true }),
+                                new TextRun(': A / B / C, atau kosongkan untuk soal Non Paket  |  Kolom '),
+                                new TextRun({ text: 'tipe', bold: true }),
+                                new TextRun(': single / multiple / truefalse / essay / menjodohkan  |  Hapus baris contoh sebelum import  |  '),
+                                new TextRun({ text: 'Soal Non Paket', bold: true }),
+                                new TextRun(' (packet kosong): saat import akan muncul dropdown pilih paket tujuan'),
+                            ],
+                            shading: { type: ShadingType.CLEAR, fill: 'FEFCE8' },
+                            border: {
+                                top: { style: BorderStyle.SINGLE, size: 4, color: YELLOW_BR },
+                                bottom: { style: BorderStyle.SINGLE, size: 4, color: YELLOW_BR },
+                                left: { style: BorderStyle.SINGLE, size: 4, color: YELLOW_BR },
+                                right: { style: BorderStyle.SINGLE, size: 4, color: YELLOW_BR },
+                            },
+                            spacing: { before: 120, after: 240 },
+                            indent: { left: 120, right: 120 },
+                        }),
+
+                        // 1. Pilihan Tunggal
+                        sectionHeading('① Pilihan Tunggal  〔tipe: single〕'),
+                        subText('Satu jawaban benar. Kolom correct: huruf A/B/C/D/E. Kolom kd_tag boleh kosong.'),
+                        tSingle,
+
+                        // 2. Jawaban Ganda
+                        sectionHeading('② Jawaban Ganda  〔tipe: multiple〕'),
+                        subText('Lebih dari satu jawaban benar. Kolom correct_multiple: huruf-huruf dipisah koma, contoh: A,B,E'),
+                        tMulti,
+
+                        // 3. Benar / Salah
+                        sectionHeading('③ Benar / Salah  〔tipe: truefalse〕'),
+                        subText('Pernyataan benar atau salah. Kolom correct_tf: tulis TRUE atau FALSE (kapital).'),
+                        tTF,
+
+                        // 4. Essay
+                        sectionHeading('④ Essay / Uraian  〔tipe: essay〕'),
+                        subText('Kolom rubrik_penilaian: isi pedoman penskoran. Kolom skor_maks: angka maksimum skor.'),
+                        tEssay,
+
+                        // 5. Menjodohkan
+                        sectionHeading('⑤ Menjodohkan  〔tipe: menjodohkan〕'),
+                        subText('Isi pasangan left_1–right_1 s.d. left_4–right_4. Kolom right berisi jawaban yang dijodohkan.'),
+                        tJodoh,
+
+                        // Footer tip
+                        new Paragraph({
+                            children: [
+                                new TextRun({ text: '✅ Tips: ', bold: true, color: '15803D' }),
+                                new TextRun({ text: 'Baris latar kuning = contoh soal Non Paket. Download Template Excel untuk versi multi-sheet dengan petunjuk lengkap.', color: '166534' }),
+                            ],
+                            shading: { type: ShadingType.CLEAR, fill: 'F0FDF4' },
+                            border: {
+                                top:    { style: BorderStyle.SINGLE, size: 4, color: '86EFAC' },
+                                bottom: { style: BorderStyle.SINGLE, size: 4, color: '86EFAC' },
+                                left:   { style: BorderStyle.SINGLE, size: 4, color: '86EFAC' },
+                                right:  { style: BorderStyle.SINGLE, size: 4, color: '86EFAC' },
+                            },
+                            spacing: { before: 300, after: 80 },
+                            indent: { left: 120, right: 120 },
+                        }),
+                    ],
+                }],
+            });
+
+            const blob = await Packer.toBlob(doc);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Template_Soal_INTEGRITEST.docx';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        };
+
+        // DUMMY — kept so old code paths don't break
+        window._downloadWordTemplateLegacy = function() {
             const escapeHtml = window.escapeHtml || (s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"));
     const html = `<!DOCTYPE html>
 <html xmlns:o='urn:schemas-microsoft-com:office:office'
@@ -21803,11 +22124,11 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
 
 </div>
 </body></html>`;
-            const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+            const blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-word;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'Template_Soal_INTEGRITEST.docx';
+            a.download = 'Template_Soal_INTEGRITEST_legacy.doc';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
