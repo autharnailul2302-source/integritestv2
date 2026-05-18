@@ -16032,7 +16032,7 @@ Terima kasih 🙏</textarea>
             function handleFullscreenChange() {
                 const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
                 if (!isFs && !isWarningActive) {
-                    // Tampilkan peringatan terlebih dahulu, lalu saat klik "lanjut" fullscreen diminta lagi
+                    if (window._izinKeluarAktif && window._izinKeluarUntil > Date.now()) return; // izin aktif
                     registerViolation("Anda keluar dari layar penuh (Fullscreen)!");
                 }
             }
@@ -16063,20 +16063,17 @@ Terima kasih 🙏</textarea>
         }
 
         function handleVisibility() {
-            // Visibility change (pindah tab total/minimize) tetap dianggap curang
-            // meski sedang rotasi, karena pindah tab != rotasi
-            // Tapi JANGAN anggap curang jika modal submit sedang terbuka
             if (window._suppressCheat) return;
+            if (window._izinKeluarAktif && window._izinKeluarUntil > Date.now()) return; // izin aktif
             if (document.hidden) {
                 registerViolation("Anda meninggalkan tab ujian!");
             }
         }
 
         function handleBlur() {
-            // JIKA SEDANG ROTASI (isRotating = true), JANGAN ANGGAP CURANG
             if (isRotating) return;
-            // JIKA MODAL SUBMIT SEDANG TERBUKA, JANGAN ANGGAP CURANG
             if (window._suppressCheat) return;
+            if (window._izinKeluarAktif && window._izinKeluarUntil > Date.now()) return; // izin aktif — popup kamera dll tidak dihitung
 
             if (!document.hidden) {
                 registerViolation("Terdeteksi interaksi di luar layar ujian (Aplikasi Mengambang/Notifikasi)!");
@@ -27843,6 +27840,11 @@ body { font-family:'Segoe UI',Arial,sans-serif; background:#f1f5f9; font-size:9p
     // ─── INISIALISASI KAMERA ─────────────────────────────────────────
     async function initCamera() {
         if (_camStream) return true; // sudah aktif
+        // Nonaktifkan anti-cheat sementara selama popup izin kamera muncul
+        const _wasSuppress = window._suppressCheat;
+        window._suppressCheat = true;
+        window._izinKeluarAktif = true; // jeda semua deteksi (blur, wajah, idle)
+        window._izinKeluarUntil = Date.now() + 30 * 1000; // toleransi 30 detik
         try {
             _camStream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
@@ -27856,9 +27858,19 @@ body { font-family:'Segoe UI',Arial,sans-serif; background:#f1f5f9; font-size:9p
             return true;
         } catch(e) {
             console.warn('[Camera] Kamera tidak bisa diakses:', e.message);
-            // Catat ke Firestore bahwa siswa menolak kamera
             setTimeout(() => saveUrlToFirestore('cameraError', 'DENIED: ' + e.message), 2000);
             return false;
+        } finally {
+            // Aktifkan kembali anti-cheat setelah popup selesai (allow atau deny)
+            // Delay sedikit agar focus kembali ke browser dulu
+            setTimeout(function() {
+                window._suppressCheat = _wasSuppress || false;
+                window._izinKeluarAktif = false;
+                if (typeof _lastActivityTime !== 'undefined') _lastActivityTime = Date.now();
+                window._lastActivityTime = Date.now();
+                if (typeof _sembunyikanBannerIzin === 'function') _sembunyikanBannerIzin();
+                console.log('[Camera] Anti-cheat diaktifkan kembali setelah popup kamera.');
+            }, 1500); // 1.5 detik jeda agar focus window kembali normal
         }
     }
 
@@ -27972,7 +27984,7 @@ body { font-family:'Segoe UI',Arial,sans-serif; background:#f1f5f9; font-size:9p
                         const b64 = captureFrame(v, 0.7);
                         uploadToCloudinary(b64, `anomali/${(window._loginData||{}).studentNisn||'unknown'}`)
                             .then(url => { if (url) appendSnapshotUrl(url + '#LAYAR_DIFOTO'); });
-                        if (typeof registerViolation === 'function') {
+                        if (typeof registerViolation === 'function' && !window._izinKeluarAktif) {
                             registerViolation('Terdeteksi layar sedang difoto oleh kamera lain (frame tidak bergerak)!');
                         }
                         return;
@@ -27990,7 +28002,7 @@ body { font-family:'Segoe UI',Arial,sans-serif; background:#f1f5f9; font-size:9p
                         const b64 = captureFrame(v, 0.7);
                         uploadToCloudinary(b64, `anomali/${(window._loginData||{}).studentNisn||'unknown'}`)
                             .then(url => { if (url) appendSnapshotUrl(url + '#FLASH_KAMERA_LAIN'); });
-                        if (typeof registerViolation === 'function') {
+                        if (typeof registerViolation === 'function' && !window._izinKeluarAktif) {
                             registerViolation('Terdeteksi kilatan cahaya mendadak — indikasi kamera/HP lain sedang memfoto layar!');
                         }
                     }
@@ -28035,9 +28047,11 @@ body { font-family:'Segoe UI',Arial,sans-serif; background:#f1f5f9; font-size:9p
                         const url  = await uploadToCloudinary(b64, `anomali/${nisn}`);
                         await appendSnapshotUrl(url + '#WAJAH_HILANG');
                         // Daftarkan sebagai pelanggaran
-                        if (typeof registerViolation === 'function') {
+                        if (typeof registerViolation === 'function' && !window._izinKeluarAktif) {
                             registerViolation('Wajah tidak terdeteksi di kamera selama 15 detik!');
                             if (window._showCamStatusBar) window._showCamStatusBar({ type:'warn', text:'⚠️ Wajah tidak terdeteksi' });
+                        } else if (window._izinKeluarAktif) {
+                            _faceAbsentCount = 0; // reset counter saat izin aktif
                         }
                     }
                 } else {
