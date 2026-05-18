@@ -613,6 +613,12 @@
                     idleInput.value = idleMenit;
                     idleInput.dispatchEvent(new Event('input'));
                 }
+                // Sync toggle token global
+                const showGlobalToken = latestDoc.showGlobalToken !== false; // default true
+                window._showGlobalToken = showGlobalToken;
+                const toggleGT = document.getElementById('toggle-show-global-token');
+                if (toggleGT) toggleGT.checked = showGlobalToken;
+                if (window.updatePengawasTokenDisplay) window.updatePengawasTokenDisplay();
                 // Selalu update tampilan token di panel pengawas
                 if (window.updatePengawasTokenDisplay) window.updatePengawasTokenDisplay();
                 if (window.refreshAdminTokenQr) window.refreshAdminTokenQr(window.currentExamToken);
@@ -979,6 +985,8 @@
             const perSoalTimerSec = parseInt(document.getElementById('teacher-per-soal-timer')?.value) || 90;
             // ★ Toleransi diam (idle)
             const newIdleMenit = Math.min(60, Math.max(1, parseInt(document.getElementById('setting-idle-menit')?.value) || 5));
+            // ★ Tampilkan token global
+            const showGlobalToken = document.getElementById('toggle-show-global-token')?.checked !== false;
 
             if(!newToken) return alert("Token tidak boleh kosong!");
             if(!newDuration || newDuration < 1) return alert("Durasi tidak valid (minimal 1 menit)!");
@@ -1001,6 +1009,7 @@
                         cameraEnabled: newCameraEnabled,
                         perSoalTimerSec: perSoalTimerSec,
                         idleThresholdMenit: newIdleMenit,
+                        showGlobalToken: showGlobalToken,
                         // Sertakan nilai tampilan yang sudah ada agar tidak tertimpa null
                         judulUjian:   savedApp.judulUjian  ?? null,
                         subJudul:     savedApp.subJudul    ?? null,
@@ -2479,6 +2488,15 @@
             }
 
             // Tidak ada jadwal → fallback token global dengan QR
+            // Sembunyikan jika admin menonaktifkan via toggle
+            if (window._showGlobalToken === false) {
+                container.innerHTML =
+                    '<div class="flex flex-col items-center bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl px-5 py-3 min-w-[140px] text-center">' +
+                        '<span class="text-xs font-bold text-gray-400">Token Global disembunyikan</span>' +
+                        '<span class="text-[10px] text-gray-300 mt-0.5">Aktifkan di Pengaturan Ujian</span>' +
+                    '</div>';
+                return;
+            }
             const globalToken = window.currentExamToken || '—';
             renderTokenCard(globalToken, 'Token Global', '', '<span class="text-[9px] text-amber-400 font-semibold mt-0.5">(Token Global)</span>');
         };
@@ -7269,6 +7287,22 @@ Terima kasih 🙏</textarea>
                             <div class="w-12 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-500"></div>
                         </label>
                     </div>
+                    <!-- ══ SEMBUNYIKAN TOKEN GLOBAL ══ -->
+                    <div class="flex items-start justify-between gap-4 py-4 border-t border-gray-100">
+                        <div class="flex-1">
+                            <p class="text-sm font-bold text-gray-700">🔑 Token Global di Panel Pengawas</p>
+                            <p class="text-xs text-gray-500 mt-0.5">Nonaktifkan agar Token Global tidak muncul di panel pengawas. Gunakan jika semua ujian sudah pakai jadwal otomatis sehingga token global tidak relevan.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                            <input type="checkbox" id="toggle-show-global-token" class="sr-only peer" checked
+                                onchange="
+                                    const on = this.checked;
+                                    if (window.updatePengawasTokenDisplay) window.updatePengawasTokenDisplay();
+                                ">
+                            <div class="w-12 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                        </label>
+                    </div>
+
                     <!-- ══ TOLERANSI DIAM (IDLE) ══ -->
                     <div class="flex items-start justify-between gap-4 py-4 border-t border-gray-100">
                         <div class="flex-1">
