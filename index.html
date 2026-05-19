@@ -4251,6 +4251,29 @@ html.dark .ob-dot.active { background: #818cf8; }
                     </div>
                     <p class="text-xs text-gray-400 mt-1">Kosongkan = nilai maksimal 100 (default).</p>
                 </div>
+                <!-- Pengacakan Soal -->
+                <div class="p-4 bg-purple-50 rounded-xl border border-purple-200 space-y-3">
+                    <p class="text-sm font-semibold text-gray-700 flex items-center gap-1.5"><i data-lucide="shuffle" class="w-4 h-4 text-purple-500"></i> Pengacakan</p>
+                    <div class="flex flex-col gap-2">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="paket-shuffle" value="both" class="accent-purple-600" checked>
+                            <span class="text-sm text-gray-700">🔀 Acak soal <strong>dan</strong> jawaban</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="paket-shuffle" value="questions" class="accent-purple-600">
+                            <span class="text-sm text-gray-700">🔀 Acak soal saja <span class="text-xs text-gray-400">(urutan jawaban tetap)</span></span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="paket-shuffle" value="options" class="accent-purple-600">
+                            <span class="text-sm text-gray-700">🔀 Acak jawaban saja <span class="text-xs text-gray-400">(urutan soal tetap)</span></span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="paket-shuffle" value="none" class="accent-purple-600">
+                            <span class="text-sm text-gray-700">❌ Tidak diacak <span class="text-xs text-gray-400">(urutan soal & jawaban tetap)</span></span>
+                        </label>
+                    </div>
+                    <p class="text-xs text-gray-400">Pengacakan terjadi saat siswa login — tiap siswa bisa mendapat urutan berbeda.</p>
+                </div>
                 <!-- Status -->
                 <div class="flex items-center justify-between bg-gray-50 rounded-xl border px-4 py-3">
                     <div>
@@ -11441,6 +11464,15 @@ Terima kasih 🙏</textarea>
                 window.allPaketDB.sort((a,b) => (a.createdAt||0) - (b.createdAt||0));
                 window.renderPaketGrid();
                 window.updatePaketFilter();
+                // ★ Restore paket aktif dari sessionStorage setelah refresh
+                if (!window.activePaketId) {
+                    try {
+                        const savedId = sessionStorage.getItem('integritest_active_paket_id');
+                        if (savedId && window.allPaketDB.find(p => p.id === savedId)) {
+                            window.openPaketSoal(savedId);
+                        }
+                    } catch(e) {}
+                }
                 if (window.activePaketId) window.refreshActivePaketInfo();
                 // Update token pengawas setiap kali data paket berubah (real-time)
                 if (window.isPengawas && window.isPengawas() && window.updatePengawasTokenDisplay) {
@@ -11557,6 +11589,8 @@ Terima kasih 🙏</textarea>
 
         window.openPaketSoal = function(paketId) {
             window.activePaketId = paketId;
+            // Simpan ke sessionStorage agar bertahan saat refresh
+            try { sessionStorage.setItem('integritest_active_paket_id', paketId); } catch(e) {}
             const paket = (window.allPaketDB || []).find(p => p.id === paketId);
             if (!paket) return;
 
@@ -11602,6 +11636,8 @@ Terima kasih 🙏</textarea>
 
         window.backToPaketList = function() {
             window.activePaketId = null;
+            // Hapus dari sessionStorage
+            try { sessionStorage.removeItem('integritest_active_paket_id'); } catch(e) {}
             const v1 = document.getElementById('view-paket-list');
             const v2 = document.getElementById('view-soal-in-paket');
             if (v1) v1.classList.remove('hidden');
@@ -11946,6 +11982,9 @@ Terima kasih 🙏</textarea>
             document.getElementById('paket-aktif').checked = true;
             document.getElementById('paket-aktif-label').textContent = 'Aktif';
             document.getElementById('paket-aktif-label').className = 'text-sm font-bold text-green-600';
+            // Reset shuffle ke default
+            const defShuf = document.querySelector('[name="paket-shuffle"][value="both"]');
+            if (defShuf) defShuf.checked = true;
             window.rebuildPaketKelasChecks([]);
             // Reset jenis radio
             document.querySelectorAll('[name="paket-jenis"]').forEach(r => {
@@ -11964,6 +12003,10 @@ Terima kasih 🙏</textarea>
                     document.getElementById('paket-token').value = p.token || '';
                     document.getElementById('paket-jumlah-soal').value = p.jumlahSoal || '';
                     document.getElementById('paket-nilai-maks').value = (p.nilaiMaksimal && p.nilaiMaksimal !== 100) ? p.nilaiMaksimal : '';
+                    // Load shuffle setting
+                    const shuffleVal = p.shuffleMode || 'both';
+                    const shuffleRadio = document.querySelector(`[name="paket-shuffle"][value="${shuffleVal}"]`);
+                    if (shuffleRadio) shuffleRadio.checked = true;
                     const isAktif = p.aktif !== false;
                     document.getElementById('paket-aktif').checked = isAktif;
                     document.getElementById('paket-aktif-label').textContent = isAktif ? 'Aktif' : 'Nonaktif';
@@ -12039,7 +12082,8 @@ Terima kasih 🙏</textarea>
             if (!nama) return alert("Nama paket tidak boleh kosong!");
             if (!token) return alert("Token paket tidak boleh kosong!");
 
-            const data = { nama, mapel, token, aktif, jenis, kelas, jumlahSoal, nilaiMaksimal, updatedAt: Date.now() };
+            const shuffleMode = document.querySelector('[name="paket-shuffle"]:checked')?.value || 'both';
+            const data = { nama, mapel, token, aktif, jenis, kelas, jumlahSoal, nilaiMaksimal, shuffleMode, updatedAt: Date.now() };
             try {
                 if (id) {
                     await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'paket_soal', id), data);
@@ -13267,21 +13311,23 @@ Terima kasih 🙏</textarea>
                     return;
                 }
 
-                // Acak dulu, lalu potong sesuai jumlahSoal yang diset di paket
-                shuffleArray(dbQuestions);
+                // Baca mode pengacakan dari setting paket
+                const shuffleMode = (paket && paket.shuffleMode) ? paket.shuffleMode : 'both';
+
+                // Acak urutan soal jika mode = both / questions
+                if (shuffleMode === 'both' || shuffleMode === 'questions') {
+                    shuffleArray(dbQuestions);
+                }
                 const jumlahSoal = paket && paket.jumlahSoal && paket.jumlahSoal > 0 ? paket.jumlahSoal : dbQuestions.length;
                 dbQuestions = dbQuestions.slice(0, jumlahSoal);
 
                 // ★ ACAK OPSI JAWABAN per soal (pilihan ganda & multiple)
-                // Setiap siswa mendapat urutan opsi yang berbeda, sehingga jawaban
-                // A/B/C/D tidak sama antar siswa meskipun paket soalnya sama.
-                // Mapping disimpan di q._optionMap (array index asli → index baru)
-                // agar penilaian tetap benar saat saveAnswer dipanggil.
+                // hanya jika mode = both / options
                 dbQuestions = dbQuestions.map(q => {
                     const tipe = q.tipe || 'single';
                     // Hanya acak opsi untuk tipe pilihan ganda (single & multiple)
                     // Biarkan essay, truefalse, menjodohkan tetap seperti aslinya
-                    if ((tipe === 'single' || tipe === 'multiple') && Array.isArray(q.options) && q.options.length > 1) {
+                    if ((shuffleMode === 'both' || shuffleMode === 'options') && (tipe === 'single' || tipe === 'multiple') && Array.isArray(q.options) && q.options.length > 1) {
                         // Buat array index asli: [0, 1, 2, 3, ...]
                         const origIndices = q.options.map((_, i) => i);
                         // Acak index
