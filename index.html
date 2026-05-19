@@ -22586,9 +22586,9 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                 // ── essay ──
                 if (tipe === 'essay') {
                     const rubrik = g(['essay_rubrik','rubrik','rubric','kunci_essay']);
-                    if (!rubrik) return;
+                    // rubrik opsional — soal essay tetap masuk meski rubrik kosong
                     const skorMaks = parseInt(g(['essay_skor_maks','skor_maks','skor','score_max'])) || 10;
-                    questions.push({ ...base, essayRubrik: rubrik, essaySkorMaks: skorMaks, options: [], optionImages: [], correct: null });
+                    questions.push({ ...base, essayRubrik: rubrik || '', essaySkorMaks: skorMaks, options: [], optionImages: [], correct: null });
                     return;
                 }
 
@@ -22859,7 +22859,7 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                             // Parse rows — tidak ada minimum kolom agar essay (6 col) & truefalse ikut terbaca
                             Array.from(rows).slice(1).forEach(row => {
                                 const cells = row.querySelectorAll('td, th');
-                                if (cells.length < 3) return; // minimal: packet, tipe, question
+                                if (cells.length < 2) return; // minimal: tipe + question
                                 const rowData = {};
                                 headerTexts.forEach((h, i) => { rowData[h] = cells[i] ? (cells[i].textContent || '').trim() : ''; });
                                 allRows.push(rowData);
