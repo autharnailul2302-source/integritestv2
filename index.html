@@ -3491,6 +3491,13 @@ html.dark .ob-dot.active { background: #818cf8; }
                 <span class="text-gray-500 text-sm">detik</span>
             </div>
 
+            <!-- Tombol kembali ke login — muncul setelah countdown selesai -->
+            <button id="dq-back-btn"
+                onclick="window._backToLogin()"
+                class="hidden mt-8 px-8 py-3 rounded-2xl font-black text-sm uppercase tracking-widest bg-white/10 hover:bg-white/20 text-gray-300 border border-white/20 transition-all active:scale-95">
+                ← Kembali ke Login
+            </button>
+
         </div>
     </div>
 
@@ -5273,6 +5280,11 @@ html.dark .ob-dot.active { background: #818cf8; }
                                 <button onclick="window.toggleImportSection()"
                                     class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm">
                                     <i data-lucide="upload" class="w-4 h-4"></i> Import Soal
+                                </button>
+                                <button onclick="window.fixOrphanQuestions()" id="btn-fix-orphan"
+                                    title="Perbaiki soal yang tersimpan tanpa paket"
+                                    class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm">
+                                    <i data-lucide="wrench" class="w-4 h-4"></i> Perbaiki Soal Tanpa Paket
                                 </button>
                             </div>
                         </div>
@@ -9636,7 +9648,7 @@ Terima kasih 🙏</textarea>
                         </div>
                     </div>
                 </div>
-                <button onclick="if(document.exitFullscreen&&document.fullscreenElement)document.exitFullscreen().then(()=>location.reload()).catch(()=>location.reload());else location.reload();" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-lg transition-transform active:scale-95">Kembali ke Login</button>
+                <button onclick="window._backToLogin()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-lg transition-transform active:scale-95">Kembali ke Login</button>
             </div>
         </div>
         <div id="review-container" class="w-full max-w-2xl bg-white rounded-2xl shadow-xl p-6 hidden mb-10">
@@ -9645,7 +9657,7 @@ Terima kasih 🙏</textarea>
             </h3>
             <div id="review-list" class="space-y-6"></div>
             <div class="mt-8 pt-6 border-t border-gray-100">
-                <button onclick="if(document.exitFullscreen&&document.fullscreenElement)document.exitFullscreen().then(()=>location.reload()).catch(()=>location.reload());else location.reload();" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-lg shadow-md flex items-center justify-center gap-2 transition-transform active:scale-95">
+                <button onclick="window._backToLogin()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-lg shadow-md flex items-center justify-center gap-2 transition-transform active:scale-95">
                     <i data-lucide="log-out" class="w-5 h-5"></i> Selesai Belajar & Keluar
                 </button>
             </div>
@@ -10477,8 +10489,10 @@ Terima kasih 🙏</textarea>
                 }
 
                 // Tandai jadwal sudah dijalankan & aktif
+                // ★ Simpan activatedAt agar siswa bisa menghitung sisa waktu yang akurat
                 await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'jadwal_ujian', jadwal.id), {
-                    isActive: true, sudahDijalankan: true, sesiRefId: docRef.id
+                    isActive: true, sudahDijalankan: true, sesiRefId: docRef.id,
+                    activatedAt: Date.now()
                 });
 
                 console.log(`[Jadwal] ✅ Sesi "${jadwal.nama}" diaktifkan ${manual ? 'manual' : 'otomatis'}`);
@@ -11642,6 +11656,43 @@ Terima kasih 🙏</textarea>
             const v2 = document.getElementById('view-soal-in-paket');
             if (v1) v1.classList.remove('hidden');
             if (v2) v2.classList.add('hidden');
+        };
+
+        // ★ Perbaiki soal yang tersimpan tanpa paketId (orphan) → tautkan ke paket aktif
+        window.fixOrphanQuestions = async function() {
+            if (!window.isFirebaseReady) return alert('Mode Offline.');
+            if (!window.activePaketId) return alert('Tidak ada paket aktif.');
+            const paket = (window.allPaketDB || []).find(p => p.id === window.activePaketId);
+            if (!paket) return;
+
+            // Cari soal yang paketId-nya kosong / tidak dikenali
+            const orphans = (window.allQuestionsDB || []).filter(q =>
+                !q.paketId || q.paketId === '' || q.paketId === 'NP'
+            );
+
+            if (orphans.length === 0) {
+                alert('✅ Tidak ada soal tanpa paket yang perlu diperbaiki.');
+                return;
+            }
+
+            if (!confirm(`Ditemukan ${orphans.length} soal yang tidak terhubung ke paket manapun.\n\nPindahkan semua ke paket "${paket.nama}"?`)) return;
+
+            const btn = document.getElementById('btn-fix-orphan');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> Memproses...'; }
+
+            let fixed = 0, failed = 0;
+            const finalPacket = paket.jenis && paket.jenis !== 'nonpaket' ? paket.jenis.toUpperCase() : 'NP';
+            for (const q of orphans) {
+                try {
+                    await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'questions', q.id), {
+                        paketId: window.activePaketId,
+                        packet: finalPacket,
+                    });
+                    fixed++;
+                } catch(e) { failed++; }
+            }
+            alert(`✅ Selesai!\n${fixed} soal berhasil diperbaiki${failed > 0 ? `\n${failed} soal gagal` : ''}.`);
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="wrench" class="w-3.5 h-3.5"></i> Perbaiki Soal Tanpa Paket'; if(typeof lucide !== 'undefined') window._createIconsSafe(); }
         };
 
         // ── PREVIEW PAKET SOAL (Tampilan Ujian Siswa) ────────────────────
@@ -13389,7 +13440,39 @@ Terima kasih 🙏</textarea>
                         examDurationMinutes: window.currentExamDuration || 60,
                         lastHeartbeat: Date.now()
                     };
-                    window.examStartTime = startData.timestamp;
+                    // ★ Cek jadwal aktif yang relevan — cocokkan paketId DAN kelas siswa
+                    // Ini penting agar sesi 1 (kelas A) dan sesi 2 (kelas B) tidak saling campur
+                    // Urutan prioritas: (1) cocok paket+kelas, (2) cocok paket saja, (3) fallback timestamp siswa
+                    const _allJadwal = window.allJadwalDB || [];
+                    const _clsSiswa  = (cls || '').trim().toLowerCase();
+
+                    // Cari jadwal yang cocok paket + kelas siswa + punya activatedAt
+                    let jadwalAktifRelevant = _allJadwal.find(j => {
+                        if (!j.isActive || j.paketId !== paketId || !j.activatedAt) return false;
+                        // Cocokkan kelas: cek kelasArr (array) atau kelas (string)
+                        const jarrLow = (j.kelasArr || []).map(k => k.trim().toLowerCase());
+                        const jkelasLow = (j.kelas || '').trim().toLowerCase();
+                        if (_clsSiswa) {
+                            if (jarrLow.length > 0) return jarrLow.includes(_clsSiswa);
+                            if (jkelasLow)          return jkelasLow === _clsSiswa;
+                        }
+                        return true; // kelas siswa kosong → pakai saja
+                    });
+
+                    // Fallback: cocok paket saja (tanpa filter kelas)
+                    if (!jadwalAktifRelevant) {
+                        jadwalAktifRelevant = _allJadwal.find(j => j.isActive && j.paketId === paketId && j.activatedAt);
+                    }
+
+                    if (jadwalAktifRelevant) {
+                        window.examStartTime = jadwalAktifRelevant.activatedAt;
+                        console.log('[IntegriTest] examStartTime dari jadwal "' + (jadwalAktifRelevant.nama||'-') + '" jam ' + jadwalAktifRelevant.jamMulai + ' → activatedAt:', new Date(window.examStartTime).toLocaleTimeString('id-ID'));
+                    } else {
+                        window.examStartTime = startData.timestamp;
+                        console.log('[IntegriTest] Tidak ada jadwal aktif dengan activatedAt — pakai waktu siswa mulai.');
+                    }
+                    // ★ Sisipkan serverStartTime ke startData setelah examStartTime ditetapkan
+                    startData.serverStartTime = window.examStartTime;
                     await window.saveExamStart(startData);
 
                     // Background: cek apakah ada dokumen lama milik siswa ini (re-login/resume)
@@ -13413,6 +13496,17 @@ Terima kasih 🙏</textarea>
                             });
                             if (oldDocId) {
                                 // Ada dokumen lama — hapus dokumen baru, pakai yang lama (resume)
+                                // ★ Pulihkan waktu mulai asli agar timer menyesuaikan sisa waktu
+                                const oldDocSnap = Array.from(qSnap.docs || []).find(d => d.id === oldDocId);
+                                const oldDocData = oldDocSnap ? oldDocSnap.data() : null;
+                                if (oldDocData) {
+                                    // Prioritaskan serverStartTime (waktu jadwal diaktifkan), lalu startTime siswa
+                                    const resumeStart = oldDocData.serverStartTime || oldDocData.startTime || oldDocData.timestamp;
+                                    if (resumeStart) {
+                                        window.examStartTime = resumeStart;
+                                        console.log('[IntegriTest] Resume: examStartTime dipulihkan (server):', new Date(window.examStartTime).toLocaleTimeString('id-ID'));
+                                    }
+                                }
                                 await deleteDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', window.currentExamDocId));
                                 window.currentExamDocId = oldDocId;
                                 try { sessionStorage.setItem('ukktkj_current_exam_doc_id', oldDocId); } catch(e) {}
@@ -15975,7 +16069,18 @@ Terima kasih 🙏</textarea>
         }
 
         function startExamLogic() {
-            timeLeft = (window.currentExamDuration || 60) * 60;
+            // ── Hitung sisa waktu berdasarkan waktu mulai ujian di server ──
+            // Jika siswa terlambat masuk, timer otomatis dikurangi sesuai selisih waktu.
+            const durasiDetik = (window.currentExamDuration || 60) * 60;
+            if (window.examStartTime) {
+                const elapsed = Math.floor((Date.now() - window.examStartTime) / 1000);
+                timeLeft = Math.max(0, durasiDetik - elapsed);
+                if (elapsed > 0) {
+                    console.log('[IntegriTest] Siswa terlambat ' + elapsed + ' detik — sisa waktu: ' + timeLeft + ' detik');
+                }
+            } else {
+                timeLeft = durasiDetik;
+            }
             
             // ── Polling counter untuk cek sinyal paksa-selesai dari admin (setiap 30 detik) ──
             let _pollTick = 0;
@@ -16379,6 +16484,33 @@ Terima kasih 🙏</textarea>
             if (violations >= 3) _showDQModal();
         };
 
+        // ── KEMBALI KE LOGIN — matikan semua guard sebelum reload ──
+        window._backToLogin = function() {
+            // 1. Matikan semua guard navigasi agar reload tidak diblokir
+            window.onbeforeunload = null;
+            window.onpopstate     = null;
+
+            // 2. Hentikan semua timer aktif
+            if (typeof examTimer !== 'undefined' && examTimer) clearInterval(examTimer);
+            if (typeof _idleTimer !== 'undefined' && _idleTimer) clearInterval(_idleTimer);
+            if (window._izinCountdownTimer) clearInterval(window._izinCountdownTimer);
+            if (window._dqAutoTransitionTimer) clearTimeout(window._dqAutoTransitionTimer);
+
+            // 3. Lepas fullscreen lalu reload — jika gagal, tetap reload
+            try {
+                if (document.exitFullscreen && document.fullscreenElement) {
+                    document.exitFullscreen().then(function() { location.reload(); }).catch(function() { location.reload(); });
+                } else if (document.webkitExitFullscreen && document.webkitFullscreenElement) {
+                    document.webkitExitFullscreen();
+                    setTimeout(function() { location.reload(); }, 200);
+                } else {
+                    location.reload();
+                }
+            } catch(e) {
+                location.reload();
+            }
+        };
+
         function _showDQModal() {
             // ★ GUARD: Pastikan DQ modal hanya ditampilkan sekali
             if (window._dqShown) return;
@@ -16419,6 +16551,9 @@ Terima kasih 🙏</textarea>
                 if (secs <= 0) { 
                     clearInterval(iv);
                     console.log('Countdown selesai, pindah ke result');
+                    // Tampilkan tombol kembali ke login sebagai alternatif
+                    const dqBackBtn = document.getElementById('dq-back-btn');
+                    if (dqBackBtn) dqBackBtn.classList.remove('hidden');
                     finishExam(true); 
                 }
             }, 1000);
@@ -21735,7 +21870,7 @@ Terima kasih 🙏</textarea>
                 ['A','single','Protokol untuk mengirim email adalah...','','SMTP','','HTTP','','FTP','','SSH','','DNS','','A','TP 3.2'],
                 ['B','single','Perhatikan topologi jaringan berikut!','https://drive.google.com/file/d/GANTI_ID/view','Star','','Bus','','Ring','','Mesh','','','','A','TP 3.1'],
                 ['C','single','Pilih gambar yang menunjukkan kabel UTP!','','','https://drive.google.com/file/d/ID_A/view','','https://drive.google.com/file/d/ID_B/view','','https://drive.google.com/file/d/ID_C/view','','https://drive.google.com/file/d/ID_D/view','','','A','TP 3.3'],
-                ['','single','Soal Non Paket — tidak masuk paket A/B/C (kosongkan kolom packet)','','Pilihan A','','Pilihan B','','Pilihan C','','Pilihan D','','','','B','TP 3.1'],
+                ['','single','Soal Non Paket — kosongkan kolom packet atau isi "NP" / "Non Paket"','','Pilihan A','','Pilihan B','','Pilihan C','','Pilihan D','','','','B','TP 3.1'],
             ]);
             ws1['!cols'] = [{wch:8},{wch:12},{wch:45},{wch:38},{wch:26},{wch:38},{wch:26},{wch:38},{wch:26},{wch:38},{wch:26},{wch:38},{wch:26},{wch:38},{wch:10},{wch:14}];
             XLSX.utils.book_append_sheet(wb, ws1, '1.Pilihan_Tunggal');
@@ -21745,7 +21880,7 @@ Terima kasih 🙏</textarea>
                 ['packet','tipe','question','question_image','option_a','image_a','option_b','image_b','option_c','image_c','option_d','image_d','option_e','image_e','correct_multiple','kd_tag'],
                 ['A','multiple','Manakah yang termasuk perangkat jaringan? (pilih semua)','','Switch','','Router','','Monitor','','Keyboard','','Hub','','A,B,E','TP 3.1'],
                 ['B','multiple','Protokol yang bekerja di Layer 7 OSI adalah...','','HTTP','','FTP','','IP','','TCP','','SMTP','','A,B,E','TP 3.2'],
-                ['','multiple','Soal Non Paket — kosongkan kolom packet untuk non-paket','','Opsi A','','Opsi B','','Opsi C','','Opsi D','','','','A,C','TP 3.1'],
+                ['','multiple','Soal Non Paket — kosongkan kolom packet atau isi "NP" / "Non Paket"','','Opsi A','','Opsi B','','Opsi C','','Opsi D','','','','A,C','TP 3.1'],
             ]);
             ws2['!cols'] = [{wch:8},{wch:12},{wch:52},{wch:38},{wch:22},{wch:35},{wch:22},{wch:35},{wch:22},{wch:35},{wch:22},{wch:35},{wch:22},{wch:35},{wch:20},{wch:14}];
             XLSX.utils.book_append_sheet(wb, ws2, '2.Jawaban_Ganda');
@@ -21756,7 +21891,7 @@ Terima kasih 🙏</textarea>
                 ['A','truefalse','Switch adalah perangkat Layer 2 dalam model OSI.','','TRUE','TP 3.1'],
                 ['B','truefalse','IP address kelas C memiliki range 192.168.0.0 - 255.255.','','FALSE','TP 3.2'],
                 ['A','truefalse','Kabel UTP cat6 mendukung kecepatan hingga 10 Gbps.','','TRUE','TP 3.3'],
-                ['','truefalse','Soal Non Paket — kosongkan kolom packet untuk non-paket.','','TRUE','TP 3.1'],
+                ['','truefalse','Soal Non Paket — kosongkan kolom packet atau isi "NP" / "Non Paket"','','TRUE','TP 3.1'],
             ]);
             ws3['!cols'] = [{wch:8},{wch:12},{wch:62},{wch:38},{wch:12},{wch:14}];
             XLSX.utils.book_append_sheet(wb, ws3, '3.Benar_Salah');
@@ -21766,7 +21901,7 @@ Terima kasih 🙏</textarea>
                 ['packet','tipe','question','question_image','essay_rubrik','essay_skor_maks','kd_tag'],
                 ['A','essay','Jelaskan perbedaan hub dan switch dalam jaringan komputer!','','Jawaban harus mencakup: (1) Hub bekerja di Layer 1 dan meneruskan ke semua port; (2) Switch bekerja di Layer 2 menggunakan MAC address; (3) Switch lebih efisien karena mengirim ke port tujuan saja.','10','TP 3.1'],
                 ['B','essay','Sebutkan dan jelaskan minimal 3 topologi jaringan beserta kelebihan dan kekurangannya!','','Sebutkan min 3 dari: Star/Bus/Ring/Mesh/Tree. Tiap topologi: +1 nama, +1 kelebihan, +1 kekurangan.','10','TP 3.2'],
-                ['','essay','Soal Non Paket — kosongkan kolom packet untuk non-paket','','Rubrik penilaian untuk soal non-paket diisi di sini.','10','TP 3.1'],
+                ['','essay','Soal Non Paket — kosongkan kolom packet atau isi "NP" / "Non Paket"','','Rubrik penilaian untuk soal non-paket diisi di sini.','10','TP 3.1'],
             ]);
             ws4['!cols'] = [{wch:8},{wch:8},{wch:55},{wch:38},{wch:72},{wch:16},{wch:14}];
             XLSX.utils.book_append_sheet(wb, ws4, '4.Esai_Uraian');
@@ -21776,7 +21911,7 @@ Terima kasih 🙏</textarea>
                 ['packet','tipe','question','question_image','pair_1_kiri','pair_1_kanan','pair_2_kiri','pair_2_kanan','pair_3_kiri','pair_3_kanan','pair_4_kiri','pair_4_kanan','pair_5_kiri','pair_5_kanan','kd_tag'],
                 ['A','menjodohkan','Jodohkan perangkat berikut dengan fungsinya!','','Switch','Mengelola MAC address LAN','Router','Routing antar jaringan berbeda','Hub','Broadcast ke semua port','Modem','Konversi sinyal digital ke analog','','','TP 3.1'],
                 ['B','menjodohkan','Pasangkan lapisan OSI dengan fungsinya!','','Physical Layer','Transmisi bit via media fisik','Data Link Layer','Frame antar node langsung','Network Layer','Pengalamatan dan routing','Transport Layer','Menjamin pengiriman end-to-end','','','TP 3.2'],
-                ['','menjodohkan','Soal Non Paket — kosongkan kolom packet untuk non-paket','','Item Kiri 1','Item Kanan 1','Item Kiri 2','Item Kanan 2','Item Kiri 3','Item Kanan 3','','','','','TP 3.1'],
+                ['','menjodohkan','Soal Non Paket — kosongkan kolom packet atau isi "NP" / "Non Paket"','','Item Kiri 1','Item Kanan 1','Item Kiri 2','Item Kanan 2','Item Kiri 3','Item Kanan 3','','','','','TP 3.1'],
             ]);
             ws5['!cols'] = [{wch:8},{wch:14},{wch:48},{wch:35},{wch:28},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:14}];
             XLSX.utils.book_append_sheet(wb, ws5, '5.Menjodohkan');
@@ -21789,7 +21924,7 @@ Terima kasih 🙏</textarea>
                 ['B','truefalse','Pernyataan benar/salah contoh','','','','','','','','','','','','','','TRUE','','','','','','','','','','','','','TP 3.1'],
                 ['B','essay','Pertanyaan esai contoh','','','','','','','','','','','','','','','Rubrik penilaian di sini','10','','','','','','','','','','','TP 3.3'],
                 ['A','menjodohkan','Soal menjodohkan contoh','','','','','','','','','','','','','','','','','Item kiri 1','Item kanan 1','Item kiri 2','Item kanan 2','Item kiri 3','Item kanan 3','','','','','TP 3.4'],
-                ['','single','Soal Non Paket — kosongkan kolom packet (akan minta paket tujuan saat import)','','Opsi A','','Opsi B','','Opsi C','','Opsi D','','','','A','','','','','','','','','','','','','','','TP 3.1'],
+                ['','single','Soal Non Paket — kosongkan atau isi "NP" / "Non Paket" (akan minta paket tujuan saat import)','','Opsi A','','Opsi B','','Opsi C','','Opsi D','','','','A','','','','','','','','','','','','','','','TP 3.1'],
             ]);
             ws6['!cols'] = Array(30).fill(null).map((_,i) => ({wch: i < 4 ? 12 : i === 29 ? 14 : 18}));
             XLSX.utils.book_append_sheet(wb, ws6, '6.Gabungan_Semua_Tipe');
@@ -21843,7 +21978,7 @@ Terima kasih 🙏</textarea>
                 [''],
                 ['CATATAN:'],
                 ['  - Semua tipe bisa dicampur dalam 1 sheet (lihat sheet 6.Gabungan_Semua_Tipe)'],
-                ['  - packet kosong / bukan A/B/C → soal masuk ke paket yang dipilih saat import (dropdown kuning)'],
+                ['  - packet kosong, "NP", "Non Paket", "nonpaket", dll → soal masuk ke paket yang dipilih saat import (dropdown kuning)'],
                 ['  - Baris dengan tipe tidak valid otomatis dilewati'],
                 ['  - Kolom yang tidak relevan dengan tipe soal diabaikan oleh sistem'],
             ]);
@@ -22604,8 +22739,10 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                 if (!packetRaw && !text && !qImg) return;
                 if (!text && !qImg) return;
                 if (!VALID_TIPE.includes(tipe)) return;
-                // Normalisasi: jika bukan A/B/C → tandai 'NP' (Non-Paket / akan pakai paket tujuan)
-                const packet = ['A','B','C'].includes(packetRaw) ? packetRaw : 'NP';
+                // Normalisasi: A/B/C → paket berpaket; kosong/NP/NONPAKET/NON PAKET/dll → 'NP'
+                // Guru boleh: kosongkan kolom, tulis "NP", "Non Paket", "nonpaket", dll — semua diterima
+                const _isPacketABC = ['A','B','C'].includes(packetRaw);
+                const packet = _isPacketABC ? packetRaw : 'NP';
 
                 const kdTag  = g(['kd_tag','kdTag','kd','TP','kompetensi_dasar','KD_tag']);
 
@@ -22744,7 +22881,13 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                 _populateNpSelects();
                 // Auto-select paket aktif jika ada
                 const sel = document.getElementById(`${prefix}-np-paket-select`);
-                if (sel && window.activePaketId) sel.value = window.activePaketId;
+                if (sel && window.activePaketId) {
+                    sel.value = window.activePaketId;
+                    // Jika tidak cocok (option belum ada), coba setelah populate
+                    if (!sel.value && window.activePaketId) {
+                        setTimeout(() => { _populateNpSelects(); sel.value = window.activePaketId; }, 300);
+                    }
+                }
             } else {
                 warnEl.classList.add('hidden');
             }
@@ -22798,7 +22941,9 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
 
             // Cek apakah ada soal NP yang belum dipilih paket tujuannya
             const hasNP = questions.some(q => q.packet === 'NP');
-            const npPaketId = document.getElementById('excel-np-paket-select')?.value || '';
+            // Fallback: jika dropdown NP kosong tapi ada activePaketId → pakai paket yang sedang dibuka
+            let npPaketId = document.getElementById('excel-np-paket-select')?.value || '';
+            if (!npPaketId && window.activePaketId) npPaketId = window.activePaketId;
             if (hasNP && !npPaketId) {
                 alert('⚠️ Ada soal dengan packet non-standar.\nSilakan pilih Paket Tujuan terlebih dahulu di dropdown kuning di atas.');
                 return;
@@ -22825,11 +22970,28 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                     let finalPaketId, finalPacket;
                     if (q.packet === 'NP') {
                         finalPaketId = npPaketId;
+                        // ★ FIX: paket nonpaket → simpan packet sebagai 'NP', paketId sudah benar
+                        // paket ber-jenis (A/B/C) → simpan jenis sebagai packet
                         finalPacket  = npPaketObj?.jenis && npPaketObj.jenis !== 'nonpaket'
                             ? npPaketObj.jenis.toUpperCase() : 'NP';
                     } else {
+                        // ★ FIX: cari paketId dari jenis dulu, lalu fallback ke semua paket termasuk nonpaket
                         finalPaketId = paketJenisMap[q.packet] || '';
+                        // Jika tidak ketemu di map jenis (mungkin paket nonpaket dengan nama mirip), coba cari by id
+                        if (!finalPaketId) {
+                            const found = (window.allPaketDB || []).find(p => p.id === q.packet);
+                            if (found) finalPaketId = found.id;
+                        }
                         finalPacket  = q.packet;
+                    }
+                    // ★ FIX: jika masih belum punya paketId tapi ada activePaketId, pakai itu
+                    if (!finalPaketId && window.activePaketId) {
+                        finalPaketId = window.activePaketId;
+                        const activePaket = (window.allPaketDB || []).find(p => p.id === finalPaketId);
+                        if (activePaket) {
+                            finalPacket = activePaket.jenis && activePaket.jenis !== 'nonpaket'
+                                ? activePaket.jenis.toUpperCase() : 'NP';
+                        }
                     }
 
                     const exists = window.allQuestionsDB.some(dbQ =>
@@ -22944,7 +23106,9 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
 
             // Cek apakah ada soal NP yang belum dipilih paket tujuannya
             const hasNP = questions.some(q => q.packet === 'NP');
-            const npPaketId = document.getElementById('word-np-paket-select')?.value || '';
+            // Fallback: jika dropdown NP kosong tapi ada activePaketId → pakai paket yang sedang dibuka
+            let npPaketId = document.getElementById('word-np-paket-select')?.value || '';
+            if (!npPaketId && window.activePaketId) npPaketId = window.activePaketId;
             if (hasNP && !npPaketId) {
                 alert('⚠️ Ada soal dengan packet non-standar.\nSilakan pilih Paket Tujuan terlebih dahulu di dropdown kuning di atas.');
                 return;
@@ -22975,7 +23139,20 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                             ? npPaketObj.jenis.toUpperCase() : 'NP';
                     } else {
                         finalPaketId = paketJenisMap[q.packet] || '';
+                        if (!finalPaketId) {
+                            const found = (window.allPaketDB || []).find(p => p.id === q.packet);
+                            if (found) finalPaketId = found.id;
+                        }
                         finalPacket  = q.packet;
+                    }
+                    // ★ FIX: fallback ke activePaketId jika finalPaketId masih kosong
+                    if (!finalPaketId && window.activePaketId) {
+                        finalPaketId = window.activePaketId;
+                        const activePaket = (window.allPaketDB || []).find(p => p.id === finalPaketId);
+                        if (activePaket) {
+                            finalPacket = activePaket.jenis && activePaket.jenis !== 'nonpaket'
+                                ? activePaket.jenis.toUpperCase() : 'NP';
+                        }
                     }
 
                     const exists = window.allQuestionsDB.some(dbQ =>
