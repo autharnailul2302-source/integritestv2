@@ -5546,6 +5546,13 @@ html.dark .ob-dot.active { background: #818cf8; }
                         <button id="hero-btn-tambah-ruang" onclick="window.openRuangModal()" class="hidden flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95" style="background:rgba(255,255,255,0.92);color:#92400e;">
                             <i data-lucide="plus" class="w-3.5 h-3.5"></i> Tambah Ruang
                         </button>
+                        <!-- Tombol Export Ruang -->
+                        <button id="hero-btn-export-ruang-excel" onclick="window.exportRuangExcel()" class="hidden flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95" style="background:rgba(255,255,255,0.92);color:#166534;">
+                            <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> Export Excel
+                        </button>
+                        <button id="hero-btn-export-ruang-pdf" onclick="window.exportRuangPDF()" class="hidden flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95" style="background:rgba(255,255,255,0.92);color:#7c3aed;">
+                            <i data-lucide="file-text" class="w-3.5 h-3.5"></i> Export PDF
+                        </button>
                     </div>
                 </div>
 
@@ -5598,11 +5605,20 @@ html.dark .ob-dot.active { background: #818cf8; }
                             <h2 class="text-base font-black text-gray-800">Manajemen Ruang Ujian</h2>
                             <p class="text-gray-500 text-sm">Atur ruang ujian beserta password pengawas per ruang.</p>
                         </div>
-                        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 flex items-start gap-3">
+                        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex items-start gap-3">
                             <i data-lucide="info" class="w-5 h-5 text-amber-600 shrink-0 mt-0.5"></i>
                             <div class="text-sm text-amber-800">
                                 <strong>Cara kerja sistem ruang:</strong> Siswa memilih ruang saat login → datanya otomatis masuk ke ruang tersebut. Pengawas login dengan password ruangnya → hanya bisa melihat siswa di ruangnya. Admin bisa melihat semua ruang.
                             </div>
+                        </div>
+                        <!-- Tombol Export -->
+                        <div class="flex gap-2 mb-4 flex-wrap">
+                            <button onclick="window.exportRuangExcel()" class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all active:scale-95 shadow-sm">
+                                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Export Excel
+                            </button>
+                            <button onclick="window.exportRuangPDF()" class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-violet-600 hover:bg-violet-700 text-white transition-all active:scale-95 shadow-sm">
+                                <i data-lucide="file-text" class="w-4 h-4"></i> Export PDF
+                            </button>
                         </div>
                         <div class="overflow-x-auto border rounded-xl">
                             <table class="w-full text-left text-sm text-gray-600">
@@ -11076,6 +11092,262 @@ Terima kasih 🙏</textarea>
                 await deleteDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'ruang_ujian', id));
             } catch(err) { alert("Gagal hapus: " + err.message); }
         };
+
+        // ==================== EXPORT RUANG ====================
+
+        window.exportRuangExcel = function() {
+            const list = window.ruangList || [];
+            if (!list.length) return alert('Belum ada data ruang ujian.');
+            if (typeof XLSX === 'undefined') return alert('Library SheetJS belum siap, coba beberapa saat lagi.');
+
+            // Data rows
+            const rows = [
+                ['No', 'Nama Ruang', 'Password Pengawas', 'Keterangan']
+            ];
+            list.forEach((r, i) => {
+                rows.push([i + 1, r.nama || '', r.password || '', r.keterangan || '']);
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+
+            // Lebar kolom
+            ws['!cols'] = [{ wch: 5 }, { wch: 24 }, { wch: 22 }, { wch: 36 }];
+
+            // Style header (baris pertama)
+            const headerStyle = {
+                font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 },
+                fill: { fgColor: { rgb: '4F46E5' } },
+                alignment: { horizontal: 'center', vertical: 'center' },
+                border: {
+                    top:    { style: 'thin', color: { rgb: 'C7D2FE' } },
+                    bottom: { style: 'thin', color: { rgb: 'C7D2FE' } },
+                    left:   { style: 'thin', color: { rgb: 'C7D2FE' } },
+                    right:  { style: 'thin', color: { rgb: 'C7D2FE' } }
+                }
+            };
+            ['A1','B1','C1','D1'].forEach(cell => {
+                if (ws[cell]) ws[cell].s = headerStyle;
+            });
+
+            // Style data rows
+            list.forEach((r, i) => {
+                const row = i + 2;
+                const isEven = i % 2 === 1;
+                const dataBg = isEven ? 'EEF2FF' : 'FFFFFF';
+                ['A','B','C','D'].forEach(col => {
+                    const cell = col + row;
+                    if (!ws[cell]) return;
+                    const isPass = col === 'C';
+                    ws[cell].s = {
+                        font: { bold: isPass, sz: 10, color: { rgb: isPass ? '4338CA' : '1E293B' }, name: isPass ? 'Courier New' : 'Calibri' },
+                        fill: { fgColor: { rgb: isPass ? 'EEF2FF' : dataBg } },
+                        alignment: { horizontal: isPass ? 'center' : 'left', vertical: 'center' },
+                        border: {
+                            top:    { style: 'thin', color: { rgb: 'E2E8F0' } },
+                            bottom: { style: 'thin', color: { rgb: 'E2E8F0' } },
+                            left:   { style: 'thin', color: { rgb: 'E2E8F0' } },
+                            right:  { style: 'thin', color: { rgb: 'E2E8F0' } }
+                        }
+                    };
+                });
+            });
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Ruang Ujian');
+
+            // Sheet info sekolah
+            const now = new Date().toLocaleString('id-ID');
+            const wsInfo = XLSX.utils.aoa_to_sheet([
+                ['DAFTAR RUANG UJIAN & PASSWORD PENGAWAS'],
+                ['Dicetak:', now],
+                ['Total Ruang:', list.length],
+                [''],
+                ['⚠️ RAHASIA — Hanya untuk Pengawas & Admin']
+            ]);
+            wsInfo['!cols'] = [{ wch: 20 }, { wch: 40 }];
+            XLSX.utils.book_append_sheet(wb, wsInfo, 'Info');
+
+            const tgl = new Date().toISOString().slice(0,10);
+            XLSX.writeFile(wb, `Ruang_Ujian_Password_${tgl}.xlsx`);
+        };
+
+        window.exportRuangPDF = function() {
+            const list = window.ruangList || [];
+            if (!list.length) return alert('Belum ada data ruang ujian.');
+
+            const now = new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' });
+            const judulUjian = document.getElementById('login-header-judul')?.textContent || 'INTEGRITEST';
+
+            // Buat kartu per ruang — 2 kolom, layout keren
+            const kartuHtml = list.map((r, i) => `
+                <div class="kartu">
+                    <div class="kartu-header">
+                        <span class="kartu-no">${i + 1}</span>
+                        <span class="kartu-label">RUANG UJIAN</span>
+                    </div>
+                    <div class="kartu-nama">${r.nama || '—'}</div>
+                    <div class="kartu-pass-label">PASSWORD PENGAWAS</div>
+                    <div class="kartu-pass">${r.password || '—'}</div>
+                    ${r.keterangan ? `<div class="kartu-ket">${r.keterangan}</div>` : ''}
+                    <div class="kartu-footer">Tunjukkan ke pengawas yang bertugas</div>
+                </div>
+            `).join('');
+
+            // Tabel ringkasan
+            const tabelHtml = list.map((r, i) => `
+                <tr class="${i % 2 === 0 ? 'even' : ''}">
+                    <td class="no">${i + 1}</td>
+                    <td class="nama">${r.nama || '—'}</td>
+                    <td class="pass">${r.password || '—'}</td>
+                    <td class="ket">${r.keterangan || '-'}</td>
+                    <td class="ttd"></td>
+                </tr>
+            `).join('');
+
+            const html = `<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Ruang Ujian & Password Pengawas</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f8fafc; color: #1e293b; }
+
+  /* ── HEADER ── */
+  .page-header {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    color: white; padding: 28px 36px; display: flex;
+    align-items: center; justify-content: space-between;
+    border-radius: 0 0 20px 20px; margin-bottom: 28px;
+  }
+  .page-header h1 { font-size: 22px; font-weight: 900; letter-spacing: 0.05em; }
+  .page-header .meta { font-size: 11px; opacity: 0.85; margin-top: 4px; }
+  .page-header .badge {
+    background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 12px; padding: 6px 14px; font-size: 11px;
+    font-weight: 700; letter-spacing: 0.08em;
+  }
+
+  /* ── SECTION TITLE ── */
+  .section-title {
+    font-size: 13px; font-weight: 800; color: #4f46e5;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    margin: 0 36px 16px; padding-bottom: 8px;
+    border-bottom: 2px solid #e0e7ff;
+  }
+
+  /* ── KARTU GRID ── */
+  .kartu-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 16px; padding: 0 36px; margin-bottom: 36px;
+  }
+  .kartu {
+    background: white; border-radius: 16px;
+    border: 1px solid #e0e7ff;
+    box-shadow: 0 2px 12px rgba(79,70,229,0.08);
+    padding: 20px; position: relative; overflow: hidden;
+  }
+  .kartu::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0;
+    height: 4px; background: linear-gradient(90deg, #4f46e5, #7c3aed);
+  }
+  .kartu-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .kartu-no {
+    width: 28px; height: 28px; background: #4f46e5; color: white;
+    border-radius: 8px; font-size: 13px; font-weight: 900;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .kartu-label { font-size: 9px; font-weight: 800; color: #6366f1; text-transform: uppercase; letter-spacing: 0.12em; }
+  .kartu-nama { font-size: 19px; font-weight: 900; color: #1e293b; margin-bottom: 14px; line-height: 1.2; }
+  .kartu-pass-label { font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+  .kartu-pass {
+    font-family: 'Courier New', monospace; font-size: 26px; font-weight: 900;
+    color: #4338ca; background: #eef2ff; border: 2px dashed #a5b4fc;
+    border-radius: 10px; padding: 10px 16px; text-align: center;
+    letter-spacing: 0.18em; margin-bottom: 10px;
+  }
+  .kartu-ket { font-size: 10px; color: #64748b; font-style: italic; margin-bottom: 8px; }
+  .kartu-footer {
+    font-size: 9px; color: #94a3b8; text-align: center;
+    border-top: 1px dashed #e2e8f0; padding-top: 8px; margin-top: 4px;
+  }
+
+  /* ── TABEL RINGKASAN ── */
+  .tabel-wrap { padding: 0 36px; margin-bottom: 36px; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  thead tr { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; }
+  thead th { padding: 10px 12px; font-weight: 700; text-align: left; font-size: 10px; letter-spacing: 0.05em; }
+  thead th.no { width: 36px; text-align: center; }
+  thead th.pass { width: 140px; }
+  thead th.ttd { width: 100px; text-align: center; }
+  tbody tr { border-bottom: 1px solid #f1f5f9; }
+  tbody tr.even { background: #f8fafc; }
+  tbody td { padding: 10px 12px; vertical-align: middle; }
+  tbody td.no { text-align: center; color: #94a3b8; font-weight: 700; }
+  tbody td.nama { font-weight: 700; color: #1e293b; }
+  tbody td.pass { font-family: 'Courier New', monospace; font-weight: 900; color: #4338ca; font-size: 12px; letter-spacing: 0.1em; }
+  tbody td.ket { color: #64748b; font-size: 10px; }
+  tbody td.ttd { border-left: 1px dashed #e2e8f0; }
+
+  /* ── FOOTER ── */
+  .page-footer {
+    margin: 0 36px 24px; padding: 12px 18px;
+    background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px;
+    font-size: 10px; color: #92400e; font-weight: 600; text-align: center;
+  }
+
+  @media print {
+    body { background: white; }
+    .page-header { border-radius: 0; }
+    .kartu { break-inside: avoid; }
+    .tabel-wrap { page-break-before: always; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div>
+    <h1>📋 DAFTAR RUANG UJIAN</h1>
+    <div class="meta">${judulUjian} &nbsp;·&nbsp; Dicetak: ${now} &nbsp;·&nbsp; Total: ${list.length} Ruang</div>
+  </div>
+  <div class="badge">🔒 RAHASIA — HANYA PENGAWAS</div>
+</div>
+
+<div class="section-title">Kartu Password Per Ruang</div>
+<div class="kartu-grid">${kartuHtml}</div>
+
+<div class="section-title">Tabel Ringkasan</div>
+<div class="tabel-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th class="no">No</th>
+        <th>Nama Ruang</th>
+        <th class="pass">Password Pengawas</th>
+        <th>Keterangan</th>
+        <th class="ttd">Tanda Tangan</th>
+      </tr>
+    </thead>
+    <tbody>${tabelHtml}</tbody>
+  </table>
+</div>
+
+<div class="page-footer">
+  ⚠️ Dokumen ini bersifat RAHASIA. Harap diserahkan langsung kepada pengawas yang bertugas dan tidak disebarluaskan.
+</div>
+
+</body>
+</html>`;
+
+            const win = window.open('', '_blank');
+            if (!win) return alert('Popup diblokir browser. Izinkan popup untuk halaman ini.');
+            win.document.write(html);
+            win.document.close();
+            setTimeout(() => win.print(), 600);
+        };
+
+        // ==================== END EXPORT RUANG ====================
         // ==================== END MANAJEMEN RUANG ====================
 
         window.switchLoginTab = function(type) {
@@ -11435,10 +11707,14 @@ Terima kasih 🙏</textarea>
             if (secKelas) secKelas.classList.toggle('hidden', sub !== 'kelas');
             if (secRuang) secRuang.classList.toggle('hidden', sub !== 'ruang');
             // Sync hero buttons
-            var hbK = document.getElementById('hero-btn-tambah-kelas');
-            var hbR = document.getElementById('hero-btn-tambah-ruang');
-            if (hbK) hbK.classList.toggle('hidden', sub !== 'kelas');
-            if (hbR) hbR.classList.toggle('hidden', sub !== 'ruang');
+            var hbK  = document.getElementById('hero-btn-tambah-kelas');
+            var hbR  = document.getElementById('hero-btn-tambah-ruang');
+            var hbEX = document.getElementById('hero-btn-export-ruang-excel');
+            var hbEP = document.getElementById('hero-btn-export-ruang-pdf');
+            if (hbK)  hbK.classList.toggle('hidden', sub !== 'kelas');
+            if (hbR)  hbR.classList.toggle('hidden', sub !== 'ruang');
+            if (hbEX) hbEX.classList.toggle('hidden', sub !== 'ruang');
+            if (hbEP) hbEP.classList.toggle('hidden', sub !== 'ruang');
             if (sub === 'kelas') window.renderKelasList();
             if (sub === 'ruang') window.renderRuangList();
             if(typeof lucide !== 'undefined') window._createIconsSafe();
@@ -16157,7 +16433,9 @@ Terima kasih 🙏</textarea>
             // --- LAYER 6: DETEKSI DIAM TERLALU LAMA ---
             // Reset timer setiap kali ada aktivitas pengguna
             function _resetIdleTimer() { _lastActivityTime = Date.now(); }
-            ['mousemove','mousedown','keydown','touchstart','touchmove','click','scroll'].forEach(function(evt) {
+            // ★ FIX: Tambah touchend dan selectionchange agar tap soal pilihan ganda
+            // di HP tetap dianggap aktivitas (tidak kena idle walaupun siswa diam baca)
+            ['mousemove','mousedown','keydown','touchstart','touchmove','touchend','click','scroll','selectionchange','pointerdown','pointermove'].forEach(function(evt) {
                 document.addEventListener(evt, _resetIdleTimer, { passive: true });
             });
             window._idleActivityReset = _resetIdleTimer; // simpan referensi untuk cleanup
@@ -16217,8 +16495,29 @@ Terima kasih 🙏</textarea>
             function handleFullscreenChange() {
                 const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
                 if (!isFs && !isWarningActive) {
-                    if (window._izinKeluarAktif && window._izinKeluarUntil > Date.now()) return; // izin aktif
-                    registerViolation("Anda keluar dari layar penuh (Fullscreen)!");
+                    if (window._izinKeluarAktif && window._izinKeluarUntil > Date.now()) return;
+                    if (isRotating) return; // lagi rotasi layar — bukan curang
+
+                    // ★ FIX: Debounce fullscreen — keyboard virtual HP sering sebabkan
+                    // fullscreen keluar sesaat lalu langsung kembali. Tunggu 1.5 detik.
+                    if (window._fsDebounceTimer) clearTimeout(window._fsDebounceTimer);
+                    window._fsDebounceTimer = setTimeout(function() {
+                        window._fsDebounceTimer = null;
+                        // Cek ulang — jika fullscreen sudah kembali, batalkan
+                        const stillFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+                        if (stillFs) return; // sudah fullscreen lagi — bukan curang
+                        if (isWarningActive) return;
+                        if (window._suppressCheat) return;
+                        if (window._izinKeluarAktif && window._izinKeluarUntil > Date.now()) return;
+                        if (window._examFinished) return;
+                        registerViolation("Anda keluar dari layar penuh (Fullscreen)!");
+                    }, 1500);
+                } else if (isFs) {
+                    // Fullscreen kembali — batalkan timer debounce
+                    if (window._fsDebounceTimer) {
+                        clearTimeout(window._fsDebounceTimer);
+                        window._fsDebounceTimer = null;
+                    }
                 }
             }
             // Simpan ke window agar bisa di-remove dari finishExam (beda scope)
@@ -16249,20 +16548,58 @@ Terima kasih 🙏</textarea>
 
         function handleVisibility() {
             if (window._suppressCheat) return;
-            if (window._izinKeluarAktif && window._izinKeluarUntil > Date.now()) return; // izin aktif
+            if (window._izinKeluarAktif && window._izinKeluarUntil > Date.now()) return;
+
             if (document.hidden) {
-                registerViolation("Anda meninggalkan tab ujian!");
+                // ★ FIX: Debounce visibility — tunggu 1.5 detik sebelum register
+                // Notifikasi sistem (WA, SMS, dll) biasanya < 1 detik lalu halaman kembali visible
+                // Siswa yang benar-benar pindah tab/app akan tetap hidden > 1.5 detik
+                if (window._visDebounceTimer) clearTimeout(window._visDebounceTimer);
+                window._visDebounceTimer = setTimeout(function() {
+                    window._visDebounceTimer = null;
+                    if (!document.hidden) return; // sudah kembali — bukan curang
+                    if (window._suppressCheat) return;
+                    if (window._izinKeluarAktif && window._izinKeluarUntil > Date.now()) return;
+                    if (window._examFinished) return;
+                    registerViolation("Anda meninggalkan tab ujian!");
+                }, 1500);
+            } else {
+                // Halaman kembali visible — batalkan debounce (berarti cuma notifikasi selintas)
+                if (window._visDebounceTimer) {
+                    clearTimeout(window._visDebounceTimer);
+                    window._visDebounceTimer = null;
+                }
+                // Batalkan juga debounce blur jika ada
+                if (window._blurDebounceTimer) {
+                    clearTimeout(window._blurDebounceTimer);
+                    window._blurDebounceTimer = null;
+                }
             }
         }
 
         function handleBlur() {
             if (isRotating) return;
             if (window._suppressCheat) return;
-            if (window._izinKeluarAktif && window._izinKeluarUntil > Date.now()) return; // izin aktif — popup kamera dll tidak dihitung
+            if (window._izinKeluarAktif && window._izinKeluarUntil > Date.now()) return;
+            if (document.hidden) return; // sudah ditangani handleVisibility
 
-            if (!document.hidden) {
-                registerViolation("Terdeteksi interaksi di luar layar ujian (Aplikasi Mengambang/Notifikasi)!");
+            // ★ FIX: Debounce blur — tunggu 1.2 detik sebelum register violation
+            // Ini mencegah false positive dari: keyboard virtual HP naik/turun,
+            // notifikasi sistem lewat sebentar, dialog izin browser (kamera/mic),
+            // dan berbagai interupsi normal di perangkat mobile.
+            if (window._blurDebounceTimer) {
+                clearTimeout(window._blurDebounceTimer);
             }
+            window._blurDebounceTimer = setTimeout(function() {
+                window._blurDebounceTimer = null;
+                // Cek ulang: jika sudah fokus kembali, batalkan — bukan curang
+                if (document.hasFocus && document.hasFocus()) return;
+                if (document.hidden) return; // handleVisibility akan handle ini
+                if (window._suppressCheat) return;
+                if (window._izinKeluarAktif && window._izinKeluarUntil > Date.now()) return;
+                if (window._examFinished) return;
+                registerViolation("Terdeteksi interaksi di luar layar ujian (Aplikasi Mengambang/Notifikasi)!");
+            }, 1200);
         }
         
         // ════════════════════════════════════════════════════
@@ -16621,6 +16958,10 @@ Terima kasih 🙏</textarea>
                 });
                 window._idleActivityReset = null;
             }
+            // ★ Bersihkan semua debounce timer anti-cheat
+            if (window._blurDebounceTimer) { clearTimeout(window._blurDebounceTimer); window._blurDebounceTimer = null; }
+            if (window._visDebounceTimer)  { clearTimeout(window._visDebounceTimer);  window._visDebounceTimer  = null; }
+            if (window._fsDebounceTimer)   { clearTimeout(window._fsDebounceTimer);   window._fsDebounceTimer   = null; }
             window.onpopstate = null;
             window.onbeforeunload = null;
 
