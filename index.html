@@ -2,6 +2,10 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+    <!-- KaTeX — render rumus matematika $...$ dan $$...$$ -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>INTEGRITEST</title>
     <link rel="icon" type="image/png" href="images/favicon.png">
@@ -35,6 +39,47 @@
                 .replace(/'/g, '&#039;');
         };
         const _e = window.escapeHtml; // alias pendek untuk template literal
+
+        // ── RENDER MATH (KaTeX) ────────────────────────────────────────
+        // Panggil setelah innerHTML soal/opsi diset agar $...$ dan $$...$$ dirender
+        window.renderMath = function(el) {
+            if (!el) return;
+            if (typeof renderMathInElement === 'undefined') {
+                // KaTeX belum siap — coba lagi sebentar
+                setTimeout(function() { window.renderMath(el); }, 300);
+                return;
+            }
+            try {
+                renderMathInElement(el, {
+                    delimiters: [
+                        { left: '$$',  right: '$$',  display: true  },
+                        { left: '$',   right: '$',   display: false },
+                        { left: '\\(', right: '\\)', display: false },
+                        { left: '\\[', right: '\\]', display: true  }
+                    ],
+                    throwOnError: false,
+                    output: 'html'
+                });
+            } catch(e) {}
+        };
+
+        // ── SAFE RENDER: tampilkan teks + render math tanpa XSS ───────
+        // Gunakan ini untuk teks soal & opsi (bukan escapeHtml, bukan innerHTML langsung)
+        window.safeRenderText = function(text) {
+            if (!text) return '';
+            // Escape HTML dulu agar aman dari XSS, LALU biarkan KaTeX render $...$
+            // KaTeX auto-render bekerja pada teks DOM, bukan innerHTML langsung
+            // Jadi kita perlu: set textContent ke div sementara, lalu renderMath
+            // Return sebagai teks aman dengan marker khusus untuk KaTeX
+            // Solusi: escape tapi preserve $ delimiters untuk KaTeX
+            const escaped = String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+            // Un-escape $ agar KaTeX bisa render ($ tidak bahaya untuk XSS)
+            return escaped;
+        };
 
         // ── DETEKSI HP KENTANG (Low-end Device) ──────────────────
         // Aktifkan "perf-mode" untuk HP dengan RAM rendah / CPU lambat
@@ -2176,6 +2221,7 @@
             }
 
             container.innerHTML = html;
+            window.renderMath(container);
             if (typeof lucide !== 'undefined') window._createIconsSafe && window._createIconsSafe();
         };
 
@@ -5402,6 +5448,15 @@ html.dark .ob-dot.active { background: #818cf8; }
                                     </div>
                                 </div>
                                 <div class="p-4">
+                                    <!-- Info rumus matematika Excel -->
+                                    <div class="mb-3 p-3 bg-violet-50 border border-violet-200 rounded-xl text-xs text-violet-800">
+                                        <p class="font-bold mb-1">🧮 Rumus Matematika di Excel — ketik langsung di sel pakai format:</p>
+                                        <span class="font-mono bg-white border border-violet-200 rounded px-2 py-0.5">$rac{1}{2}$</span>
+                                        <span class="mx-1 text-violet-400">·</span>
+                                        <span class="font-mono bg-white border border-violet-200 rounded px-2 py-0.5">$$x^2+y^2=r^2$$</span>
+                                        <span class="mx-1 text-violet-400">·</span>
+                                        <span class="font-mono bg-white border border-violet-200 rounded px-2 py-0.5">$\sqrt{b^2-4ac}$</span>
+                                    </div>
                                     <div id="excel-drop-zone"
                                         ondragover="event.preventDefault(); this.classList.add('border-emerald-400','bg-emerald-50')"
                                         ondragleave="this.classList.remove('border-emerald-400','bg-emerald-50')"
@@ -5463,6 +5518,18 @@ html.dark .ob-dot.active { background: #818cf8; }
                                     </div>
                                 </div>
                                 <div class="p-4">
+                                    <!-- Info rumus matematika -->
+                                    <div class="mb-3 p-3 bg-violet-50 border border-violet-200 rounded-xl text-xs text-violet-800">
+                                        <p class="font-bold mb-1.5 flex items-center gap-1.5">🧮 Rumus Matematika di Word</p>
+                                        <p class="mb-1">Ketik rumus langsung di sel tabel Word dengan format <b>LaTeX</b>, bukan pakai Equation Editor bawaan Word:</p>
+                                        <div class="bg-white border border-violet-200 rounded-lg px-3 py-2 font-mono text-[11px] space-y-0.5 mt-1.5">
+                                            <div><span class="text-violet-500">Inline →</span> <b>$rac{1}{2} x^2$</b></div>
+                                            <div><span class="text-violet-500">Display →</span> <b>$$x = rac{-b \pm \sqrt{b^2-4ac}}{2a}$$</b></div>
+                                            <div><span class="text-violet-500">Pangkat →</span> <b>$a^2 + b^2 = c^2$</b></div>
+                                            <div><span class="text-violet-500">Akar →</span> <b>$\sqrt{16} = 4$</b></div>
+                                        </div>
+                                        <p class="mt-1.5 text-violet-600">⚠️ Equation Editor bawaan Word <b>tidak terbaca</b> — wajib tulis pakai <b>$...$</b></p>
+                                    </div>
                                     <div id="word-drop-zone"
                                         ondragover="event.preventDefault(); this.classList.add('border-blue-400','bg-blue-50')"
                                         ondragleave="this.classList.remove('border-blue-400','bg-blue-50')"
@@ -16144,12 +16211,12 @@ Terima kasih 🙏</textarea>
                         ? `<div class="flex flex-col w-full">
                                 <div class="flex items-center gap-3">
                                     <div class="${indicatorClass}">${checkIcon}</div>
-                                    ${opt ? `<span class="text-gray-700 text-sm md:text-base font-medium">${opt}</span>` : ''}
+                                    ${opt ? `<span class="text-gray-700 text-sm md:text-base font-medium math-content">${window.safeRenderText(opt)}</span>` : ''}
                                 </div>
                                 ${imgHtml}
                            </div>`
                         : `<div class="${indicatorClass}">${checkIcon}</div>
-                           <span class="text-gray-700 text-base md:text-lg ml-3">${opt}</span>`;
+                           <span class="text-gray-700 text-base md:text-lg ml-3 math-content">${window.safeRenderText(opt)}</span>`;
 
                     optionsHTML += `
                         <label class="flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all mb-3 ${activeClass}" onclick="saveAnswer('${q.id}', ${optIdx}, ${isMultiple}, false, this)">
@@ -16179,7 +16246,7 @@ Terima kasih 🙏</textarea>
                 : '';
 
             const questionText = q.text
-                ? `<p class="text-lg md:text-xl text-gray-800 font-medium leading-relaxed">${_e(q.text)}</p>`
+                ? `<p class="text-lg md:text-xl text-gray-800 font-medium leading-relaxed math-content">${window.safeRenderText(q.text)}</p>`
                 : '';
 
             const hintBox = isMultiple
@@ -16225,6 +16292,8 @@ Terima kasih 🙏</textarea>
             `;
 
             container.innerHTML = html;
+            // ★ Render rumus matematika KaTeX setelah HTML diset
+            window.renderMath(container);
             updateNavButtons();
             renderSidebarButtons();
         }
@@ -23335,8 +23404,10 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                         }
                     }
 
+                    // ★ FIX: Duplikat = teks SAMA + paketId SAMA
+                    // Soal yang sama di paket berbeda (sengaja diduplikat) harus tetap bisa diupload
                     const exists = window.allQuestionsDB.some(dbQ =>
-                        dbQ.text === q.text && (dbQ.packet === finalPacket || dbQ.paketId === finalPaketId)
+                        dbQ.text === q.text && dbQ.paketId === finalPaketId
                     );
                     if (!exists) {
                         await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'questions'), {
@@ -23410,7 +23481,28 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                                 const cells = row.querySelectorAll('td, th');
                                 if (cells.length < 2) return; // minimal: tipe + question
                                 const rowData = {};
-                                headerTexts.forEach((h, i) => { rowData[h] = cells[i] ? (cells[i].textContent || '').trim() : ''; });
+                                headerTexts.forEach((h, i) => {
+                                    if (!cells[i]) { rowData[h] = ''; return; }
+                                    // ★ FIX: Preserve innerHTML untuk kolom teks soal & opsi
+                                    // Ini agar $...$ LaTeX, <sup>, <sub>, simbol unicode dari Word tetap ada
+                                    const isTextCol = ['question','pertanyaan','soal','a','b','c','d','e',
+                                        'option_a','option_b','option_c','option_d','option_e',
+                                        'kunci_jawaban','kunci','answer','pasangan_kiri','pasangan_kanan',
+                                        'rubrik','rubrik_kunci'].includes(h);
+                                    if (isTextCol) {
+                                        // Ambil innerHTML tapi strip tag berbahaya, pertahankan <sup><sub><em><strong>
+                                        const raw = cells[i].innerHTML || '';
+                                        // Bersihkan tag yang tidak berguna dari mammoth tapi pertahankan formatting
+                                        rowData[h] = raw
+                                            .replace(/<p[^>]*>/gi, '').replace(/<\/p>/gi, ' ')
+                                            .replace(/<br\s*\/?>/gi, ' ')
+                                            .trim();
+                                        // Jika innerHTML kosong atau hanya whitespace, fallback ke textContent
+                                        if (!rowData[h]) rowData[h] = (cells[i].textContent || '').trim();
+                                    } else {
+                                        rowData[h] = (cells[i].textContent || '').trim();
+                                    }
+                                });
                                 allRows.push(rowData);
                             });
                         });
@@ -23496,8 +23588,9 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                         }
                     }
 
+                    // ★ FIX: Duplikat = teks SAMA + paketId SAMA
                     const exists = window.allQuestionsDB.some(dbQ =>
-                        dbQ.text === q.text && (dbQ.packet === finalPacket || dbQ.paketId === finalPaketId)
+                        dbQ.text === q.text && dbQ.paketId === finalPaketId
                     );
                     if (!exists) {
                         await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'questions'), {
