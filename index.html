@@ -11675,7 +11675,8 @@ Terima kasih 🙏</textarea>
             if (tab === 'soal') {
                 window.backToPaketList(); window.renderPaketGrid();
                 // Jika guru, terapkan filter paket setelah grid render
-                if (window.currentGuruData) setTimeout(() => window._applyGuruPaketFilter(), 200);
+                if (window.currentGuruData && !window.isEditor()) setTimeout(() => window._applyGuruPaketFilter(), 200);
+                if (window.isEditor && window.isEditor()) setTimeout(() => window._applyEditorPaketFilter(), 200);
             }
             if (tab === 'kelasruang') { window.renderKelasList(); window.switchKelasRuangTab('kelas'); }
             if (tab === 'siswa') { window.renderSiswaTable(); window.switchSiswaSubTab('data'); }
@@ -12088,11 +12089,21 @@ Terima kasih 🙏</textarea>
             window.filterPaketGrid('');
         };
 
-        // Override renderPaketGrid to support search filtering
+        // Override renderPaketGrid to support search filtering + role-based paket filtering
         const _origRenderPaketGrid = window.renderPaketGrid;
         window.renderPaketGrid = function() {
             const q = window._paketSearchQuery || '';
             const info = document.getElementById('paket-count-info');
+
+            // ── Role-based pre-filter: editor dan guru hanya lihat paket yang di-assign ──
+            const _editorMode = window.isEditor && window.isEditor();
+            const _guruMode   = window.currentGuruData && !_editorMode;
+            let _allPaketBackup = null;
+            if (_editorMode || _guruMode) {
+                const allowed = (window.currentGuruData && window.currentGuruData.paketIds) || [];
+                _allPaketBackup = window.allPaketDB;
+                window.allPaketDB = (window.allPaketDB || []).filter(p => allowed.includes(p.id));
+            }
 
             if (q) {
                 const filtered = (window.allPaketDB || []).filter(p => {
@@ -12107,7 +12118,7 @@ Terima kasih 🙏</textarea>
                 });
 
                 const grid = document.getElementById('paket-grid');
-                if (!grid) return;
+                if (!grid) { if (_allPaketBackup !== null) window.allPaketDB = _allPaketBackup; return; }
 
                 if (info) info.textContent = filtered.length + ' dari ' + window.allPaketDB.length + ' paket';
 
@@ -12116,16 +12127,29 @@ Terima kasih 🙏</textarea>
                     const pw = document.getElementById('pager-paket-wrap');
                     if (pw) pw.innerHTML = '';
                     if (typeof lucide !== 'undefined') window._createIconsSafe();
+                    if (_allPaketBackup !== null) window.allPaketDB = _allPaketBackup;
                     return;
                 }
 
-                const backup = window.allPaketDB;
+                const backup2 = window.allPaketDB;
                 window.allPaketDB = filtered;
                 _origRenderPaketGrid();
-                window.allPaketDB = backup;
-                if (info) info.textContent = filtered.length + ' dari ' + backup.length + ' paket';
+                window.allPaketDB = backup2;
+                if (info) info.textContent = filtered.length + ' dari ' + backup2.length + ' paket';
             } else {
                 _origRenderPaketGrid();
+                if (info && (_editorMode || _guruMode)) {
+                    info.textContent = window.allPaketDB.length + ' paket tersedia';
+                }
+            }
+
+            // Restore global list
+            if (_allPaketBackup !== null) window.allPaketDB = _allPaketBackup;
+
+            // Sembunyikan tombol aksi yang tidak boleh diakses editor/guru
+            if (_editorMode || _guruMode) {
+                ['btn-tambah-paket','btn-download-template-excel','btn-download-template-word']
+                    .forEach(id => { const el = document.getElementById(id); if (el) el.style.display='none'; });
             }
         };
 
@@ -14225,6 +14249,8 @@ Terima kasih 🙏</textarea>
                 window.switchDashTab('soal');
                 // Tambah class editor-mode ke body untuk CSS guard
                 document.body.classList.add('editor-mode');
+                // Filter paket: hanya tampilkan paket yang di-assign ke editor ini
+                setTimeout(() => window._applyEditorPaketFilter && window._applyEditorPaketFilter(), 300);
             }, 100);
         };
 
@@ -15468,6 +15494,23 @@ Terima kasih 🙏</textarea>
                 const pid = card.dataset.paketId;
                 if (pid && !allowed.includes(pid)) card.style.display = 'none';
             });
+        };
+
+        // Render paket cards yang sudah difilter untuk editor soal
+        window._applyEditorPaketFilter = function() {
+            if (!window.isEditor || !window.isEditor()) return; // bukan editor, skip
+            const allowed = (window.currentGuruData && window.currentGuruData.paketIds) || [];
+            // Sembunyikan tombol buat paket baru & import
+            ['btn-tambah-paket','btn-download-template-excel','btn-download-template-word']
+                .forEach(id => { const el = document.getElementById(id); if (el) el.style.display='none'; });
+            // Filter: tampilkan hanya paket yang di-assign
+            document.querySelectorAll('#paket-grid [data-paket-id]').forEach(card => {
+                const pid = card.dataset.paketId;
+                if (pid && !allowed.includes(pid)) card.style.display = 'none';
+            });
+            // Update info count
+            const info = document.getElementById('paket-count-info');
+            if (info) info.textContent = allowed.length + ' paket tersedia';
         };
 
         // Buat akun guru baru (dipanggil admin)
