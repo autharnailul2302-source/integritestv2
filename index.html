@@ -40,6 +40,15 @@
         };
         const _e = window.escapeHtml; // alias pendek untuk template literal
 
+        // Strip SEMUA HTML tags untuk perbandingan duplikat (teks bersih tanpa tag)
+        window.stripHtml = function(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/<[^>]*>/g, '')
+                .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#039;/g,"'")
+                .replace(/\s+/g,' ').trim();
+        };
+
         // ── RENDER MATH (KaTeX) ────────────────────────────────────────
         // Panggil setelah innerHTML soal/opsi diset agar $...$ dan $$...$$ dirender
         window.renderMath = function(el) {
@@ -64,21 +73,28 @@
         };
 
         // ── SAFE RENDER: tampilkan teks + render math tanpa XSS ───────
-        // Gunakan ini untuk teks soal & opsi (bukan escapeHtml, bukan innerHTML langsung)
+        // Whitelist tag: <strong><em><sub><sup> diizinkan (dari import Word)
+        // Tag lain di-escape agar aman dari XSS
         window.safeRenderText = function(text) {
             if (!text) return '';
-            // Escape HTML dulu agar aman dari XSS, LALU biarkan KaTeX render $...$
-            // KaTeX auto-render bekerja pada teks DOM, bukan innerHTML langsung
-            // Jadi kita perlu: set textContent ke div sementara, lalu renderMath
-            // Return sebagai teks aman dengan marker khusus untuk KaTeX
-            // Solusi: escape tapi preserve $ delimiters untuk KaTeX
-            const escaped = String(text)
+            // 1. Simpan tag whitelist dengan placeholder
+            const safe = String(text)
+                .replace(/<strong>/gi, 'BO').replace(/<\/strong>/gi, 'BC')
+                .replace(/<em>/gi,     'IO').replace(/<\/em>/gi,     'IC')
+                .replace(/<sub>/gi,    'SO').replace(/<\/sub>/gi,    'SC')
+                .replace(/<sup>/gi,    'PO').replace(/<\/sup>/gi,    'PC');
+            // 2. Escape semua HTML lain (XSS protection)
+            const escaped = safe
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;');
-            // Un-escape $ agar KaTeX bisa render ($ tidak bahaya untuk XSS)
-            return escaped;
+            // 3. Kembalikan tag whitelist
+            return escaped
+                .replace(/BO/g, '<strong>').replace(/BC/g, '</strong>')
+                .replace(/IO/g, '<em>').replace(/IC/g, '</em>')
+                .replace(/SO/g, '<sub>').replace(/SC/g, '</sub>')
+                .replace(/PO/g, '<sup>').replace(/PC/g, '</sup>');
         };
 
         // ── DETEKSI HP KENTANG (Low-end Device) ──────────────────
@@ -23141,7 +23157,7 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                 };
 
                 const packetRaw = g(['packet','Packet','PACKET']).toUpperCase();
-                const text   = g(['question','Question','QUESTION','pertanyaan','soal']);
+                const text = g(['question','Question','QUESTION','pertanyaan','soal']);
                 const qImg   = g(['question_image','image','gambar_soal','img']);
                 const tipe   = g(['tipe','Tipe','TIPE','type','Type']).toLowerCase() || 'single';
 
@@ -23156,8 +23172,35 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
 
                 const kdTag  = g(['kd_tag','kdTag','kd','TP','kompetensi_dasar','KD_tag']);
 
+                // Sanitasi HTML dari Word: pertahankan <strong><em><b><i><sub><sup>, strip sisanya
+                // Teks yang disimpan ke DB mengandung tag aman ini agar bold/italic tampil di soal ujian
+                const _st = s => {
+                    if (!s) return '';
+                    return s
+                        // Pertahankan tag formatting aman — ganti dulu dengan placeholder
+                        .replace(/<strong([^>]*)>/gi, 'BOPEN').replace(/<\/strong>/gi, 'BCLOSE')
+                        .replace(/<b([^>]*)>/gi,      'BOPEN').replace(/<\/b>/gi,      'BCLOSE')
+                        .replace(/<em([^>]*)>/gi,     'IOPEN').replace(/<\/em>/gi,     'ICLOSE')
+                        .replace(/<i([^>]*)>/gi,      'IOPEN').replace(/<\/i>/gi,      'ICLOSE')
+                        .replace(/<sub([^>]*)>/gi,    'SOPEN').replace(/<\/sub>/gi,    'SCLOSE')
+                        .replace(/<sup([^>]*)>/gi,    'POPEN').replace(/<\/sup>/gi,    'PCLOSE')
+                        // Strip semua tag HTML lain
+                        .replace(/<span[^>]*>([\s\S]*?)<\/span>/gi,'$1')
+                        .replace(/<p[^>]*>([\s\S]*?)<\/p>/gi,'$1 ')
+                        .replace(/<br\s*\/?>/gi,' ')
+                        .replace(/<[^>]+>/g,'')
+                        // Decode entity
+                        .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#039;/g,"'")
+                        // Kembalikan tag aman
+                        .replace(/BOPEN/g,'<strong>').replace(/BCLOSE/g,'</strong>')
+                        .replace(/IOPEN/g,'<em>').replace(/ICLOSE/g,'</em>')
+                        .replace(/SOPEN/g,'<sub>').replace(/SCLOSE/g,'</sub>')
+                        .replace(/POPEN/g,'<sup>').replace(/PCLOSE/g,'</sup>')
+                        .replace(/\s+/g,' ').trim();
+                };
+
                 const base = {
-                    packet, text, tipe, aktif: true,
+                    packet, text: _st(text), tipe, aktif: true,
                     image: window.convertGDriveUrl(qImg),
                     kdTag,
                     createdAt: Date.now()
@@ -23195,11 +23238,11 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
 
                 // ── multiple ──
                 if (tipe === 'multiple') {
-                    const optA = g(['option_a','Option_A','a','A','pilihan_a']);
-                    const optB = g(['option_b','Option_B','b','B','pilihan_b']);
-                    const optC = g(['option_c','Option_C','c','C','pilihan_c']);
-                    const optD = g(['option_d','Option_D','d','D','pilihan_d']);
-                    const optE = g(['option_e','Option_E','e','E','pilihan_e']);
+                    const optA = _st(g(['option_a','Option_A','a','A','pilihan_a']));
+                    const optB = _st(g(['option_b','Option_B','b','B','pilihan_b']));
+                    const optC = _st(g(['option_c','Option_C','c','C','pilihan_c']));
+                    const optD = _st(g(['option_d','Option_D','d','D','pilihan_d']));
+                    const optE = _st(g(['option_e','Option_E','e','E','pilihan_e']));
                     const imgA = g(['image_a','img_a','gambar_a']);
                     const imgB = g(['image_b','img_b','gambar_b']);
                     const imgC = g(['image_c','img_c','gambar_c']);
@@ -23224,11 +23267,11 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                 }
 
                 // ── single (default) ──
-                const optA = g(['option_a','Option_A','option_A','a','A','pilihan_a']);
-                const optB = g(['option_b','Option_B','option_B','b','B','pilihan_b']);
-                const optC = g(['option_c','Option_C','option_C','c','C','pilihan_c']);
-                const optD = g(['option_d','Option_D','option_D','d','D','pilihan_d']);
-                const optE = g(['option_e','Option_E','option_E','e','E','pilihan_e']);
+                const optA = _st(g(['option_a','Option_A','option_A','a','A','pilihan_a']));
+                const optB = _st(g(['option_b','Option_B','option_B','b','B','pilihan_b']));
+                const optC = _st(g(['option_c','Option_C','option_C','c','C','pilihan_c']));
+                const optD = _st(g(['option_d','Option_D','option_D','d','D','pilihan_d']));
+                const optE = _st(g(['option_e','Option_E','option_E','e','E','pilihan_e']));
                 const correct = g(['correct','Correct','CORRECT','kunci','jawaban']).toUpperCase();
 
                 const imgA = g(['image_a','img_a','gambar_a']);
@@ -23404,10 +23447,10 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                         }
                     }
 
-                    // ★ FIX: Duplikat = teks SAMA + paketId SAMA
-                    // Soal yang sama di paket berbeda (sengaja diduplikat) harus tetap bisa diupload
+                    // ★ FIX: Duplikat = teks SAMA (strip HTML) + paketId SAMA
+                    const qTextClean = window.stripHtml(q.text);
                     const exists = window.allQuestionsDB.some(dbQ =>
-                        dbQ.text === q.text && dbQ.paketId === finalPaketId
+                        window.stripHtml(dbQ.text) === qTextClean && dbQ.paketId === finalPaketId
                     );
                     if (!exists) {
                         await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'questions'), {
@@ -23588,9 +23631,11 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                         }
                     }
 
-                    // ★ FIX: Duplikat = teks SAMA + paketId SAMA
+                    // ★ FIX: Duplikat = teks SAMA (strip HTML) + paketId SAMA
+                    // Strip HTML dulu sebelum bandingkan — teks dari Word bisa mengandung <strong> dll
+                    const qTextClean = window.stripHtml(q.text);
                     const exists = window.allQuestionsDB.some(dbQ =>
-                        dbQ.text === q.text && dbQ.paketId === finalPaketId
+                        window.stripHtml(dbQ.text) === qTextClean && dbQ.paketId === finalPaketId
                     );
                     if (!exists) {
                         await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'questions'), {
