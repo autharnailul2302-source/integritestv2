@@ -79,10 +79,10 @@
             if (!text) return '';
             // 1. Simpan tag whitelist dengan placeholder
             const safe = String(text)
-                .replace(/<strong>/gi, 'BO').replace(/<\/strong>/gi, 'BC')
-                .replace(/<em>/gi,     'IO').replace(/<\/em>/gi,     'IC')
-                .replace(/<sub>/gi,    'SO').replace(/<\/sub>/gi,    'SC')
-                .replace(/<sup>/gi,    'PO').replace(/<\/sup>/gi,    'PC');
+                .replace(/<strong>/gi, 'BO').replace(/<\/strong>/gi, 'BC')
+                .replace(/<em>/gi,     'IO').replace(/<\/em>/gi,     'IC')
+                .replace(/<sub>/gi,    'SO').replace(/<\/sub>/gi,    'SC')
+                .replace(/<sup>/gi,    'PO').replace(/<\/sup>/gi,    'PC');
             // 2. Escape semua HTML lain (XSS protection)
             const escaped = safe
                 .replace(/&/g, '&amp;')
@@ -91,10 +91,10 @@
                 .replace(/"/g, '&quot;');
             // 3. Kembalikan tag whitelist
             return escaped
-                .replace(/BO/g, '<strong>').replace(/BC/g, '</strong>')
-                .replace(/IO/g, '<em>').replace(/IC/g, '</em>')
-                .replace(/SO/g, '<sub>').replace(/SC/g, '</sub>')
-                .replace(/PO/g, '<sup>').replace(/PC/g, '</sup>');
+                .replace(/BO/g, '<strong>').replace(/BC/g, '</strong>')
+                .replace(/IO/g, '<em>').replace(/IC/g, '</em>')
+                .replace(/SO/g, '<sub>').replace(/SC/g, '</sub>')
+                .replace(/PO/g, '<sup>').replace(/PC/g, '</sup>');
         };
 
         // ── DETEKSI HP KENTANG (Low-end Device) ──────────────────
@@ -2474,7 +2474,8 @@
         window.isAdmin    = () => window.currentUserRole === 'admin';
         window.isPengawas = () => window.currentUserRole === 'pengawas';
         window.isGuru     = () => window.currentUserRole === 'guru';
-        window.isStaff    = () => ['admin','pengawas','guru'].includes(window.currentUserRole);
+        window.isEditor   = () => window.currentUserRole === 'editor';
+        window.isStaff    = () => ['admin','pengawas','guru','editor'].includes(window.currentUserRole);
         window.isSiswa    = () => window.currentUserRole === 'siswa';
         // Data guru yang sedang login (paketIds yang diizinkan)
         window.currentGuruData = null; // { username, displayName, mapel, paketIds: [] }
@@ -3370,6 +3371,9 @@ html.dark .ob-dot.active { background: #818cf8; }
                         <button id="subtab-admin" onclick="window.switchTeacherSubTab('admin')" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-400 hover:text-gray-600 flex items-center justify-center gap-1.5">
                             <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Admin
                         </button>
+                        <button id="subtab-editor" onclick="window.switchTeacherSubTab('editor')" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-400 hover:text-gray-600 flex items-center justify-center gap-1.5">
+                            <i data-lucide="pencil" class="w-3.5 h-3.5 text-violet-500"></i> Editor
+                        </button>
                     </div>
 
                     <!-- FORM GURU MAPEL -->
@@ -3413,6 +3417,28 @@ html.dark .ob-dot.active { background: #818cf8; }
                         </div>
                         <button type="submit" class="w-full bg-indigo-700 hover:bg-indigo-800 text-white font-bold py-3.5 rounded-xl shadow-lg transform transition-all hover:scale-[1.02] flex items-center justify-center gap-2">
                             <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Masuk Sebagai Admin
+                        </button>
+                    </form>
+
+                    <!-- FORM EDITOR SOAL -->
+                    <form id="form-editor-login" onsubmit="window.handleEditorLogin(event)" class="space-y-4 hidden-section">
+                        <div class="p-3 bg-violet-50 rounded-xl border border-violet-200 flex items-start gap-3">
+                            <i data-lucide="pencil" class="w-4 h-4 text-violet-600 mt-0.5 shrink-0"></i>
+                            <p class="text-xs text-violet-700">Login Editor Soal hanya memberi akses upload &amp; hapus soal di paket yang di-assign. Tidak bisa edit setting paket, preview, atau data lainnya.</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Username</label>
+                            <input type="text" id="editor-user" placeholder="Username Editor Soal" autocomplete="username" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 outline-none transition-all bg-gray-50 focus:bg-white text-gray-800 font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Password</label>
+                            <div class="relative">
+                                <input type="password" id="editor-pass" placeholder="••••••••" autocomplete="current-password" class="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 outline-none transition-all bg-gray-50 focus:bg-white text-gray-800 font-medium">
+                                <button type="button" onclick="window.togglePassVis('editor-pass',this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-violet-600 transition-colors p-1 rounded-lg hover:bg-violet-50" tabindex="-1"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3.5 rounded-xl shadow-lg transform transition-all hover:scale-[1.02] flex items-center justify-center gap-2">
+                            <i data-lucide="pencil" class="w-4 h-4"></i> Masuk sebagai Editor Soal
                         </button>
                     </form>
 
@@ -5271,6 +5297,22 @@ html.dark .ob-dot.active { background: #818cf8; }
                         <div>
                             <h3 class="text-base font-black text-gray-800">Daftar Paket Soal</h3>
                             <p id="paket-count-info" class="text-sm text-gray-500">Memuat paket...</p>
+                        </div>
+                        <!-- Search Paket -->
+                        <div class="relative w-full sm:w-72">
+                            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                <i data-lucide="search" class="w-4 h-4 text-gray-400"></i>
+                            </div>
+                            <input
+                                id="paket-search-input"
+                                type="text"
+                                placeholder="Cari nama paket, mapel, token..."
+                                class="w-full pl-9 pr-9 py-2 text-sm border border-gray-200 rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-all"
+                                oninput="window.filterPaketGrid(this.value)"
+                            />
+                            <button id="paket-search-clear" onclick="window.clearPaketSearch()" class="hidden absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600">
+                                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                            </button>
                         </div>
                     </div>
 
@@ -9211,6 +9253,62 @@ Terima kasih 🙏</textarea>
                     </div>
                 </div>
 
+                <!-- ══ SECTION AKUN EDITOR SOAL ══ -->
+                <div class="mt-8">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center shrink-0">
+                            <i data-lucide="pencil" class="w-5 h-5 text-white"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-black text-gray-800 text-base">Akun Editor Soal</h3>
+                            <p class="text-xs text-gray-500">Editor hanya bisa upload &amp; hapus soal di paket yang di-assign. Tanpa akses preview, setting paket, atau data lain.</p>
+                        </div>
+                    </div>
+
+                    <!-- Form buat editor -->
+                    <div class="bg-white rounded-2xl border border-violet-100 shadow-sm p-5 mb-5">
+                        <h4 class="font-bold text-gray-700 text-sm mb-4 flex items-center gap-2">
+                            <i data-lucide="user-plus" class="w-4 h-4 text-violet-500"></i> Buat Akun Editor Baru
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 ml-0.5">Username</label>
+                                <input type="text" id="editor-new-username" placeholder="cth: editor_pkk" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-400 focus:border-transparent outline-none text-sm bg-gray-50 focus:bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 ml-0.5">Password</label>
+                                <input type="text" id="editor-new-password" placeholder="min. 6 karakter" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-400 focus:border-transparent outline-none text-sm bg-gray-50 focus:bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 ml-0.5">Nama Tampilan</label>
+                                <input type="text" id="editor-new-displayname" placeholder="cth: Pak Budi" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-400 focus:border-transparent outline-none text-sm bg-gray-50 focus:bg-white">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-0.5">Paket Soal yang Diizinkan</label>
+                            <div id="editor-paket-checks" class="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-xl border border-gray-200 min-h-[44px]">
+                                <span class="text-xs text-gray-400 italic">Paket belum dimuat...</span>
+                            </div>
+                        </div>
+                        <button onclick="window.saveEditorAkun()" class="bg-violet-600 hover:bg-violet-700 text-white px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm active:scale-95 transition-all">
+                            <i data-lucide="user-plus" class="w-4 h-4"></i> Simpan Akun Editor
+                        </button>
+                    </div>
+
+                    <!-- Daftar editor -->
+                    <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+                        <div class="px-5 py-3 border-b bg-gray-50 flex items-center justify-between">
+                            <h4 class="font-bold text-gray-700 text-sm">Daftar Akun Editor Aktif</h4>
+                            <button onclick="window.loadEditorList()" class="text-xs text-violet-600 font-semibold hover:underline flex items-center gap-1">
+                                <i data-lucide="refresh-cw" class="w-3 h-3"></i> Refresh
+                            </button>
+                        </div>
+                        <div id="editor-list-container" class="p-4">
+                            <p class="text-xs text-gray-400 text-center py-4">Klik Refresh untuk memuat daftar editor.</p>
+                        </div>
+                    </div>
+                </div>
+
             </div><!-- end panel-akun-guru -->
 
             <!-- PANEL: LAPORAN KE SUPERADMIN -->
@@ -11611,6 +11709,9 @@ Terima kasih 🙏</textarea>
             if (kartuGuru) kartuGuru.style.display = 'none'; // sudah ada di tab Akun Guru tersendiri
             if (tab === 'jadwal') { window.renderJadwalList(); window.initJadwalForm(); }
             if (tab === 'akun-guru') {
+                // Sinkronisasi daftar paket dan editor ke panel akun-guru
+                if (typeof window.populateEditorPaketChecks === 'function') window.populateEditorPaketChecks();
+                if (typeof window.loadEditorList === 'function') window.loadEditorList();
                 // Sinkronisasi daftar paket dan guru ke panel akun-guru
                 if (window.refreshGuruPaketChecks2) window.refreshGuruPaketChecks2();
                 if (window.loadGuruMapelList2) window.loadGuruMapelList2();
@@ -11926,6 +12027,7 @@ Terima kasih 🙏</textarea>
                       + (p.kelas.length > 3 ? `<span class="text-xs text-gray-400">+${p.kelas.length-3}</span>` : '')
                     : `<span class="text-xs text-gray-400">Semua Kelas</span>`;
                 const jenisLabel = p.jenis === 'nonpaket' || !p.jenis ? 'Non Paket' : `Paket ${p.jenis}`;
+                const _isEditorMode = window.isEditor && window.isEditor();
 
                 return `
                 <div class="bg-white rounded-2xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow group" data-paket-id="${p.id}">
@@ -11938,11 +12040,11 @@ Terima kasih 🙏</textarea>
                                 <span class="${isAktif ? 'bg-white/30 text-white' : 'bg-black/20 text-white/70'} text-xs font-bold px-2.5 py-1 rounded-full">
                                     ${isAktif ? '● Aktif' : '○ Nonaktif'}
                                 </span>
-                                <button onclick="event.stopPropagation(); window.previewPaketSoal('${p.id}')" class="bg-white/25 hover:bg-white/40 text-white p-1.5 rounded-lg flex items-center gap-1 text-xs font-bold" title="Preview soal (Mode Siswa)"><i data-lucide="eye" class="w-3.5 h-3.5"></i></button>
+                                ${_isEditorMode ? '' : `<button onclick="event.stopPropagation(); window.previewPaketSoal('${p.id}')" class="bg-white/25 hover:bg-white/40 text-white p-1.5 rounded-lg flex items-center gap-1 text-xs font-bold" title="Preview soal (Mode Siswa)"><i data-lucide="eye" class="w-3.5 h-3.5"></i></button>
                                 <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button onclick="event.stopPropagation(); window.openPaketModal('${p.id}')" class="bg-white/20 hover:bg-white/30 p-1.5 rounded-lg" title="Edit"><i data-lucide="settings" class="w-3.5 h-3.5"></i></button>
                                     <button onclick="event.stopPropagation(); window.deletePaket('${p.id}','${p.nama.replace(/'/g,"\\'")}') " class="bg-white/20 hover:bg-red-400/60 p-1.5 rounded-lg" title="Hapus"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-                                </div>
+                                </div>`}
                             </div>
                         </div>
                         <h4 class="text-base font-bold mt-3 leading-tight">${_e(p.nama)}</h4>
@@ -11968,6 +12070,63 @@ Terima kasih 🙏</textarea>
             if (pw) pw.innerHTML = renderPagerHTML('paket', total, pgP.page, pgP.perPage);
 
             if(typeof lucide !== 'undefined') window._createIconsSafe();
+        };
+
+        // ── FILTER / PENCARIAN PAKET ────────────────────────────────────
+        window._paketSearchQuery = '';
+
+        window.filterPaketGrid = function(q) {
+            window._paketSearchQuery = (q || '').trim().toLowerCase();
+            const clearBtn = document.getElementById('paket-search-clear');
+            if (clearBtn) clearBtn.classList.toggle('hidden', !window._paketSearchQuery);
+            window.renderPaketGrid();
+        };
+
+        window.clearPaketSearch = function() {
+            const inp = document.getElementById('paket-search-input');
+            if (inp) inp.value = '';
+            window.filterPaketGrid('');
+        };
+
+        // Override renderPaketGrid to support search filtering
+        const _origRenderPaketGrid = window.renderPaketGrid;
+        window.renderPaketGrid = function() {
+            const q = window._paketSearchQuery || '';
+            const info = document.getElementById('paket-count-info');
+
+            if (q) {
+                const filtered = (window.allPaketDB || []).filter(p => {
+                    const haystack = [
+                        p.nama || '',
+                        p.mapel || '',
+                        p.token || '',
+                        p.jenis || '',
+                        ...(p.kelas || [])
+                    ].join(' ').toLowerCase();
+                    return haystack.includes(q);
+                });
+
+                const grid = document.getElementById('paket-grid');
+                if (!grid) return;
+
+                if (info) info.textContent = filtered.length + ' dari ' + window.allPaketDB.length + ' paket';
+
+                if (filtered.length === 0) {
+                    grid.innerHTML = '<div class="col-span-full bg-white rounded-2xl border-2 border-dashed border-gray-200 p-14 text-center"><div class="inline-flex p-4 bg-indigo-50 rounded-2xl mb-4"><i data-lucide="search-x" class="w-10 h-10 text-indigo-400"></i></div><h3 class="text-base font-bold text-gray-700 mb-1">Paket tidak ditemukan</h3><p class="text-gray-400 text-sm">Coba kata kunci lain atau <button onclick="window.clearPaketSearch()" class="text-indigo-500 font-semibold underline">reset pencarian</button>.</p></div>';
+                    const pw = document.getElementById('pager-paket-wrap');
+                    if (pw) pw.innerHTML = '';
+                    if (typeof lucide !== 'undefined') window._createIconsSafe();
+                    return;
+                }
+
+                const backup = window.allPaketDB;
+                window.allPaketDB = filtered;
+                _origRenderPaketGrid();
+                window.allPaketDB = backup;
+                if (info) info.textContent = filtered.length + ' dari ' + backup.length + ' paket';
+            } else {
+                _origRenderPaketGrid();
+            }
         };
 
         window.openPaketSoal = function(paketId) {
@@ -12483,8 +12642,11 @@ Terima kasih 🙏</textarea>
             e.preventDefault();
             if (!window.isFirebaseReady) return alert("Mode Offline: Tidak bisa menyimpan.");
             const id = document.getElementById('paket-id').value;
-            // Guard: guru tidak boleh buat paket baru, hanya edit paket yang di-assign
-            if (window.currentGuruData) {
+            // Guard: guru tidak boleh buat paket baru; editor tidak bisa edit setting paket sama sekali
+            if (window.isEditor && window.isEditor()) {
+                return alert('⛔ Editor Soal tidak bisa mengubah pengaturan paket.\nHubungi Admin.');
+            }
+            if (window.currentGuruData && !(window.isEditor && window.isEditor())) {
                 if (!id) return alert('⛔ Guru Mapel tidak diizinkan membuat paket baru.\nHubungi Admin untuk menambah paket.');
                 if (!window.currentGuruData.paketIds.includes(id)) return alert('⛔ Anda tidak memiliki akses ke paket ini.');
             }
@@ -13926,16 +14088,18 @@ Terima kasih 🙏</textarea>
             const adminForm    = document.getElementById('form-admin-login');
             const pengawasForm = document.getElementById('form-pengawas-login');
             const guruForm     = document.getElementById('form-guru-login');
+            const editorForm   = document.getElementById('form-editor-login');
             const btnAdmin     = document.getElementById('subtab-admin');
             const btnPengawas  = document.getElementById('subtab-pengawas');
             const btnGuru      = document.getElementById('subtab-guru');
+            const btnEditor    = document.getElementById('subtab-editor');
 
             const ACTIVE   = 'flex-1 py-2 text-xs font-bold rounded-lg bg-white text-gray-800 shadow-sm flex items-center justify-center gap-1.5';
             const INACTIVE = 'flex-1 py-2 text-xs font-bold rounded-lg text-gray-400 hover:text-gray-600 flex items-center justify-center gap-1.5';
 
             // Hide all forms first
-            [adminForm, pengawasForm, guruForm].forEach(f => f && f.classList.add('hidden-section'));
-            [btnAdmin, btnPengawas, btnGuru].forEach(b => b && (b.className = INACTIVE));
+            [adminForm, pengawasForm, guruForm, editorForm].forEach(f => f && f.classList.add('hidden-section'));
+            [btnAdmin, btnPengawas, btnGuru, btnEditor].forEach(b => b && (b.className = INACTIVE));
 
             if (tab === 'admin') {
                 adminForm.classList.remove('hidden-section');
@@ -13943,6 +14107,9 @@ Terima kasih 🙏</textarea>
             } else if (tab === 'guru') {
                 guruForm.classList.remove('hidden-section');
                 btnGuru.className = ACTIVE;
+            } else if (tab === 'editor') {
+                editorForm && editorForm.classList.remove('hidden-section');
+                btnEditor && (btnEditor.className = ACTIVE);
             } else {
                 pengawasForm.classList.remove('hidden-section');
                 btnPengawas.className = ACTIVE;
@@ -13960,6 +14127,203 @@ Terima kasih 🙏</textarea>
                 opt.textContent = r.nama;
                 sel.appendChild(opt);
             });
+        };
+
+        // ── EDITOR SOAL — Koleksi Firestore ──────────────────────────────
+        const EDITOR_COLL = () => collection(window.db, 'artifacts', window.appId, 'public', 'data', 'editor_soal');
+
+        // Login editor soal
+        window.handleEditorLogin = async function(e) {
+            e.preventDefault();
+            if (!window.isFirebaseReady || !window.db) { alert('Koneksi Firebase belum siap.'); return; }
+            const u   = document.getElementById('editor-user').value.trim();
+            const p   = document.getElementById('editor-pass').value;
+            const btn = e.target.querySelector('button[type="submit"]');
+            if (!u || !p) { alert('Username dan password tidak boleh kosong!'); return; }
+            if (btn) { btn.disabled = true; btn.textContent = 'Memeriksa...'; }
+            try {
+                const snap = await getDocs(EDITOR_COLL());
+                let editorData = null;
+                snap.forEach(ds => {
+                    const d = ds.data();
+                    if ((d.username||'').toLowerCase() === u.toLowerCase() && d.password === p) {
+                        editorData = { id: ds.id, ...d };
+                    }
+                });
+                if (!editorData) {
+                    alert('❌ Username atau password salah.\n\nHubungi Admin jika belum memiliki akun Editor Soal.');
+                    return;
+                }
+                window.currentUserRole = 'editor';
+                window.currentPengawasRuang = null;
+                window.currentGuruData = {
+                    id:          editorData.id,
+                    username:    editorData.username,
+                    displayName: editorData.displayName || editorData.username,
+                    mapel:       editorData.mapel || '',
+                    paketIds:    editorData.paketIds || []
+                };
+                sessionStorage.setItem('integritest_staff_session', JSON.stringify({
+                    role:       'editor',
+                    guruData:   window.currentGuruData,
+                    savedAt:    Date.now()
+                }));
+                if (window.listenForPaket) window.listenForPaket();
+                window._activateEditorMode(window.currentGuruData);
+            } catch(err) {
+                alert('Gagal login: ' + err.message);
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = 'Masuk sebagai Editor Soal'; }
+            }
+        };
+
+        // Aktifkan UI mode editor soal (lebih terbatas dari guru)
+        window._activateEditorMode = function(editorData) {
+            const headerTitle    = document.getElementById('dash-header-title');
+            const headerSubtitle = document.getElementById('dash-header-subtitle');
+            const headerIcon     = document.getElementById('dash-header-icon');
+            if (headerTitle)    headerTitle.textContent    = 'Panel Editor Soal';
+            if (headerSubtitle) headerSubtitle.textContent = 'Login sebagai: ' + (editorData.displayName || editorData.username);
+            if (headerIcon)     headerIcon.className       = 'bg-violet-600 p-2 rounded-lg';
+
+            ['pengawas-room-badge','pengawas-exam-info','pengawas-token-card','admin-exam-info']
+                .forEach(id => { const el = document.getElementById(id); if (el) { el.classList.add('hidden'); el.style.display=''; } });
+
+            let banner = document.getElementById('guru-mode-banner');
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'guru-mode-banner';
+                banner.className = 'hidden';
+                const db2 = document.getElementById('section-dashboard');
+                if (db2) db2.prepend(banner);
+            }
+            banner.className = 'flex items-center gap-3 bg-violet-600 text-white px-5 py-2.5 text-sm font-semibold';
+            banner.innerHTML =
+                '<i data-lucide="pencil" class="w-4 h-4 shrink-0"></i>' +
+                '<span>Mode Editor Soal — <strong>' + editorData.displayName + '</strong> &nbsp;·&nbsp; Akses terbatas: upload &amp; hapus soal paket yang di-assign</span>' +
+                '<button onclick="window.logoutStaff()" class="ml-auto flex items-center gap-1.5 bg-white/20 hover:bg-white/30 px-3 py-1 rounded-lg text-xs font-bold transition"><i data-lucide="log-out" class="w-3.5 h-3.5"></i> Keluar</button>';
+
+            document.querySelectorAll('.admin-only-tab').forEach(el => el.classList.add('hidden'));
+            const tabSoal    = document.getElementById('tab-dash-soal');
+            const mobTabSoal = document.getElementById('mob-tab-soal');
+            if (tabSoal)    tabSoal.classList.remove('hidden');
+            if (mobTabSoal) mobTabSoal.classList.remove('hidden');
+
+            const mobileNav = document.getElementById('mobile-bottom-nav');
+            if (mobileNav) {
+                mobileNav.querySelectorAll('button').forEach(b => {
+                    const isLogout = (b.getAttribute('onclick')||'').includes('logout');
+                    const isSoal   = b.id === 'mob-tab-soal';
+                    if (!isSoal && !isLogout) b.style.display = 'none';
+                });
+            }
+
+            document.getElementById('section-login').classList.add('hidden-section');
+            document.getElementById('section-dashboard').classList.remove('hidden-section');
+            if (typeof lucide !== 'undefined') window._createIconsSafe && window._createIconsSafe();
+            setTimeout(() => {
+                window.switchDashTab('soal');
+                // Tambah class editor-mode ke body untuk CSS guard
+                document.body.classList.add('editor-mode');
+            }, 100);
+        };
+
+        // ── MANAJEMEN AKUN EDITOR (Admin) ────────────────────────────────
+        window.loadEditorList = async function() {
+            const container = document.getElementById('editor-list-container');
+            if (!container) return;
+            if (!window.isFirebaseReady || !window.db) {
+                container.innerHTML = '<p class="text-xs text-red-500 text-center py-4">Firebase belum siap.</p>';
+                return;
+            }
+            container.innerHTML = '<p class="text-xs text-gray-400 text-center py-4 animate-pulse">Memuat...</p>';
+            try {
+                const snap = await getDocs(EDITOR_COLL());
+                if (snap.empty) {
+                    container.innerHTML = '<p class="text-xs text-gray-400 text-center py-6">Belum ada akun editor. Buat di form di atas.</p>';
+                    return;
+                }
+                let html = '<div class="divide-y divide-gray-100">';
+                snap.forEach(ds => {
+                    const d = ds.data();
+                    const paketNames = (d.paketIds||[]).map(pid => {
+                        const pk = (window.allPaketDB||[]).find(p=>p.id===pid);
+                        return pk ? pk.nama : pid;
+                    }).join(', ') || '—';
+                    html += '<div class="flex items-center justify-between py-3 px-1 gap-3">' +
+                        '<div class="min-w-0">' +
+                        '<p class="font-bold text-gray-800 text-sm">' + escapeHtml(d.displayName||d.username) + ' <span class="text-gray-400 font-normal text-xs">(@' + escapeHtml(d.username) + ')</span></p>' +
+                        '<p class="text-xs text-gray-500 truncate">Paket: ' + escapeHtml(paketNames) + '</p>' +
+                        '</div>' +
+                        '<button onclick="window.deleteEditorAkun(\'' + ds.id + '\',\'' + escapeHtml(d.username) + '\')" ' +
+                        'class="shrink-0 flex items-center gap-1 text-xs text-red-500 hover:text-red-700 font-semibold px-2 py-1 rounded-lg hover:bg-red-50 transition">' +
+                        '<i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Hapus</button>' +
+                        '</div>';
+                });
+                html += '</div>';
+                container.innerHTML = html;
+                if (typeof lucide !== 'undefined') window._createIconsSafe && window._createIconsSafe();
+            } catch(err) {
+                container.innerHTML = '<p class="text-xs text-red-500 text-center py-4">Error: ' + err.message + '</p>';
+            }
+        };
+
+        window.saveEditorAkun = async function() {
+            if (!window.isFirebaseReady || !window.db) return alert('Firebase belum siap.');
+            const u    = (document.getElementById('editor-new-username')?.value||'').trim();
+            const p    = (document.getElementById('editor-new-password')?.value||'').trim();
+            const disp = (document.getElementById('editor-new-displayname')?.value||'').trim();
+            const checks = document.querySelectorAll('#editor-paket-checks input[type=checkbox]:checked');
+            const paketIds = Array.from(checks).map(c => c.value);
+
+            if (!u) return alert('Username tidak boleh kosong!');
+            if (!p || p.length < 6) return alert('Password minimal 6 karakter!');
+            if (paketIds.length === 0) return alert('Centang minimal 1 paket soal!');
+
+            try {
+                await addDoc(EDITOR_COLL(), {
+                    username:    u,
+                    password:    p,
+                    displayName: disp || u,
+                    paketIds:    paketIds,
+                    createdAt:   Date.now(),
+                    createdBy:   window.currentUserRole || 'admin'
+                });
+                alert('✅ Akun Editor "' + (disp||u) + '" berhasil dibuat!\n\nUsername: ' + u + '\nPassword: ' + p + '\nPaket: ' + paketIds.length + ' paket');
+                document.getElementById('editor-new-username').value = '';
+                document.getElementById('editor-new-password').value = '';
+                document.getElementById('editor-new-displayname').value = '';
+                document.querySelectorAll('#editor-paket-checks input[type=checkbox]').forEach(c => c.checked = false);
+                window.loadEditorList();
+            } catch(err) {
+                alert('Gagal menyimpan: ' + err.message);
+            }
+        };
+
+        window.deleteEditorAkun = async function(docId, username) {
+            if (!confirm('Hapus akun editor "' + username + '"?\n\nData soal tidak ikut terhapus.')) return;
+            try {
+                await deleteDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'editor_soal', docId));
+                alert('✅ Akun editor "' + username + '" dihapus.');
+                window.loadEditorList();
+            } catch(err) {
+                alert('Gagal hapus: ' + err.message);
+            }
+        };
+
+        window.populateEditorPaketChecks = function() {
+            const container = document.getElementById('editor-paket-checks');
+            if (!container) return;
+            const pakets = window.allPaketDB || [];
+            if (pakets.length === 0) {
+                container.innerHTML = '<span class="text-xs text-gray-400 italic">Belum ada paket. Buat paket dulu di Tab Soal.</span>';
+                return;
+            }
+            container.innerHTML = pakets.map(pk =>
+                '<label class="flex items-center gap-2 bg-white border border-gray-200 px-2.5 py-1.5 rounded-lg cursor-pointer hover:border-violet-400 hover:bg-violet-50 transition text-xs font-semibold text-gray-700 select-none">' +
+                '<input type="checkbox" value="' + pk.id + '" class="accent-violet-600 w-3.5 h-3.5"> ' +
+                escapeHtml(pk.nama) + '</label>'
+            ).join('');
         };
 
         window.handleAdminLogin = async function(e) {
@@ -15597,6 +15961,16 @@ Terima kasih 🙏</textarea>
                     if (window._activateGuruMode) window._activateGuruMode(session.guruData);
                 }, 200);
                 console.log('[Session] Guru session restored:', session.guruData.displayName);
+            } else if (session.role === 'editor' && session.guruData) {
+                // ── Restore editor soal session ──
+                window.currentUserRole      = 'editor';
+                window.currentPengawasRuang = null;
+                window.currentGuruData      = session.guruData;
+                if (window.listenForPaket) window.listenForPaket();
+                setTimeout(() => {
+                    if (window._activateEditorMode) window._activateEditorMode(session.guruData);
+                }, 200);
+                console.log('[Session] Editor session restored:', session.guruData.displayName);
             }
         };
         
@@ -23188,12 +23562,12 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                     if (!s) return '';
                     return s
                         // Pertahankan tag formatting aman — ganti dulu dengan placeholder
-                        .replace(/<strong([^>]*)>/gi, 'BOPEN').replace(/<\/strong>/gi, 'BCLOSE')
-                        .replace(/<b([^>]*)>/gi,      'BOPEN').replace(/<\/b>/gi,      'BCLOSE')
-                        .replace(/<em([^>]*)>/gi,     'IOPEN').replace(/<\/em>/gi,     'ICLOSE')
-                        .replace(/<i([^>]*)>/gi,      'IOPEN').replace(/<\/i>/gi,      'ICLOSE')
-                        .replace(/<sub([^>]*)>/gi,    'SOPEN').replace(/<\/sub>/gi,    'SCLOSE')
-                        .replace(/<sup([^>]*)>/gi,    'POPEN').replace(/<\/sup>/gi,    'PCLOSE')
+                        .replace(/<strong([^>]*)>/gi, 'BOPEN').replace(/<\/strong>/gi, 'BCLOSE')
+                        .replace(/<b([^>]*)>/gi,      'BOPEN').replace(/<\/b>/gi,      'BCLOSE')
+                        .replace(/<em([^>]*)>/gi,     'IOPEN').replace(/<\/em>/gi,     'ICLOSE')
+                        .replace(/<i([^>]*)>/gi,      'IOPEN').replace(/<\/i>/gi,      'ICLOSE')
+                        .replace(/<sub([^>]*)>/gi,    'SOPEN').replace(/<\/sub>/gi,    'SCLOSE')
+                        .replace(/<sup([^>]*)>/gi,    'POPEN').replace(/<\/sup>/gi,    'PCLOSE')
                         // Strip semua tag HTML lain
                         .replace(/<span[^>]*>([\s\S]*?)<\/span>/gi,'$1')
                         .replace(/<p[^>]*>([\s\S]*?)<\/p>/gi,'$1 ')
@@ -23202,10 +23576,10 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                         // Decode entity
                         .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#039;/g,"'")
                         // Kembalikan tag aman
-                        .replace(/BOPEN/g,'<strong>').replace(/BCLOSE/g,'</strong>')
-                        .replace(/IOPEN/g,'<em>').replace(/ICLOSE/g,'</em>')
-                        .replace(/SOPEN/g,'<sub>').replace(/SCLOSE/g,'</sub>')
-                        .replace(/POPEN/g,'<sup>').replace(/PCLOSE/g,'</sup>')
+                        .replace(/BOPEN/g,'<strong>').replace(/BCLOSE/g,'</strong>')
+                        .replace(/IOPEN/g,'<em>').replace(/ICLOSE/g,'</em>')
+                        .replace(/SOPEN/g,'<sub>').replace(/SCLOSE/g,'</sub>')
+                        .replace(/POPEN/g,'<sup>').replace(/PCLOSE/g,'</sup>')
                         .replace(/\s+/g,' ').trim();
                 };
 
