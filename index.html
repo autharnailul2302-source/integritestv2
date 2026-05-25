@@ -5512,9 +5512,14 @@ html.dark .ob-dot.active { background: #818cf8; }
                                         <div class="mt-3 flex gap-2 justify-end">
                                             <button onclick="document.getElementById('excel-preview').classList.add('hidden'); document.getElementById('excel-file-input').value=''"
                                                 class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50 text-sm">Batal</button>
-                                            <button onclick="window.uploadParsedQuestions()" id="btn-upload-excel"
+                                            <button onclick="window.uploadParsedQuestions(false)" id="btn-upload-excel"
                                                 class="px-5 py-2 bg-[#217346] hover:bg-[#1a5c38] text-white rounded-lg font-bold text-sm flex items-center gap-2 shadow-sm">
                                                 <i data-lucide="upload-cloud" class="w-4 h-4"></i> Upload ke Paket
+                                            </button>
+                                            <button onclick="window.uploadParsedQuestions(true)"
+                                                class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold text-sm flex items-center gap-2 shadow-sm"
+                                                title="Upload semua soal tanpa cek duplikat">
+                                                <i data-lucide="zap" class="w-4 h-4"></i> Paksa Upload
                                             </button>
                                         </div>
                                     </div>
@@ -5585,9 +5590,14 @@ html.dark .ob-dot.active { background: #818cf8; }
                                         <div class="mt-3 flex gap-2 justify-end">
                                             <button onclick="document.getElementById('word-preview').classList.add('hidden'); document.getElementById('word-file-input').value=''"
                                                 class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50 text-sm">Batal</button>
-                                            <button onclick="window.uploadParsedWordQuestions()" id="btn-upload-word"
+                                            <button onclick="window.uploadParsedWordQuestions(false)" id="btn-upload-word"
                                                 class="px-5 py-2 bg-[#2B579A] hover:bg-[#1f4178] text-white rounded-lg font-bold text-sm flex items-center gap-2 shadow-sm">
                                                 <i data-lucide="upload-cloud" class="w-4 h-4"></i> Upload ke Paket
+                                            </button>
+                                            <button onclick="window.uploadParsedWordQuestions(true)" id="btn-upload-word-force"
+                                                class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold text-sm flex items-center gap-2 shadow-sm"
+                                                title="Upload semua soal tanpa cek duplikat">
+                                                <i data-lucide="zap" class="w-4 h-4"></i> Paksa Upload
                                             </button>
                                         </div>
                                     </div>
@@ -23387,7 +23397,7 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
             reader.readAsArrayBuffer(file);
         };
 
-        window.uploadParsedQuestions = async function() {
+        window.uploadParsedQuestions = async function(forceUpload = false) {
             if (!window.isFirebaseReady) { alert("Mode Offline: Tidak bisa upload ke database."); return; }
             const questions = window.parsedExcelQuestions;
             if (!questions || questions.length === 0) { alert("Tidak ada soal untuk diupload."); return; }
@@ -23447,12 +23457,12 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                         }
                     }
 
-                    // ★ FIX: Duplikat = teks SAMA (strip HTML) + paketId SAMA
+                    // Cek duplikat — bisa di-skip dengan forceUpload
                     const qTextClean = window.stripHtml(q.text);
-                    const exists = window.allQuestionsDB.some(dbQ =>
+                    const existingMatch = !forceUpload && window.allQuestionsDB.find(dbQ =>
                         window.stripHtml(dbQ.text) === qTextClean && dbQ.paketId === finalPaketId
                     );
-                    if (!exists) {
+                    if (!existingMatch) {
                         await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'questions'), {
                             ...q,
                             packet:  finalPacket,
@@ -23464,7 +23474,8 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                     }
                 }
                 const npInfo = hasNP ? ` (soal non-standar → ${npPaketObj?.nama || npPaketId})` : '';
-                showImportStatus('success', `✅ Berhasil upload ${uploaded} soal baru!${npInfo} (${skipped} soal duplikat dilewati)`);
+                const forceNote = forceUpload ? ' [mode paksa]' : '';
+                showImportStatus('success', `✅ Berhasil upload ${uploaded} soal baru!${npInfo} (${skipped} soal duplikat dilewati)${forceNote}`);
                 document.getElementById('excel-preview').classList.add('hidden');
                 document.getElementById('excel-np-warning').classList.add('hidden');
                 document.getElementById('excel-file-input').value = '';
@@ -23575,7 +23586,7 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
             reader.readAsArrayBuffer(file);
         };
 
-        window.uploadParsedWordQuestions = async function() {
+        window.uploadParsedWordQuestions = async function(forceUpload = false) {
             if (!window.isFirebaseReady) { alert("Mode Offline: Tidak bisa upload ke database."); return; }
             const questions = window.parsedWordQuestions;
             if (!questions || questions.length === 0) { alert("Tidak ada soal untuk diupload."); return; }
@@ -23631,13 +23642,19 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                         }
                     }
 
-                    // ★ FIX: Duplikat = teks SAMA (strip HTML) + paketId SAMA
-                    // Strip HTML dulu sebelum bandingkan — teks dari Word bisa mengandung <strong> dll
+                    // Cek duplikat — bisa di-skip dengan forceUpload
                     const qTextClean = window.stripHtml(q.text);
-                    const exists = window.allQuestionsDB.some(dbQ =>
+                    const existingMatch = !forceUpload && window.allQuestionsDB.find(dbQ =>
                         window.stripHtml(dbQ.text) === qTextClean && dbQ.paketId === finalPaketId
                     );
-                    if (!exists) {
+                    // Debug: tampilkan 2 soal pertama di konsol untuk diagnosa
+                    if (uploaded + skipped < 2) {
+                        console.log('[Import] q.text:', JSON.stringify(q.text?.substring(0,80)));
+                        console.log('[Import] qTextClean:', JSON.stringify(qTextClean?.substring(0,80)));
+                        console.log('[Import] finalPaketId:', finalPaketId);
+                        if (existingMatch) console.log('[Import] MATCH dbQ.text:', JSON.stringify(existingMatch.text?.substring(0,80)));
+                    }
+                    if (!existingMatch) {
                         await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'questions'), {
                             ...q,
                             packet:  finalPacket,
@@ -23649,7 +23666,8 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                     }
                 }
                 const npInfo = hasNP ? ` (soal non-standar → ${npPaketObj?.nama || npPaketId})` : '';
-                showImportStatus('success', `✅ Berhasil upload ${uploaded} soal baru dari Word!${npInfo} (${skipped} duplikat dilewati)`);
+                const forceNote = forceUpload ? ' [mode paksa]' : '';
+                showImportStatus('success', `✅ Berhasil upload ${uploaded} soal baru dari Word!${npInfo} (${skipped} duplikat dilewati)${forceNote}`);
                 document.getElementById('word-preview').classList.add('hidden');
                 document.getElementById('word-np-warning').classList.add('hidden');
                 document.getElementById('word-file-input').value = '';
