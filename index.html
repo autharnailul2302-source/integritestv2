@@ -652,6 +652,8 @@
                 // Sync toggle banding
                 const appealToggle = document.getElementById('toggle-appeal');
                 if (appealToggle) appealToggle.checked = window.appealEnabled;
+                const btnAppeal = document.getElementById('btn-toggle-appeal');
+                if (btnAppeal) { btnAppeal.textContent = window.appealEnabled ? '✅ ON' : '❌ OFF'; btnAppeal.style.background = window.appealEnabled ? '#16a34a' : '#dc2626'; }
                 const appealStatusEl = document.getElementById('appeal-setting-status');
                 if (appealStatusEl) appealStatusEl.innerHTML = window.appealEnabled
                     ? '<span class="text-green-600 font-bold">✅ Aktif — Siswa dapat mengajukan banding</span>'
@@ -659,6 +661,8 @@
                 // Sync toggle kamera
                 const cameraToggle = document.getElementById('toggle-camera');
                 if (cameraToggle) cameraToggle.checked = window.cameraEnabled;
+                const btnCamera = document.getElementById('btn-toggle-camera');
+                if (btnCamera) { btnCamera.textContent = window.cameraEnabled ? '✅ ON' : '❌ OFF'; btnCamera.style.background = window.cameraEnabled ? '#16a34a' : '#dc2626'; }
                 const cameraStatusEl = document.getElementById('camera-setting-status');
                 if (cameraStatusEl) cameraStatusEl.innerHTML = window.cameraEnabled
                     ? '<span class="text-green-600 font-bold">✅ Aktif — Kamera pengawas AI digunakan</span>'
@@ -666,6 +670,8 @@
                 // Sync toggle remedial
                 const remedialToggle = document.getElementById('toggle-remedial');
                 if (remedialToggle) remedialToggle.checked = window.remedialMode === true;
+                const btnRemedial = document.getElementById('btn-toggle-remedial');
+                if (btnRemedial) { btnRemedial.textContent = window.remedialMode ? '✅ ON' : '❌ OFF'; btnRemedial.style.background = window.remedialMode ? '#16a34a' : '#dc2626'; }
                 const remedialStatusEl = document.getElementById('remedial-setting-status');
                 if (remedialStatusEl) remedialStatusEl.innerHTML = window.remedialMode
                     ? '<span class="text-green-600 font-bold">✅ Aktif — Siswa nilai &lt; KKM / DQ boleh ujian ulang</span>'
@@ -687,6 +693,8 @@
                 window._showGlobalToken = showGlobalToken;
                 const toggleGT = document.getElementById('toggle-show-global-token');
                 if (toggleGT) toggleGT.checked = showGlobalToken;
+                const btnGT = document.getElementById('btn-toggle-show-global-token');
+                if (btnGT) { btnGT.textContent = showGlobalToken ? '✅ ON' : '❌ OFF'; btnGT.style.background = showGlobalToken ? '#16a34a' : '#dc2626'; }
                 if (window.updatePengawasTokenDisplay) window.updatePengawasTokenDisplay();
                 // Selalu update tampilan token di panel pengawas
                 if (window.updatePengawasTokenDisplay) window.updatePengawasTokenDisplay();
@@ -7448,17 +7456,24 @@ Terima kasih 🙏</textarea>
                                 <p id="appeal-setting-status" class="text-xs mt-1"><span class="text-green-600 font-bold">✅ Aktif — Siswa dapat mengajukan banding</span></p>
                             </div>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                            <input type="checkbox" id="toggle-appeal" class="sr-only peer" checked
-                                onchange="
-                                    const on = this.checked;
+                        <div class="shrink-0 flex flex-col items-center gap-1">
+                            <input type="checkbox" id="toggle-appeal" class="sr-only" checked>
+                            <button type="button" id="btn-toggle-appeal"
+                                onclick="
+                                    const cb = document.getElementById('toggle-appeal');
+                                    cb.checked = !cb.checked;
+                                    const on = cb.checked;
                                     const el = document.getElementById('appeal-setting-status');
                                     if(el) el.innerHTML = on
                                         ? '<span class=\'text-green-600 font-bold\'>✅ Aktif — Siswa dapat mengajukan banding</span>'
                                         : '<span class=\'text-red-500 font-bold\'>❌ Nonaktif — Fitur banding disembunyikan</span>';
-                                ">
-                            <div class="w-12 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
-                        </label>
+                                    this.textContent = on ? '✅ ON' : '❌ OFF';
+                                    this.style.background = on ? '#16a34a' : '#dc2626';
+                                "
+                                style="min-width:72px;padding:7px 16px;border-radius:999px;border:none;font-size:13px;font-weight:900;color:#fff;background:#16a34a;cursor:pointer;transition:background .2s;letter-spacing:.03em;">
+                                ✅ ON
+                            </button>
+                        </div>
                     </div>
                     <!-- Toggle Kamera Pengawas AI -->
                     <div class="mt-3 rounded-xl border border-violet-200 bg-violet-50 px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -7472,17 +7487,24 @@ Terima kasih 🙏</textarea>
                                 <p id="camera-setting-status" class="text-xs mt-1"><span class="text-green-600 font-bold">✅ Aktif — Kamera pengawas AI digunakan</span></p>
                             </div>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                            <input type="checkbox" id="toggle-camera" class="sr-only peer" checked
-                                onchange="
-                                    const on = this.checked;
+                        <div class="shrink-0 flex flex-col items-center gap-1">
+                            <input type="checkbox" id="toggle-camera" class="sr-only" checked>
+                            <button type="button" id="btn-toggle-camera"
+                                onclick="
+                                    const cb = document.getElementById('toggle-camera');
+                                    cb.checked = !cb.checked;
+                                    const on = cb.checked;
                                     const el = document.getElementById('camera-setting-status');
                                     if(el) el.innerHTML = on
                                         ? '<span class=\'text-green-600 font-bold\'>✅ Aktif — Kamera pengawas AI digunakan</span>'
                                         : '<span class=\'text-red-500 font-bold\'>❌ Nonaktif — Kamera tidak digunakan (hemat RAM)</span>';
-                                ">
-                            <div class="w-12 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-500"></div>
-                        </label>
+                                    this.textContent = on ? '✅ ON' : '❌ OFF';
+                                    this.style.background = on ? '#16a34a' : '#dc2626';
+                                "
+                                style="min-width:72px;padding:7px 16px;border-radius:999px;border:none;font-size:13px;font-weight:900;color:#fff;background:#16a34a;cursor:pointer;transition:background .2s;letter-spacing:.03em;">
+                                ✅ ON
+                            </button>
+                        </div>
                     </div>
                     <!-- Toggle Mode Remedial -->
                     <div class="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -7496,17 +7518,24 @@ Terima kasih 🙏</textarea>
                                 <p id="remedial-setting-status" class="text-xs mt-1"><span class="text-red-500 font-bold">❌ Nonaktif — Semua siswa diblokir login ulang</span></p>
                             </div>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                            <input type="checkbox" id="toggle-remedial" class="sr-only peer"
-                                onchange="
-                                    const on = this.checked;
+                        <div class="shrink-0 flex flex-col items-center gap-1">
+                            <input type="checkbox" id="toggle-remedial" class="sr-only">
+                            <button type="button" id="btn-toggle-remedial"
+                                onclick="
+                                    const cb = document.getElementById('toggle-remedial');
+                                    cb.checked = !cb.checked;
+                                    const on = cb.checked;
                                     const el = document.getElementById('remedial-setting-status');
                                     if(el) el.innerHTML = on
                                         ? '<span class=\'text-green-600 font-bold\'>✅ Aktif — Siswa nilai &lt; KKM / DQ boleh ujian ulang</span>'
                                         : '<span class=\'text-red-500 font-bold\'>❌ Nonaktif — Semua siswa diblokir login ulang</span>';
-                                ">
-                            <div class="w-12 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                        </label>
+                                    this.textContent = on ? '✅ ON' : '❌ OFF';
+                                    this.style.background = on ? '#16a34a' : '#dc2626';
+                                "
+                                style="min-width:72px;padding:7px 16px;border-radius:999px;border:none;font-size:13px;font-weight:900;color:#fff;background:#dc2626;cursor:pointer;transition:background .2s;letter-spacing:.03em;">
+                                ❌ OFF
+                            </button>
+                        </div>
                     </div>
                     <!-- ══ SEMBUNYIKAN TOKEN GLOBAL ══ -->
                     <div class="flex items-start justify-between gap-4 py-4 border-t border-gray-100">
@@ -7514,14 +7543,21 @@ Terima kasih 🙏</textarea>
                             <p class="text-sm font-bold text-gray-700">🔑 Token Global di Panel Pengawas</p>
                             <p class="text-xs text-gray-500 mt-0.5">Nonaktifkan agar Token Global tidak muncul di panel pengawas. Gunakan jika semua ujian sudah pakai jadwal otomatis sehingga token global tidak relevan.</p>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
-                            <input type="checkbox" id="toggle-show-global-token" class="sr-only peer" checked
-                                onchange="
-                                    const on = this.checked;
+                        <div class="shrink-0 flex flex-col items-center gap-1 mt-1">
+                            <input type="checkbox" id="toggle-show-global-token" class="sr-only" checked>
+                            <button type="button" id="btn-toggle-show-global-token"
+                                onclick="
+                                    const cb = document.getElementById('toggle-show-global-token');
+                                    cb.checked = !cb.checked;
+                                    const on = cb.checked;
                                     if (window.updatePengawasTokenDisplay) window.updatePengawasTokenDisplay();
-                                ">
-                            <div class="w-12 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
-                        </label>
+                                    this.textContent = on ? '✅ ON' : '❌ OFF';
+                                    this.style.background = on ? '#16a34a' : '#dc2626';
+                                "
+                                style="min-width:72px;padding:7px 16px;border-radius:999px;border:none;font-size:13px;font-weight:900;color:#fff;background:#16a34a;cursor:pointer;transition:background .2s;letter-spacing:.03em;">
+                                ✅ ON
+                            </button>
+                        </div>
                     </div>
 
                     <!-- ══ TOLERANSI DIAM (IDLE) ══ -->
