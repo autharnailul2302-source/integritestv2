@@ -624,6 +624,7 @@
                         if (data.kkm !== undefined) window.currentKKM = Math.max(0, Math.min(100, parseInt(data.kkm) || 75));
                         if ('appealEnabled' in data) window.appealEnabled = data.appealEnabled !== false;
                         if ('cameraEnabled' in data) window.cameraEnabled = data.cameraEnabled !== false;
+                        if ('remedialMode' in data) window.remedialMode = data.remedialMode === true;
                         // Appearance — gunakan 'in' agar nilai null (dikosongkan user) ikut ter-apply
                         if ('judulUjian' in data) latestAppearance.judulUjian = data.judulUjian ?? '';
                         if ('subJudul'   in data) latestAppearance.subJudul   = data.subJudul   ?? '';
@@ -662,6 +663,13 @@
                 if (cameraStatusEl) cameraStatusEl.innerHTML = window.cameraEnabled
                     ? '<span class="text-green-600 font-bold">✅ Aktif — Kamera pengawas AI digunakan</span>'
                     : '<span class="text-red-500 font-bold">❌ Nonaktif — Kamera tidak digunakan (hemat RAM)</span>';
+                // Sync toggle remedial
+                const remedialToggle = document.getElementById('toggle-remedial');
+                if (remedialToggle) remedialToggle.checked = window.remedialMode === true;
+                const remedialStatusEl = document.getElementById('remedial-setting-status');
+                if (remedialStatusEl) remedialStatusEl.innerHTML = window.remedialMode
+                    ? '<span class="text-green-600 font-bold">✅ Aktif — Siswa nilai &lt; KKM / DQ boleh ujian ulang</span>'
+                    : '<span class="text-red-500 font-bold">❌ Nonaktif — Semua siswa diblokir login ulang</span>';
                 // Sync toleransi diam (idle)
                 const idleMenit = latestDoc.idleThresholdMenit || 5;
                 window._idleThresholdMenit = idleMenit;
@@ -1049,7 +1057,8 @@
             // ★ Tampilkan token global
             const showGlobalToken = document.getElementById('toggle-show-global-token')?.checked !== false;
 
-            if(!newToken) return alert("Token tidak boleh kosong!");
+            // ★ Mode Remedial Global
+            const newRemedialMode = document.getElementById('toggle-remedial')?.checked || false;
             if(!newDuration || newDuration < 1) return alert("Durasi tidak valid (minimal 1 menit)!");
             if(newMinDuration > newDuration) return alert("Durasi minimal tidak boleh lebih besar dari durasi ujian!");
             if(newCooldown < 10) return alert("Cooldown device minimal 10 menit!");
@@ -1071,6 +1080,7 @@
                         perSoalTimerSec: perSoalTimerSec,
                         idleThresholdMenit: newIdleMenit,
                         showGlobalToken: showGlobalToken,
+                        remedialMode: newRemedialMode,
                         // Sertakan nilai tampilan yang sudah ada agar tidak tertimpa null
                         judulUjian:   savedApp.judulUjian  ?? null,
                         subJudul:     savedApp.subJudul    ?? null,
@@ -1083,10 +1093,11 @@
                     window.appealEnabled = newAppealEnabled;
                     window.cameraEnabled = newCameraEnabled;
                     window.currentKKM = newKKM;
+                    window.remedialMode = newRemedialMode;
                     // Update label stat card KKM
                     const lbl = document.getElementById('stat-label-lulus-val');
                     if (lbl) lbl.textContent = newKKM;
-                    alert(`✅ Pengaturan sistem disimpan!\nToken: ${newToken} | Durasi: ${newDuration} mnt | Cooldown: ${newCooldown} mnt | KKM: ${newKKM}\nFitur Banding: ${newAppealEnabled ? 'Aktif' : 'Nonaktif'} | Kamera: ${newCameraEnabled ? 'Aktif' : 'Nonaktif'}`);
+                    alert(`✅ Pengaturan sistem disimpan!\nToken: ${newToken} | Durasi: ${newDuration} mnt | Cooldown: ${newCooldown} mnt | KKM: ${newKKM}\nFitur Banding: ${newAppealEnabled ? 'Aktif' : 'Nonaktif'} | Kamera: ${newCameraEnabled ? 'Aktif' : 'Nonaktif'} | Remedial: ${newRemedialMode ? 'Aktif' : 'Nonaktif'}`);
                 } catch(saveErr) {
                     alert(`❌ Gagal simpan ke server: ${saveErr.message}\n\nCek koneksi internet dan coba lagi.`);
                 }
@@ -7332,7 +7343,7 @@ Terima kasih 🙏</textarea>
                         </div>
                         <div>
                             <p class="font-black text-white text-sm">Pengaturan Ujian</p>
-                            <p class="text-blue-200 text-[11px]">Token · Durasi · KKM · Cooldown</p>
+                            <p class="text-blue-200 text-[11px]">Token · Durasi · KKM · Cooldown · Remedial</p>
                         </div>
                     </div>
                     <div class="bg-white p-5">
@@ -7471,6 +7482,30 @@ Terima kasih 🙏</textarea>
                                         : '<span class=\'text-red-500 font-bold\'>❌ Nonaktif — Kamera tidak digunakan (hemat RAM)</span>';
                                 ">
                             <div class="w-12 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-500"></div>
+                        </label>
+                    </div>
+                    <!-- Toggle Mode Remedial -->
+                    <div class="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                        <div class="flex items-center gap-3 flex-1">
+                            <div class="bg-emerald-500 p-2 rounded-lg shrink-0">
+                                <i data-lucide="refresh-ccw" class="w-5 h-5 text-white"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-emerald-800">Mode Remedial Global</p>
+                                <p class="text-xs text-emerald-700 mt-0.5">Jika diaktifkan, siswa yang nilainya <strong>di bawah KKM</strong> atau berstatus <strong>Diskualifikasi (DQ)</strong> diizinkan login ulang dan mengerjakan ujian kembali. Siswa yang sudah lulus tetap diblokir.</p>
+                                <p id="remedial-setting-status" class="text-xs mt-1"><span class="text-red-500 font-bold">❌ Nonaktif — Semua siswa diblokir login ulang</span></p>
+                            </div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                            <input type="checkbox" id="toggle-remedial" class="sr-only peer"
+                                onchange="
+                                    const on = this.checked;
+                                    const el = document.getElementById('remedial-setting-status');
+                                    if(el) el.innerHTML = on
+                                        ? '<span class=\'text-green-600 font-bold\'>✅ Aktif — Siswa nilai &lt; KKM / DQ boleh ujian ulang</span>'
+                                        : '<span class=\'text-red-500 font-bold\'>❌ Nonaktif — Semua siswa diblokir login ulang</span>';
+                                ">
+                            <div class="w-12 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                         </label>
                     </div>
                     <!-- ══ SEMBUNYIKAN TOKEN GLOBAL ══ -->
@@ -13537,7 +13572,24 @@ Terima kasih 🙏</textarea>
                             const nisnMatch = d.studentNisn && studentNisn && d.studentNisn.toString().trim() === studentNisn.toString().trim();
                             const nameFb   = !d.studentNisn && d.studentName.toLowerCase() === name.toLowerCase() && d.className === cls;
                             if (nisnMatch || nameFb) {
-                                if (d.status.includes('SELESAI') || d.status.includes('DISKUALIFIKASI')) isDuplicateName = true;
+                                if (d.status.includes('SELESAI') || d.status.includes('DISKUALIFIKASI')) {
+                                    // ★ Cek apakah paket yang sudah dikerjakan ini ada di daftar paket login sekarang
+                                    const paketSudahDikerjakan = paketCocok.some(p => p.id === d.paketId);
+                                    if (paketSudahDikerjakan) {
+                                        // ★ Mode Remedial Global aktif?
+                                        if (window.remedialMode === true) {
+                                            const nilaiBawahKKM = (d.score !== undefined && d.score !== null && d.score < (window.currentKKM || 75));
+                                            const isDQ = d.status.includes('DISKUALIFIKASI');
+                                            // Hanya blokir jika sudah lulus (nilai >= KKM dan tidak DQ)
+                                            if (!nilaiBawahKKM && !isDQ) isDuplicateName = true;
+                                            // Jika di bawah KKM atau DQ → biarkan masuk (remedial)
+                                        } else {
+                                            // Mode normal: blokir semua yang sudah selesai/DQ
+                                            isDuplicateName = true;
+                                        }
+                                    }
+                                    // Jika paketId berbeda → siswa mau ujian mapel lain → boleh masuk
+                                }
                             }
                             if (d.deviceFingerprint === fp && (d.status.includes('SELESAI') || d.status.includes('DISKUALIFIKASI'))) {
                                 const beda = d.studentNisn && studentNisn ? d.studentNisn.toString() !== studentNisn.toString() : d.studentName.toLowerCase() !== name.toLowerCase();
@@ -13550,7 +13602,10 @@ Terima kasih 🙏</textarea>
                 if (submitBtn) { submitBtn.disabled = false; submitBtn.querySelector('span').textContent = "MASUK"; }
 
                 if (isDuplicateName) {
-                    alert(`⛔ AKSES DITOLAK\n\n"${name}" sudah menyelesaikan atau didiskualifikasi.\nLogin ulang tidak diizinkan.`);
+                    const pesanRemedial = window.remedialMode
+                        ? `\n\nMode Remedial aktif, namun nilai Anda sudah mencapai KKM. Login ulang tidak diizinkan.`
+                        : `\n\nHubungi pengawas jika ada kendala.`;
+                    alert(`⛔ AKSES DITOLAK\n\n"${name}" sudah menyelesaikan ujian untuk paket ini.${pesanRemedial}`);
                     return;
                 }
                 if (isDeviceBlocked) {
@@ -13605,7 +13660,7 @@ Terima kasih 🙏</textarea>
         // ──────────────────────────────────────────────────────
         // Render daftar paket di halaman selamat datang
         // ──────────────────────────────────────────────────────
-        window.renderWelcomePaketList = function(paketCocok, cls, tokenInput) {
+        window.renderWelcomePaketList = async function(paketCocok, cls, tokenInput) {
             const container = document.getElementById('welcome-paket-list');
             if (!container) return;
 
@@ -13615,6 +13670,56 @@ Terima kasih 🙏</textarea>
                     p.aktif !== false && (!p.token || p.token.toUpperCase() === tokenInput)
                 );
                 paketCocok = aktifPaket;
+            }
+
+            // ★ Filter paket: hilangkan yang sudah dikerjakan siswa (kecuali remedial)
+            if (window.isFirebaseReady && window.db) {
+                try {
+                    const { getDocs, collection } = window;
+                    const loginData = window._loginData || {};
+                    const studentNisn = loginData.studentNisn || '';
+                    const studentName = loginData.name || '';
+                    const snap = await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results'));
+                    const paketSelesai = new Set(); // paketId yang sudah selesai/DQ oleh siswa ini
+                    snap.forEach(ds => {
+                        const d = ds.data();
+                        const nisnMatch = d.studentNisn && studentNisn && d.studentNisn.toString().trim() === studentNisn.toString().trim();
+                        const namaMatch = !d.studentNisn && d.studentName && studentName && d.studentName.toLowerCase().trim() === studentName.toLowerCase().trim();
+                        if (!nisnMatch && !namaMatch) return;
+                        if (d.status && (d.status.includes('SELESAI') || d.status.includes('DISKUALIFIKASI'))) {
+                            if (d.paketId) paketSelesai.add(d.paketId);
+                        }
+                    });
+
+                    // Filter: buang paket yang sudah dikerjakan (kecuali mode remedial & nilai < KKM / DQ)
+                    window._paketRemedialIds = new Set(); // reset
+                    paketCocok = paketCocok.filter(p => {
+                        if (!paketSelesai.has(p.id)) return true; // belum dikerjakan → tampilkan
+                        if (window.remedialMode !== true) return false; // sudah dikerjakan, non-remedial → sembunyikan
+                        // Mode remedial: cek apakah siswa berhak mengulang (nilai < KKM atau DQ)
+                        let bolehRemedial = false;
+                        snap.forEach(ds => {
+                            const d = ds.data();
+                            if (d.paketId !== p.id) return;
+                            const nisnMatch = d.studentNisn && studentNisn && d.studentNisn.toString().trim() === studentNisn.toString().trim();
+                            const namaMatch = !d.studentNisn && d.studentName && studentName && d.studentName.toLowerCase().trim() === studentName.toLowerCase().trim();
+                            if (!nisnMatch && !namaMatch) return;
+                            const isDQ = d.status && d.status.includes('DISKUALIFIKASI');
+                            const nilaiBawahKKM = d.score !== undefined && d.score !== null && d.score < (window.currentKKM || 75);
+                            if (isDQ || nilaiBawahKKM) bolehRemedial = true;
+                        });
+                        if (bolehRemedial) window._paketRemedialIds.add(p.id); // tandai sebagai remedial
+                        return bolehRemedial;
+                    });
+
+                    // ★ Urutkan: paket yang jadwalnya AKTIF sekarang muncul paling atas
+                    const jadwalAktif = (window.allJadwalDB || []).filter(j => j.isActive);
+                    paketCocok.sort((a, b) => {
+                        const aAktif = jadwalAktif.some(j => j.paketId === a.id) ? 0 : 1;
+                        const bAktif = jadwalAktif.some(j => j.paketId === b.id) ? 0 : 1;
+                        return aAktif - bAktif;
+                    });
+                } catch(e) { console.warn('[renderWelcomePaketList] filter error:', e); }
             }
 
             if (paketCocok.length === 0) {
@@ -13693,18 +13798,34 @@ Terima kasih 🙏</textarea>
                 ];
                 const grad = gradients[i % gradients.length];
                 const shadow = shadows[i % shadows.length];
+                // ★ Cek apakah paket ini sedang aktif di jadwal
+                const jadwalAktif = (window.allJadwalDB || []).filter(j => j.isActive);
+                const isAktifSekarang = jadwalAktif.some(j => j.paketId === p.id);
+                // ★ Cek apakah paket ini adalah sesi remedial (sudah pernah dikerjakan)
+                const isRemedialEntry = window.remedialMode === true && window._paketRemedialIds && window._paketRemedialIds.has(p.id);
+                const badgeLabel = isRemedialEntry
+                    ? `<i data-lucide="refresh-ccw" class="w-2.5 h-2.5"></i> Ujian Remedial`
+                    : isAktifSekarang
+                        ? `<i data-lucide="radio" class="w-2.5 h-2.5"></i> Sedang Berlangsung`
+                        : `<i data-lucide="graduation-cap" class="w-2.5 h-2.5"></i> Ujian Sekarang`;
+                const gradienFinal = isRemedialEntry
+                    ? 'linear-gradient(135deg,#065f46 0%,#059669 60%,#10b981 100%)'
+                    : grad;
+                const shadowFinal = isRemedialEntry
+                    ? '0 4px 20px rgba(5,150,105,0.45)'
+                    : shadow;
                 return `
                 <div class="p-1">
                 <button onclick="window.startExamFromWelcome('${p.id}')"
                     class="w-full text-left rounded-2xl overflow-hidden transition-all duration-150 active:scale-[0.98] hover:shadow-xl"
-                    style="background:${grad};box-shadow:${shadow};">
+                    style="background:${gradienFinal};box-shadow:${shadowFinal};">
                     <div class="px-4 pt-4 pb-3 flex items-start gap-3">
                         <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style="background:rgba(255,255,255,0.18);">
-                            <i data-lucide="book-open" class="w-5 h-5 text-white"></i>
+                            <i data-lucide="${isRemedialEntry ? 'refresh-ccw' : 'book-open'}" class="w-5 h-5 text-white"></i>
                         </div>
                         <div class="flex-1 min-w-0">
                             <span class="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full mb-1.5" style="background:rgba(255,255,255,0.2);color:#bfdbfe;">
-                                <i data-lucide="graduation-cap" class="w-2.5 h-2.5"></i> Ujian Sekarang
+                                ${badgeLabel}
                             </span>
                             <p class="font-black text-white text-sm leading-tight">${_e(p.nama)}</p>
                             <p class="text-blue-200 text-[11px] font-semibold mt-0.5">${p.mapel ? p.mapel + ' · ' : ''}${jenisLabel}</p>
@@ -13712,7 +13833,7 @@ Terima kasih 🙏</textarea>
                     </div>
                     <div class="mx-3 mb-3 py-3 rounded-xl flex items-center justify-center gap-2 font-black text-sm" style="background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);">
                         <i data-lucide="play-circle" class="w-4 h-4 text-white"></i>
-                        <span class="text-white">MULAI UJIAN</span>
+                        <span class="text-white">${isRemedialEntry ? 'MULAI REMEDIAL' : 'MULAI UJIAN'}</span>
                         <i data-lucide="arrow-right" class="w-4 h-4 text-blue-200"></i>
                     </div>
                 </button>
