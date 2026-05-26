@@ -77,24 +77,31 @@
         // Tag lain di-escape agar aman dari XSS
         window.safeRenderText = function(text) {
             if (!text) return '';
-            // 1. Simpan tag whitelist dengan placeholder
+            // 1. Simpan tag whitelist dengan placeholder UNIK (tidak akan muncul di teks soal)
+            //    PENTING: placeholder harus panjang & aneh agar tidak bertabrakan dengan kata di soal
             const safe = String(text)
-                .replace(/<strong>/gi, 'BO').replace(/<\/strong>/gi, 'BC')
-                .replace(/<em>/gi,     'IO').replace(/<\/em>/gi,     'IC')
-                .replace(/<sub>/gi,    'SO').replace(/<\/sub>/gi,    'SC')
-                .replace(/<sup>/gi,    'PO').replace(/<\/sup>/gi,    'PC');
+                .replace(/<strong>/gi,  '\x02STRONG_O\x03').replace(/<\/strong>/gi, '\x02STRONG_C\x03')
+                .replace(/<em>/gi,      '\x02EM_O\x03'    ).replace(/<\/em>/gi,     '\x02EM_C\x03'    )
+                .replace(/<sub>/gi,     '\x02SUB_O\x03'   ).replace(/<\/sub>/gi,    '\x02SUB_C\x03'   )
+                .replace(/<sup>/gi,     '\x02SUP_O\x03'   ).replace(/<\/sup>/gi,    '\x02SUP_C\x03'   )
+                .replace(/<u>/gi,       '\x02U_O\x03'     ).replace(/<\/u>/gi,      '\x02U_C\x03'     )
+                .replace(/<s>/gi,       '\x02S_O\x03'     ).replace(/<\/s>/gi,      '\x02S_C\x03'     )
+                .replace(/<mark>/gi,    '\x02MARK_O\x03'  ).replace(/<\/mark>/gi,   '\x02MARK_C\x03'  );
             // 2. Escape semua HTML lain (XSS protection)
             const escaped = safe
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;');
-            // 3. Kembalikan tag whitelist
+            // 3. Kembalikan tag whitelist dari placeholder unik
             return escaped
-                .replace(/BO/g, '<strong>').replace(/BC/g, '</strong>')
-                .replace(/IO/g, '<em>').replace(/IC/g, '</em>')
-                .replace(/SO/g, '<sub>').replace(/SC/g, '</sub>')
-                .replace(/PO/g, '<sup>').replace(/PC/g, '</sup>');
+                .replace(/\x02STRONG_O\x03/g, '<strong>').replace(/\x02STRONG_C\x03/g, '</strong>')
+                .replace(/\x02EM_O\x03/g,     '<em>'    ).replace(/\x02EM_C\x03/g,     '</em>'    )
+                .replace(/\x02SUB_O\x03/g,    '<sub>'   ).replace(/\x02SUB_C\x03/g,    '</sub>'   )
+                .replace(/\x02SUP_O\x03/g,    '<sup>'   ).replace(/\x02SUP_C\x03/g,    '</sup>'   )
+                .replace(/\x02U_O\x03/g,      '<u>'     ).replace(/\x02U_C\x03/g,      '</u>'     )
+                .replace(/\x02S_O\x03/g,      '<s>'     ).replace(/\x02S_C\x03/g,      '</s>'     )
+                .replace(/\x02MARK_O\x03/g,   '<mark>'  ).replace(/\x02MARK_C\x03/g,   '</mark>'  );
         };
 
         // ── DETEKSI HP KENTANG (Low-end Device) ──────────────────
@@ -12561,7 +12568,7 @@ Terima kasih 🙏</textarea>
                         </div>
                         <span style="font-size:12px;color:#94a3b8;">Dari ${total} soal</span>
                     </div>
-                    ${q.text ? `<p style="font-size:17px;color:#1e293b;font-weight:500;line-height:1.7;margin:0 0 4px;">${_e(q.text)}</p>` : ''}
+                    ${q.text ? `<p style="font-size:17px;color:#1e293b;font-weight:500;line-height:1.7;margin:0 0 4px;">${window.safeRenderText(q.text)}</p>` : ''}
                     ${qImgHtml}
                     ${hintBox}
                     <div id="_prev-opts">${optionsHTML}</div>
@@ -13430,7 +13437,7 @@ Terima kasih 🙏</textarea>
                         <span class="text-xs font-bold text-gray-300 w-7 shrink-0 text-center">${globalIdx+1}</span>
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 flex-wrap">
-                                <p class="text-sm font-semibold text-gray-800 truncate">${_e(q.text) || '<em class="text-gray-400 font-normal">Soal Gambar</em>'}</p>
+                                <p class="text-sm font-semibold text-gray-800 truncate">${window.safeRenderText(q.text) || '<em class="text-gray-400 font-normal">Soal Gambar</em>'}</p>
                                 ${tipeBadge}
                                 ${kdBadge}
                             </div>
@@ -13453,7 +13460,7 @@ Terima kasih 🙏</textarea>
                     <div class="soal-detail hidden border-t bg-slate-50 px-6 py-4">
                         <div class="mb-3">
                             <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Pertanyaan</p>
-                            <p class="text-sm text-gray-800 leading-relaxed">${_e(q.text) || '<em class="text-gray-400">Tidak ada teks</em>'}</p>
+                            <p class="text-sm text-gray-800 leading-relaxed">${window.safeRenderText(q.text) || '<em class="text-gray-400">Tidak ada teks</em>'}</p>
                             ${imgHtml}
                         </div>
                         <div>
@@ -18068,7 +18075,7 @@ Terima kasih 🙏</textarea>
                                 <div class="mt-1 min-w-[20px]">${icon}</div>
                                 <div class="w-full">
                                     <p class="font-semibold text-gray-800 mb-2 text-sm md:text-base">
-                                        <span class="text-gray-500 mr-1">${idx + 1}.</span> ${_e(q.text) || '(Soal bergambar)'}${tipeBadge}
+                                        <span class="text-gray-500 mr-1">${idx + 1}.</span> ${window.safeRenderText(q.text) || '(Soal bergambar)'}${tipeBadge}
                                     </p>
                                     <div class="mt-3 text-sm space-y-1">
                                         <div class="flex flex-col sm:flex-row gap-1 sm:gap-2">
@@ -23710,7 +23717,7 @@ Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
                     <td class="px-3 py-2 text-center font-bold text-xs text-gray-400">${i+1}</td>
                     <td class="px-3 py-2"><span class="inline-block px-2 py-0.5 rounded text-xs font-bold ${pktColor}">${q.packet}</span></td>
                     <td class="px-3 py-2">${tipeBadge}</td>
-                    <td class="px-3 py-2 text-xs text-gray-700 max-w-xs truncate">${hasQImg}${_e(q.text) || '<em class="text-gray-400">hanya gambar</em>'}</td>
+                    <td class="px-3 py-2 text-xs text-gray-700 max-w-xs truncate">${hasQImg}${window.safeRenderText(q.text) || '<em class="text-gray-400">hanya gambar</em>'}</td>
                     <td class="px-3 py-2 text-xs text-gray-500 text-center">${opsiInfo}</td>
                     <td class="px-3 py-2 text-center">${kunciCell}</td>
                 </tr>`;
