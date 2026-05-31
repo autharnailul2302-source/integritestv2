@@ -1072,7 +1072,7 @@
             // ★ Toleransi diam (idle)
             const newIdleMenit = Math.min(60, Math.max(1, parseInt(document.getElementById('setting-idle-menit')?.value) || 5));
             // ★ Tampilkan token global
-            const showGlobalToken = document.getElementById('toggle-show-global-token')?.checked !== false;
+            const showGlobalToken = document.getElementById('toggle-show-global-token')?.checked ?? true;
 
             // ★ Mode Remedial Global
             const newRemedialMode = document.getElementById('toggle-remedial')?.checked || false;
@@ -7298,6 +7298,63 @@ Terima kasih 🙏</textarea>
                         <div id="pager-jadwal-wrap" class="mt-2"></div>
                     </div>
                 </div>
+
+                <!-- FITUR: DAFTAR SISWA BELUM UJIAN PER SESI -->
+                <div class="bg-white rounded-2xl shadow-sm border border-rose-100 p-6 mt-6">
+                    <div class="flex items-center gap-3 mb-5">
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style="background:linear-gradient(135deg,#fff1f2,#fce7f3)">
+                            <i data-lucide="user-x" class="w-5 h-5 text-rose-500"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-black text-gray-800 text-base">Siswa Belum Ujian per Sesi</h3>
+                            <p class="text-xs text-gray-400 mt-0.5">Cocokkan data kartu peserta vs hasil ujian — temukan siswa yang belum hadir</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-3 mb-5">
+                        <div class="flex-1 min-w-[200px]">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Pilih Sesi / Jadwal</label>
+                            <select id="belum-ujian-filter-sesi" onchange="window.renderBelumUjian()" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 outline-none focus:ring-2 focus:ring-rose-400 font-semibold">
+                                <option value="">&#8212; Pilih Sesi &#8212;</option>
+                            </select>
+                        </div>
+                        <div class="flex-1 min-w-[160px]">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Filter Kelas</label>
+                            <select id="belum-ujian-filter-kelas" onchange="window.renderBelumUjian()" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 outline-none focus:ring-2 focus:ring-rose-400">
+                                <option value="">Semua Kelas</option>
+                            </select>
+                        </div>
+                        <div class="flex items-end gap-2">
+                            <button onclick="window.renderBelumUjian()" class="flex items-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-bold transition active:scale-95 shadow-sm">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i> Refresh
+                            </button>
+                            <button onclick="window.cetakBelumUjian()" class="flex items-center gap-2 px-4 py-2.5 bg-gray-700 hover:bg-gray-800 text-white rounded-xl text-sm font-bold transition active:scale-95 shadow-sm">
+                                <i data-lucide="printer" class="w-4 h-4"></i> Cetak
+                            </button>
+                        </div>
+                    </div>
+                    <div id="belum-ujian-stats" class="hidden mb-5">
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="bg-gray-50 rounded-xl p-3 text-center border">
+                                <p class="text-2xl font-black text-gray-800" id="bu-stat-total">0</p>
+                                <p class="text-xs text-gray-500 font-semibold mt-0.5">Total Peserta Sesi</p>
+                            </div>
+                            <div class="bg-emerald-50 rounded-xl p-3 text-center border border-emerald-100">
+                                <p class="text-2xl font-black text-emerald-600" id="bu-stat-sudah">0</p>
+                                <p class="text-xs text-emerald-600 font-semibold mt-0.5">Sudah Ujian</p>
+                            </div>
+                            <div class="bg-rose-50 rounded-xl p-3 text-center border border-rose-100">
+                                <p class="text-2xl font-black text-rose-600" id="bu-stat-belum">0</p>
+                                <p class="text-xs text-rose-600 font-semibold mt-0.5">Belum Ujian</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="belum-ujian-result">
+                        <div class="text-center py-12 text-gray-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg>
+                            <p class="text-sm font-semibold text-gray-400">Pilih sesi jadwal untuk melihat daftar siswa belum ujian</p>
+                        </div>
+                    </div>
+                </div>
             </div>
             <!-- ══ END PANEL JADWAL ══ -->
 
@@ -10136,16 +10193,19 @@ Terima kasih 🙏</textarea>
             const inputEl = document.getElementById('student-nisn');
             const welcomeNisnLabel = document.getElementById('welcome-nisn-label');
             const dashHeaderEl = document.getElementById('th-nisn');
+            const previewLabelEl = document.getElementById('preview-nomor-id-label');
             if (mode === 'kartu') {
                 if (labelEl)  labelEl.textContent = 'No. Kartu Ujian';
                 if (inputEl)  { inputEl.placeholder = 'Ketik No. Kartu Ujian...'; inputEl.setAttribute('type', 'text'); }
                 if (welcomeNisnLabel) welcomeNisnLabel.textContent = 'NO. KARTU';
                 if (dashHeaderEl) dashHeaderEl.textContent = 'No. Kartu';
+                if (previewLabelEl) previewLabelEl.textContent = 'No. Kartu Ujian';
             } else {
                 if (labelEl)  labelEl.textContent = 'NISN';
                 if (inputEl)  { inputEl.placeholder = 'Ketik NISN...'; inputEl.setAttribute('type', 'number'); }
                 if (welcomeNisnLabel) welcomeNisnLabel.textContent = 'NISN';
                 if (dashHeaderEl) dashHeaderEl.textContent = 'NISN';
+                if (previewLabelEl) previewLabelEl.textContent = 'NISN';
             }
 
             // Sinkron dropdown setting
@@ -11006,6 +11066,226 @@ Terima kasih 🙏</textarea>
             if(typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
+
+        // ══════════════════════════════════════════════════════════════
+        // DAFTAR SISWA BELUM UJIAN PER SESI
+        // ══════════════════════════════════════════════════════════════
+
+        // Isi dropdown sesi jadwal
+        window.populateBelumUjianSesi = function() {
+            const sel = document.getElementById('belum-ujian-filter-sesi');
+            if (!sel) return;
+            const cur = sel.value;
+            sel.innerHTML = '<option value="">— Pilih Sesi —</option>';
+            const sorted = [...(window.allJadwalDB || [])].sort((a,b) =>
+                (a.tanggal||'').localeCompare(b.tanggal||'') || (a.jamMulai||'').localeCompare(b.jamMulai||''));
+            sorted.forEach(j => {
+                const opt = document.createElement('option');
+                opt.value = j.id;
+                const tglStr = j.tanggal ? new Date(j.tanggal+'T00:00:00').toLocaleDateString('id-ID',{weekday:'short',day:'numeric',month:'short'}) : '';
+                const kelasStr = (j.kelasArr && j.kelasArr.length) ? ' ['+j.kelasArr.join(', ')+']' : (j.kelas ? ' ['+j.kelas+']' : '');
+                opt.textContent = (j.nama || j.id) + kelasStr + (tglStr ? ' · '+tglStr : '');
+                sel.appendChild(opt);
+            });
+            if (cur) sel.value = cur;
+        };
+
+        // Render daftar siswa belum ujian
+        window.renderBelumUjian = function() {
+            const sesiId = document.getElementById('belum-ujian-filter-sesi')?.value || '';
+            const kelasFilter = document.getElementById('belum-ujian-filter-kelas')?.value || '';
+            const resultEl = document.getElementById('belum-ujian-result');
+            const statsEl  = document.getElementById('belum-ujian-stats');
+            if (!resultEl) return;
+
+            if (!sesiId) {
+                resultEl.innerHTML = '<div class="text-center py-12"><p class="text-sm text-gray-400 font-semibold">Pilih sesi jadwal terlebih dahulu</p></div>';
+                if (statsEl) statsEl.classList.add('hidden');
+                return;
+            }
+
+            // Cari jadwal yang dipilih
+            const jadwal = (window.allJadwalDB || []).find(j => j.id === sesiId);
+            if (!jadwal) {
+                resultEl.innerHTML = '<div class="text-center py-10"><p class="text-sm text-red-400">Jadwal tidak ditemukan</p></div>';
+                return;
+            }
+
+            // Tentukan kelas yang masuk sesi ini
+            const kelasArr = (jadwal.kelasArr && jadwal.kelasArr.length)
+                ? jadwal.kelasArr
+                : (jadwal.kelas ? [jadwal.kelas] : []);
+
+            // Update dropdown filter kelas
+            const selKelas = document.getElementById('belum-ujian-filter-kelas');
+            if (selKelas) {
+                const prevKelas = selKelas.value;
+                selKelas.innerHTML = '<option value="">Semua Kelas</option>';
+                kelasArr.forEach(k => {
+                    const o = document.createElement('option');
+                    o.value = k; o.textContent = k;
+                    selKelas.appendChild(o);
+                });
+                if (prevKelas && kelasArr.includes(prevKelas)) selKelas.value = prevKelas;
+            }
+
+            // Siswa yang masuk sesi ini (cocokkan kelas)
+            let siswaSesi = (window.allSiswaDB || []).filter(s => {
+                if (!s.noPeserta) return false; // harus punya no peserta
+                if (kelasArr.length === 0) return true; // semua kelas jika tidak ada filter
+                const sk = (s.kelas || '').trim().toLowerCase();
+                return kelasArr.some(k => k.trim().toLowerCase() === sk);
+            });
+
+            // Filter kelas tambahan dari dropdown
+            if (kelasFilter) {
+                siswaSesi = siswaSesi.filter(s => (s.kelas||'').trim().toLowerCase() === kelasFilter.trim().toLowerCase());
+            }
+
+            // Siswa yang SUDAH ujian di sesi ini (cocokkan jadwalId atau sesiId di exam_results)
+            const results = window._allExamResultsCache || [];
+            const sudahSet = new Set();
+            results.forEach(r => {
+                const matchJadwal = r.jadwalId === sesiId || r.sesiId === sesiId;
+                // Juga cocokkan via noPeserta/nisn & paketId sebagai fallback
+                const matchPaket = r.paketId === jadwal.paketId;
+                const nisnKey = (r.studentNisn || '').toString().trim().toUpperCase();
+                if ((matchJadwal || matchPaket) && nisnKey) sudahSet.add(nisnKey);
+            });
+
+            // Pisahkan belum & sudah
+            const belumList = [];
+            const sudahList = [];
+            siswaSesi.forEach(s => {
+                const key = (s.noPeserta || s.nisn || '').toString().trim().toUpperCase();
+                if (sudahSet.has(key)) sudahList.push(s);
+                else belumList.push(s);
+            });
+
+            // Sort by no peserta
+            belumList.sort((a,b) => (a.noPeserta||'').localeCompare(b.noPeserta||''));
+            sudahList.sort((a,b) => (a.noPeserta||'').localeCompare(b.noPeserta||''));
+
+            // Update stats
+            if (statsEl) {
+                statsEl.classList.remove('hidden');
+                document.getElementById('bu-stat-total').textContent = siswaSesi.length;
+                document.getElementById('bu-stat-sudah').textContent = sudahList.length;
+                document.getElementById('bu-stat-belum').textContent = belumList.length;
+            }
+
+            // Simpan untuk cetak
+            window._belumUjianData = { jadwal, belumList, sudahList, siswaSesi };
+
+            if (belumList.length === 0) {
+                resultEl.innerHTML = `
+                    <div class="text-center py-10 bg-emerald-50 rounded-xl border border-emerald-100">
+                        <div style="font-size:36px">🎉</div>
+                        <p class="font-black text-emerald-700 mt-2">Semua siswa sudah ujian!</p>
+                        <p class="text-xs text-emerald-500 mt-1">Semua ${siswaSesi.length} peserta sesi ini sudah mengerjakan ujian.</p>
+                    </div>`;
+                return;
+            }
+
+            const rows = belumList.map((s, i) => `
+                <tr class="${i % 2 === 0 ? 'bg-white' : 'bg-rose-50/30'}">
+                    <td class="px-4 py-3 text-center text-xs font-bold text-gray-400">${i+1}</td>
+                    <td class="px-4 py-3 font-mono font-bold text-rose-700 text-sm">${_e(s.noPeserta || '—')}</td>
+                    <td class="px-4 py-3 font-semibold text-gray-800 text-sm">${_e(s.nama || '—')}</td>
+                    <td class="px-4 py-3 text-xs text-gray-600">${_e(s.kelas || '—')}</td>
+                    <td class="px-4 py-3 text-xs text-gray-600">${_e(s.ruangKartu || '—')}</td>
+                </tr>`).join('');
+
+            resultEl.innerHTML = `
+                <div class="mb-3 flex items-center gap-2">
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-100 text-rose-700 text-xs font-black rounded-full">
+                        ⚠️ ${belumList.length} siswa belum ujian
+                    </span>
+                    <span class="text-xs text-gray-400">dari total ${siswaSesi.length} peserta sesi <strong>${_e(jadwal.nama||sesiId)}</strong></span>
+                </div>
+                <div class="overflow-x-auto rounded-xl border border-rose-100 shadow-sm">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-rose-600 text-white">
+                                <th class="px-4 py-3 text-xs font-bold text-center w-10">#</th>
+                                <th class="px-4 py-3 text-xs font-bold">No. Peserta</th>
+                                <th class="px-4 py-3 text-xs font-bold">Nama Siswa</th>
+                                <th class="px-4 py-3 text-xs font-bold">Kelas</th>
+                                <th class="px-4 py-3 text-xs font-bold">Ruang</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>`;
+        };
+
+        // Cetak daftar belum ujian
+        window.cetakBelumUjian = function() {
+            const d = window._belumUjianData;
+            if (!d) { alert('Pilih sesi terlebih dahulu!'); return; }
+            const { jadwal, belumList, siswaSesi } = d;
+            const nowStr = new Date().toLocaleString('id-ID');
+            const rows = belumList.map((s, i) => `
+                <tr>
+                    <td style="padding:6px 10px;text-align:center;border:1px solid #e5e7eb;font-size:12px;color:#6b7280">${i+1}</td>
+                    <td style="padding:6px 10px;border:1px solid #e5e7eb;font-family:monospace;font-weight:700;color:#be123c;font-size:12px">${s.noPeserta||'—'}</td>
+                    <td style="padding:6px 10px;border:1px solid #e5e7eb;font-weight:600;font-size:13px">${s.nama||'—'}</td>
+                    <td style="padding:6px 10px;border:1px solid #e5e7eb;font-size:12px">${s.kelas||'—'}</td>
+                    <td style="padding:6px 10px;border:1px solid #e5e7eb;font-size:12px">${s.ruangKartu||'—'}</td>
+                    <td style="padding:6px 10px;border:1px solid #e5e7eb;font-size:12px"></td>
+                </tr>`).join('');
+
+            const w = window.open('', '_blank');
+            w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+                <title>Siswa Belum Ujian - ${jadwal.nama||''}</title>
+                <style>
+                    body{font-family:Arial,sans-serif;margin:24px;color:#1e293b}
+                    h2{margin:0 0 4px;font-size:16px}
+                    p{margin:0 0 2px;font-size:12px;color:#64748b}
+                    table{width:100%;border-collapse:collapse;margin-top:16px}
+                    thead tr{background:#be123c;color:white}
+                    thead th{padding:8px 10px;font-size:12px;text-align:left;border:1px solid #9f1239}
+                    tbody tr:nth-child(even){background:#fff1f2}
+                    @media print{button{display:none}}
+                </style>
+            </head><body>
+                <div style="border-bottom:2px solid #be123c;padding-bottom:10px;margin-bottom:4px">
+                    <h2>📋 Daftar Siswa Belum Ujian</h2>
+                    <p><strong>Sesi:</strong> ${jadwal.nama||'—'} &nbsp;·&nbsp; <strong>Tanggal:</strong> ${jadwal.tanggal||'—'} &nbsp;·&nbsp; <strong>Jam:</strong> ${jadwal.jamMulai||'—'} – ${jadwal.jamSelesai||'—'}</p>
+                    <p><strong>Paket:</strong> ${jadwal.paket||'—'} &nbsp;·&nbsp; <strong>Belum Ujian:</strong> ${belumList.length} dari ${siswaSesi.length} peserta</p>
+                    <p style="color:#94a3b8;font-size:10px;margin-top:4px">Dicetak: ${nowStr}</p>
+                </div>
+                <table>
+                    <thead><tr>
+                        <th style="width:40px">#</th>
+                        <th>No. Peserta</th>
+                        <th>Nama Siswa</th>
+                        <th>Kelas</th>
+                        <th>Ruang</th>
+                        <th>TTD / Keterangan</th>
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+                <p style="margin-top:16px;font-size:11px;color:#94a3b8">Total: <strong>${belumList.length} siswa belum ujian</strong></p>
+                <script>window.onload=()=>window.print()<\/script>
+            </body></html>`);
+            w.document.close();
+        };
+
+        // Hook ke listener jadwal agar dropdown sesi otomatis terupdate
+        const _origPopulateJadwal = window.populateJadwalDropdowns;
+        window.populateJadwalDropdowns = function() {
+            if (_origPopulateJadwal) _origPopulateJadwal.apply(this, arguments);
+            window.populateBelumUjianSesi();
+        };
+
+        // Cache exam results untuk lookup cepat
+        window._allExamResultsCache = [];
+
+        // Update cache saat data monitoring berubah
+        const _origListenResults = window.listenForResults;
+        // ══════════════════════════════════════════════════════════════
+
         // Update filter tanggal dropdown
         window.updateJadwalTanggalFilter = function() {
             const sel = document.getElementById('jdwl-filter-tanggal');
@@ -11044,6 +11324,8 @@ Terima kasih 🙏</textarea>
                 });
                 if (cur) selPaket.value = cur;
             }
+            // Sinkron dropdown sesi di fitur belum ujian
+            if (window.populateBelumUjianSesi) window.populateBelumUjianSesi();
         };
 
         // Tidak lagi dibutuhkan, tapi dijaga agar tidak error jika dipanggil
@@ -13509,7 +13791,7 @@ Terima kasih 🙏</textarea>
                 const tokenInput  = document.getElementById('student-token').value.trim().toUpperCase();
 
                 // ── MODE KARTU PESERTA: Validasi No. Peserta → auto-fill data siswa ──
-                const loginMode = localStorage.getItem('integritest_nomor_id_mode') || 'nisn';
+                const loginMode = window._nomorIdMode || localStorage.getItem('integritest_nomor_id_mode') || 'nisn';
                 if (loginMode === 'kartu') {
                     // studentNisn field berisi noPeserta
                     const noPeserta = studentNisn.toUpperCase().trim();
@@ -18146,6 +18428,8 @@ Terima kasih 🙏</textarea>
             dashboardData = data;
             // Simpan semua data tanpa filter agar PDF rekap kelas selalu lengkap
             window._allDashboardData = data;
+            // Update cache untuk fitur belum ujian
+            window._allExamResultsCache = data || [];
             filterDashboardInternal();
         };
 
