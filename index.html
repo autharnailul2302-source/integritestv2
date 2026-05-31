@@ -618,10 +618,12 @@
             onSnapshot(q, (snapshot) => {
                 let latestTime = 0;
                 let latestAppearance = {};
+                let latestDoc = {};
                 snapshot.forEach((doc) => {
                     const data = doc.data();
                     if (data.timestamp > latestTime) {
                         latestTime = data.timestamp;
+                        latestDoc = data;
                         if (data.token) window.currentExamToken = data.token;
                         if (data.examDuration) window.currentExamDuration = parseInt(data.examDuration);
                         if (data.perSoalTimerEnabled !== undefined) window.perSoalTimerEnabled = data.perSoalTimerEnabled;
@@ -1101,7 +1103,7 @@
                         subJudul:     savedApp.subJudul    ?? null,
                         motivasi:     savedApp.motivasi    ?? null,
                         logoUrl:      savedApp.logoUrl     ?? null,
-                        nomorIdMode:  savedApp.nomorIdMode ?? 'nisn',
+                        nomorIdMode:  document.getElementById('setting-nomor-id-mode')?.value || savedApp.nomorIdMode || 'nisn',
                         judulColor:   savedApp.judulColor  ?? '#fde047',
                         timestamp: Date.now()
                     });
