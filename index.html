@@ -15457,6 +15457,7 @@ Terima kasih 🙏</textarea>
             } catch(uidErr) { console.warn('[Auth] UID save:', uidErr); }
 
             if(window.setupRealtimeListener) window.setupRealtimeListener();
+            if(window.listenForJadwal) window.listenForJadwal();
             if(window.listenForKelas) window.listenForKelas();
             if(window.listenForPaket) window.listenForPaket();
 
@@ -16467,6 +16468,7 @@ Terima kasih 🙏</textarea>
                 window.currentPengawasRuang = ruang;
 
                 if(window.setupRealtimeListener) window.setupRealtimeListener();
+                if(window.listenForJadwal) window.listenForJadwal();
                 if(window.listenForKelas) window.listenForKelas();
                 if(window.listenForPaket) window.listenForPaket();
                 if(window.listenForRuang) window.listenForRuang();
