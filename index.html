@@ -1556,7 +1556,23 @@
         window.forceFinishStudent = async (id) => {
             if(!window.isFirebaseReady) return alert("Mode Offline.");
             
-            const studentData = dashboardData.find(item => item.id === id);
+            // ★ FIX: dashboardData belum tentu accessible di scope ini — pakai window._allDashboardData
+            const _allData = window._allDashboardData || (typeof dashboardData !== 'undefined' ? dashboardData : []);
+            let studentData = _allData.find(item => item.id === id);
+
+            // ★ FIX: Jika tidak ada di cache lokal, ambil langsung dari Firestore
+            if (!studentData) {
+                try {
+                    const snap = await window.getDoc(window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', id));
+                    if (snap.exists()) {
+                        studentData = { id: snap.id, ...snap.data() };
+                        // update: gunakan field yang tersedia
+                        studentData.studentName = studentData.studentName || studentData.nama || 'Siswa';
+                        studentData.className   = studentData.className   || studentData.kelas || '—';
+                        studentData.status      = studentData.status      || 'SEDANG MENGERJAKAN';
+                    }
+                } catch(e) {}
+            }
             if (!studentData) return alert("Data siswa tidak ditemukan.");
             
             const confirmMsg = `⚠️ PAKSA SELESAIKAN UJIAN\n\n` +
@@ -10334,11 +10350,27 @@ Terima kasih 🙏</textarea>
                 });
                 window.renderJadwalList();
                 window.updateJadwalTanggalFilter();
-                // Update tampilan token di panel pengawas setiap kali status jadwal berubah
-                // ★ Dipanggil untuk semua role (admin & pengawas) agar token langsung update saat jadwal diaktifkan
+                // ★ FIX: Selalu update token display untuk SEMUA role (admin, pengawas, dll)
+                // Dulu hanya dipanggil kondisional — sekarang tanpa syarat role
                 if (window.updatePengawasTokenDisplay) window.updatePengawasTokenDisplay();
+                // ★ FIX: Juga trigger refreshAdminTokenQr jika ada token aktif
+                const _jadwalAktifFix = (window.allJadwalDB || []).find(j => j.isActive);
+                if (_jadwalAktifFix) {
+                    const _paketFix = (window.allPaketDB || []).find(p => p.id === _jadwalAktifFix.paketId);
+                    const _tokenFix = _jadwalAktifFix.tokenCustom
+                        ? _jadwalAktifFix.tokenCustom.toUpperCase()
+                        : (_paketFix ? (_paketFix.token || window.currentExamToken || '') : (window.currentExamToken || ''));
+                    if (_tokenFix && window.refreshAdminTokenQr) window.refreshAdminTokenQr(_tokenFix);
+                }
                 // Sync currentSesiId dari jadwal aktif
                 if (window._syncSesiFromJadwal) window._syncSesiFromJadwal();
+                // ★ FIX: Re-run scheduler langsung agar perubahan jadwal langsung terdeteksi
+                if (window.startJadwalScheduler) window.startJadwalScheduler();
+            }, (err) => {
+                // ★ FIX: Jika listener error (misal token expired), reset guard dan coba ulang 5 detik
+                console.warn('[Jadwal] onSnapshot error:', err.message, '— akan reconnect...');
+                window._unsub_listenForJadwal = null;
+                setTimeout(() => { if (window.listenForJadwal) window.listenForJadwal(); }, 5000);
             });
         };
 
@@ -12342,10 +12374,8 @@ Terima kasih 🙏</textarea>
                     } catch(e) {}
                 }
                 if (window.activePaketId) window.refreshActivePaketInfo();
-                // Update token pengawas setiap kali data paket berubah (real-time)
-                if (window.isPengawas && window.isPengawas() && window.updatePengawasTokenDisplay) {
-                    window.updatePengawasTokenDisplay();
-                }
+                // ★ FIX: Update token display untuk SEMUA role saat data paket berubah
+                if (window.updatePengawasTokenDisplay) window.updatePengawasTokenDisplay();
                 // Refresh jadwal dropdown paket jika panel jadwal sedang terbuka
                 if (window.populateJadwalDropdowns) window.populateJadwalDropdowns();
             });
@@ -17453,35 +17483,38 @@ Terima kasih 🙏</textarea>
                     return;
                 }
 
-                // ── Cek sinyal paksa-selesai dari admin setiap 30 detik ──
+                // ★ FIX: Cek sinyal paksa-selesai setiap 5 detik (bukan 30),
+                //         dan gunakan getDoc tunggal (bukan getDocs semua dokumen)
                 _pollTick++;
-                if (_pollTick % 30 === 0 && window.isFirebaseReady && window.db && window.currentExamDocId && !window._examFinished) {
+                if (_pollTick % 5 === 0 && window.isFirebaseReady && window.db && window.currentExamDocId && !window._examFinished) {
                     try {
-                        window.getDocs(window.query(
-                            window.collection(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results')
-                        )).then(snap => {
-                            snap.forEach(ds => {
-                                if (ds.id === window.currentExamDocId && ds.data().forceFinishSignal === true && !window._examFinished) {
-                                    console.log('[IntegriTest] Sinyal paksa-selesai diterima dari admin — menyelesaikan ujian otomatis...');
-                                    finishExam(false); // false = hitung nilai normal dari jawaban siswa
+                        window.getDoc(window.doc(
+                            window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', window.currentExamDocId
+                        )).then(ds => {
+                            if (!ds.exists()) return;
+                            const d = ds.data();
+
+                            // Sinyal paksa-selesai
+                            if (d.forceFinishSignal === true && !window._examFinished) {
+                                console.log('[IntegriTest] Sinyal paksa-selesai diterima dari admin — menyelesaikan ujian otomatis...');
+                                finishExam(false);
+                                return;
+                            }
+
+                            // ★ CEK SINYAL IZIN KELUAR
+                            var izin = d.izinKeluar;
+                            if (izin && izin.aktif && izin.until > Date.now()) {
+                                if (!window._izinKeluarAktif) {
+                                    window._izinKeluarAktif = true;
+                                    window._izinKeluarUntil = izin.until;
+                                    window._lastActivityTime = Date.now();
+                                    _tampilkanBannerIzin(izin);
                                 }
-                                // ★ CEK SINYAL IZIN KELUAR
-                                if (ds.id === window.currentExamDocId) {
-                                    var izin = ds.data().izinKeluar;
-                                    if (izin && izin.aktif && izin.until > Date.now()) {
-                                        if (!window._izinKeluarAktif) {
-                                            window._izinKeluarAktif = true;
-                                            window._izinKeluarUntil = izin.until;
-                                            window._lastActivityTime = Date.now(); // reset idle agar tidak langsung trigger
-                                            _tampilkanBannerIzin(izin);
-                                        }
-                                    } else if (window._izinKeluarAktif) {
-                                        window._izinKeluarAktif = false;
-                                        _sembunyikanBannerIzin();
-                                        window._lastActivityTime = Date.now(); // reset idle saat izin selesai
-                                    }
-                                }
-                            });
+                            } else if (window._izinKeluarAktif) {
+                                window._izinKeluarAktif = false;
+                                _sembunyikanBannerIzin();
+                                window._lastActivityTime = Date.now();
+                            }
                         }).catch(() => {});
                     } catch(e) {}
 
