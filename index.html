@@ -832,10 +832,13 @@
                                     d.studentName && d.studentName.toLowerCase() === (studentData.studentName || studentData.name).toLowerCase() &&
                                     d.className === studentData.className;
                                 
-                                if ((nisnMatch || nameMatch) && 
-                                    (d.status === 'SEDANG MENGERJAKAN' || d.status.includes('MELANJUTKAN'))) {
+                                // FIX: sertakan PERLU VERIFIKASI GURU agar dokumen lama dipakai
+                                const _statusOk = d.status === 'SEDANG MENGERJAKAN'
+                                    || (d.status || '').includes('MELANJUTKAN')
+                                    || d.status === 'PERLU VERIFIKASI GURU';
+                                if ((nisnMatch || nameMatch) && _statusOk) {
                                     window.currentExamDocId = ds.id;
-                                    console.log('[Recovery] Ditemukan dokumen exam:', ds.id);
+                                    console.log('[Recovery] Ditemukan dokumen:', ds.id, 'status:', d.status);
                                 }
                             });
                         }
@@ -1596,21 +1599,36 @@
             //          dan admin dapat isi nilai manual via tombol "Isi Nilai" di tabel monitoring.
             const pengawasName = window.currentPengawasName || window.currentStaffName || 'Admin';
             try {
+                // FIX: Jangan set status 'PERLU VERIFIKASI GURU' dulu.
+                // Cukup kirim forceFinishSignal:true. Browser siswa online akan deteksi,
+                // hitung nilai, simpan SELESAI. Jika offline 35 dtk -> fallback.
                 const updateData = {
-                    status: "PERLU VERIFIKASI GURU",
-                    forceFinishSignal: true,   // ← sinyal ke browser siswa
-                    score: null,
-                    scoreNonEssay: null,
+                    forceFinishSignal: true,
                     forcedFinishBy: pengawasName,
                     forcedFinishAt: Date.now(),
-                    note: (studentData.note || '') + `\n[${new Date().toLocaleString('id-ID')}] Ujian dipaksa selesai oleh ${pengawasName}. Sistem mengirim sinyal ke browser siswa untuk menyelesaikan ujian dan menghitung nilai otomatis.`
+                    note: (studentData.note || '') + '\n[' + new Date().toLocaleString('id-ID') + '] Sinyal paksa-selesai dikirim oleh ' + pengawasName + '.'
                 };
                 await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', id), updateData);
-                alert(
-                    `✅ Sinyal selesai dikirim ke ${studentData.studentName}.\n\n` +
-                    `⏱️ Jika browser siswa masih terbuka → nilai akan dihitung otomatis dalam maks. 30 detik.\n\n` +
-                    `📴 Jika siswa sudah offline → gunakan tombol "Isi Nilai" di baris siswa ini untuk mengisi nilai manual.`
-                );
+
+                // Fallback 35 detik: jika browser siswa offline, set PERLU VERIFIKASI GURU
+                setTimeout(async () => {
+                    try {
+                        const _fS = await window.getDoc(window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', id));
+                        if (!_fS.exists()) return;
+                        const _fD = _fS.data();
+                        const _ongoing = _fD.status === 'SEDANG MENGERJAKAN' || (_fD.status||'').includes('MELANJUTKAN');
+                        if (_ongoing && _fD.forceFinishSignal === true) {
+                            await window.updateDoc(window.doc(window.db,'artifacts',window.appId,'public','data','exam_results',id), {
+                                status: 'PERLU VERIFIKASI GURU',
+                                score: null, scoreNonEssay: null,
+                                forceFinishSignal: false,
+                                note: (_fD.note||'') + '\n[' + new Date().toLocaleString('id-ID') + '] Browser siswa tidak merespons 35 detik - status PERLU VERIFIKASI GURU.'
+                            });
+                        }
+                    } catch(_e) {}
+                }, 35000);
+
+                alert('Sinyal selesai dikirim ke ' + studentData.studentName + '.\n\nBrowser masih terbuka: nilai otomatis <30 detik.\nOffline: tunggu 35 detik lalu gunakan Isi Nilai.');
             } catch(e) {
                 alert("Gagal memaksa selesai: " + e.message);
             }
