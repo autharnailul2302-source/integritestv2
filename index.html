@@ -1610,25 +1610,61 @@
                 };
                 await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', id), updateData);
 
-                // Fallback 35 detik: jika browser siswa offline, set PERLU VERIFIKASI GURU
+                // Fallback 35 detik: jika browser siswa offline, hitung nilai dari savedAnswers
                 setTimeout(async () => {
                     try {
                         const _fS = await window.getDoc(window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', id));
                         if (!_fS.exists()) return;
                         const _fD = _fS.data();
                         const _ongoing = _fD.status === 'SEDANG MENGERJAKAN' || (_fD.status||'').includes('MELANJUTKAN');
-                        if (_ongoing && _fD.forceFinishSignal === true) {
-                            await window.updateDoc(window.doc(window.db,'artifacts',window.appId,'public','data','exam_results',id), {
-                                status: 'PERLU VERIFIKASI GURU',
-                                score: null, scoreNonEssay: null,
-                                forceFinishSignal: false,
-                                note: (_fD.note||'') + '\n[' + new Date().toLocaleString('id-ID') + '] Browser siswa tidak merespons 35 detik - status PERLU VERIFIKASI GURU.'
-                            });
+                        if (!_ongoing || _fD.forceFinishSignal !== true) return;
+
+                        // Hitung nilai otomatis dari savedAnswers yang tersimpan di Firestore
+                        const _savedAns  = _fD.savedAnswers || {};
+                        const _paketId   = _fD.paketId || _fD.savedPaketId || '';
+                        const _paket     = (window.allPaketDB || []).find(p => p.id === _paketId);
+                        const _qList     = (window.allQuestionsDB || []).filter(q => q.paketId === _paketId);
+                        const _nilaiMaks = (_paket && _paket.nilaiMaksimal > 0) ? _paket.nilaiMaksimal : 100;
+
+                        let _correct = 0, _nonEssay = 0, _hasEssay = false;
+                        for (const _q of _qList) {
+                            if (_q.tipe === 'essay') { _hasEssay = true; continue; }
+                            _nonEssay++;
+                            const _ua = _savedAns[_q.id];
+                            if (_ua === undefined || _ua === null) continue;
+                            if (_q.tipe === 'truefalse') {
+                                if (_ua === (_q.correct === true || _q.correct === 'true')) _correct++;
+                            } else if (_q.tipe === 'multiple' && Array.isArray(_q.correct)) {
+                                const _uaS = Array.isArray(_ua) ? [..._ua].sort().join(',') : '';
+                                if (_uaS === [..._q.correct].sort().join(',')) _correct++;
+                            } else if (_q.tipe === 'menjodohkan' && Array.isArray(_q.pasangan)) {
+                                const _um = _ua || {};
+                                if (_q.pasangan.every((_, i) => _um[i] === i)) _correct++;
+                            } else {
+                                const _ci = Array.isArray(_q.correct) ? _q.correct[0] : _q.correct;
+                                if (_ua === _ci) _correct++;
+                            }
                         }
-                    } catch(_e) {}
+
+                        const _total   = _qList.length || 1;
+                        const _score   = _nonEssay > 0 ? Math.round((_correct / _total) * _nilaiMaks) : 0;
+                        const _status  = _hasEssay ? 'SELESAI (Esai Pending)' : 'SELESAI (Waktu Habis - Otomatis)';
+                        const _hasSavedAns = Object.keys(_savedAns).length > 0;
+
+                        await window.updateDoc(window.doc(window.db,'artifacts',window.appId,'public','data','exam_results',id), {
+                            status: _hasSavedAns ? _status : 'PERLU VERIFIKASI GURU',
+                            score: _hasSavedAns ? _score : null,
+                            scoreNonEssay: _hasSavedAns ? _score : null,
+                            correctCount: _correct,
+                            forceFinishSignal: false,
+                            endTime: Date.now(),
+                            note: (_fD.note||'') + '\n[' + new Date().toLocaleString('id-ID') + '] Nilai dihitung otomatis dari jawaban terakhir oleh sistem (siswa offline). Skor: ' + (_hasSavedAns ? _score : 'tidak ada jawaban tersimpan') + '.'
+                        });
+                        console.log('[ForceFinish] Fallback offline: score', _score, 'dari', _correct, '/', _total, 'soal');
+                    } catch(_e) { console.warn('[ForceFinish] Fallback error:', _e); }
                 }, 35000);
 
-                alert('Sinyal selesai dikirim ke ' + studentData.studentName + '.\n\nBrowser masih terbuka: nilai otomatis <30 detik.\nOffline: tunggu 35 detik lalu gunakan Isi Nilai.');
+                alert('Sinyal selesai dikirim ke ' + studentData.studentName + '.\n\nBrowser masih terbuka: nilai dihitung otomatis dalam maks. 30 detik.\nOffline: nilai dihitung otomatis dari jawaban terakhir dalam maks. 35 detik.');
             } catch(e) {
                 alert("Gagal memaksa selesai: " + e.message);
             }
@@ -17610,13 +17646,15 @@ Terima kasih 🙏</textarea>
                         }).catch(() => {});
                     } catch(e) {}
 
-                    // ★ HEARTBEAT: Tandai browser siswa masih terbuka + simpan sisa waktu
-                    // Auto-finish checker memakai data ini untuk tahu siswa masih aktif atau sudah tutup browser.
+                    // ★ HEARTBEAT: Tandai browser siswa masih terbuka + simpan sisa waktu + jawaban terakhir
+                    // Jawaban disimpan agar jika siswa offline, nilai bisa dihitung otomatis dari server.
                     if (window.currentExamDocId) {
                         try {
                             updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', window.currentExamDocId), {
                                 lastHeartbeat: Date.now(),
-                                timeLeftSeconds: timeLeft
+                                timeLeftSeconds: timeLeft,
+                                savedAnswers: typeof userAnswers !== 'undefined' ? userAnswers : {},
+                                savedPaketId: window.currentPaketId || (window._loginData && window._loginData.paketCocok && window._loginData.paketCocok[0] && window._loginData.paketCocok[0].id) || ''
                             }).catch(() => {});
                         } catch(e) {}
                     }
