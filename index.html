@@ -11573,18 +11573,29 @@ Terima kasih 🙏</textarea>
         // ADMIN CREDENTIALS MANAGEMENT (Firebase-based)
         // ═══════════════════════════════════════════════════════
 
-        // Seed credentials default ke Firebase (pertama kali)
+        // Seed credentials default ke Firebase (pertama kali SAJA — tidak overwrite jika sudah ada)
         window.ensureAdminCredentials = async function() {
             if (!window.isFirebaseReady || !window.db) return;
+            // ★ FIX: Hanya jalankan sekali per sesi — cegah overwrite password yang sudah diubah admin
+            if (window._adminCredEnsured) return;
+            window._adminCredEnsured = true;
             try {
                 const snap = await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'admin_credentials'));
                 if (snap.empty) {
+                    // Hanya seed jika koleksi benar-benar kosong (instalasi baru)
                     await setDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'admin_credentials', 'main_admin'), {
                         username: 'authar', password: 'Sedayu@123',
                         displayName: 'Admin Utama', createdAt: Date.now()
                     });
+                    console.log('[AdminCred] Default credentials seeded (instalasi baru).');
+                } else {
+                    console.log('[AdminCred] Credentials sudah ada di Firestore — tidak di-overwrite.');
                 }
-            } catch(e) { console.warn('ensureAdminCredentials:', e); }
+            } catch(e) { 
+                // Reset flag jika error agar bisa dicoba ulang
+                window._adminCredEnsured = false;
+                console.warn('ensureAdminCredentials:', e); 
+            }
         };
 
         // Simpan perubahan username & password admin
@@ -11602,11 +11613,15 @@ Terima kasih 🙏</textarea>
             if (!newUser || newUser.length < 4) { alert('Username minimal 4 karakter!'); return; }
             if (!oldPass) { alert('Masukkan password lama untuk konfirmasi identitas!'); return; }
 
-            // Verifikasi password lama
+            // ★ FIX: Verifikasi password lama — cek semua doc, prioritaskan 'main_admin'
             let docId = null;
+            let allDocIds = [];
             try {
                 const snap = await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'admin_credentials'));
-                snap.forEach(ds => { if (ds.data().password === oldPass) docId = ds.id; });
+                snap.forEach(ds => {
+                    allDocIds.push(ds.id);
+                    if (ds.data().password === oldPass) docId = ds.id;
+                });
             } catch(e) { alert('Gagal memverifikasi: ' + e.message); return; }
 
             if (!docId) { alert('\u274C Password lama salah! Perubahan dibatalkan.'); return; }
@@ -11620,10 +11635,26 @@ Terima kasih 🙏</textarea>
             }
 
             try {
-                await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'admin_credentials', docId), {
+                // ★ FIX: Selalu gunakan 'main_admin' sebagai doc utama
+                // Jika doc yang cocok bukan 'main_admin', pindahkan ke 'main_admin' dan hapus yang lama
+                const targetDocId = 'main_admin';
+                await setDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'admin_credentials', targetDocId), {
                     username: newUser, password: finalPass,
-                    displayName: newDisplay || newUser, updatedAt: Date.now()
-                });
+                    displayName: newDisplay || newUser, updatedAt: Date.now(),
+                    createdAt: Date.now()
+                }, { merge: true });
+
+                // Hapus doc lama jika berbeda dari main_admin (bersihkan duplikat)
+                if (docId !== targetDocId) {
+                    try {
+                        await deleteDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'admin_credentials', docId));
+                        console.log('[AdminCred] Doc lama', docId, 'dihapus, data dipindah ke main_admin.');
+                    } catch(delErr) { console.warn('[AdminCred] Gagal hapus doc lama:', delErr); }
+                }
+
+                // ★ FIX: Reset flag agar next login baca credentials terbaru
+                window._adminCredEnsured = true;
+
                 ['setting-admin-old-pass','setting-admin-new-pass','setting-admin-conf-pass'].forEach(id => {
                     const el = document.getElementById(id); if (el) el.value = '';
                 });
