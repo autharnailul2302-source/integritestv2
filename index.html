@@ -3065,6 +3065,14 @@
                 padding-right: 1rem;
                 font-size: 14px;
             }
+            /* FIX: pastikan tombol Selesai tidak pernah tersembunyi oleh overflow di HP */
+            #btn-finish-main:not(.hidden) {
+                display: flex !important;
+            }
+            /* FIX: navbar bawah ujian agar tidak tertimpa keyboard/notch */
+            #section-exam .sticky.bottom-0 {
+                padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+            }
             /* Pilihan jawaban soal lebih tinggi agar mudah di-tap */
             .option-group label {
                 min-height: 52px;
@@ -13898,11 +13906,12 @@ Terima kasih 🙏</textarea>
                         const now = Date.now();
                         qSnap.forEach(ds => {
                             const d = ds.data();
-                            if ((now - d.timestamp) / 60000 > window.deviceCooldownMinutes) return; // satuan: menit
+                            // ★ FIX BUG UJIAN ULANG: Cek duplikat nama/NISN TANPA batas waktu cooldown
+                            // (cooldown hanya berlaku untuk device-block, bukan blokir nama/NISN)
                             const nisnMatch = d.studentNisn && studentNisn && d.studentNisn.toString().trim() === studentNisn.toString().trim();
-                            const nameFb   = !d.studentNisn && d.studentName.toLowerCase() === name.toLowerCase() && d.className === cls;
+                            const nameFb   = !d.studentNisn && d.studentName && d.studentName.toLowerCase() === name.toLowerCase() && d.className === cls;
                             if (nisnMatch || nameFb) {
-                                if (d.status.includes('SELESAI') || d.status.includes('DISKUALIFIKASI')) {
+                                if (d.status && (d.status.includes('SELESAI') || d.status.includes('DISKUALIFIKASI'))) {
                                     // ★ Cek apakah paket yang sudah dikerjakan ini ada di daftar paket login sekarang
                                     const paketSudahDikerjakan = paketCocok.some(p => p.id === d.paketId);
                                     if (paketSudahDikerjakan) {
@@ -13914,7 +13923,7 @@ Terima kasih 🙏</textarea>
                                             if (!nilaiBawahKKM && !isDQ) isDuplicateName = true;
                                             // Jika di bawah KKM atau DQ → biarkan masuk (remedial)
                                         } else {
-                                            // Mode normal: blokir semua yang sudah selesai/DQ
+                                            // Mode normal: blokir semua yang sudah selesai/DQ tanpa batas waktu
                                             isDuplicateName = true;
                                         }
                                     }
@@ -13923,28 +13932,21 @@ Terima kasih 🙏</textarea>
                             }
                             // ★ FIX HP LAB/POCO: Device block hanya berlaku dalam window cooldown
                             // DAN hanya jika fingerprint di Firebase masih valid (belum dihapus setelah ujian)
-                            // Catatan: setelah fix ini, fingerprint dihapus dari localStorage saat selesai,
-                            // sehingga siswa berikutnya akan punya ID baru — tidak akan collision.
-                            // Tapi untuk data lama di Firebase yang belum di-fix, tambahkan toleransi:
-                            // - Cek apakah data ini masih dalam window cooldown (sudah dicek di atas via timestamp)
-                            // - Cek apakah nama/NISN siswa yang login ini berbeda dengan yang di record
-                            if (d.deviceFingerprint === fp && (d.status.includes('SELESAI') || d.status.includes('DISKUALIFIKASI'))) {
-                                const bedaNisn = d.studentNisn && studentNisn
-                                    ? d.studentNisn.toString().trim() !== studentNisn.toString().trim()
-                                    : d.studentName.toLowerCase().trim() !== name.toLowerCase().trim();
-                                // Hanya blokir jika MASIH dalam cooldown period (timestamp sudah dicek di atas)
-                                // dan fingerprint benar-benar sama (bukan coincidence HP lab)
-                                if (bedaNisn) {
-                                    // Tambahan: cek apakah selisih waktu masih dalam 1/2 cooldown
-                                    // (lebih ketat dari cooldown penuh untuk device block)
-                                    const selisihMenit = (now - d.timestamp) / 60000;
-                                    const halfCooldown = (window.deviceCooldownMinutes || 20) / 2;
-                                    if (selisihMenit <= halfCooldown) {
-                                        isDeviceBlocked = true;
-                                        blockedByWho = d.studentName + (d.studentNisn ? ' (NISN: '+d.studentNisn+')' : '');
+                            if ((now - d.timestamp) / 60000 <= window.deviceCooldownMinutes) {
+                                if (d.deviceFingerprint === fp && d.status && (d.status.includes('SELESAI') || d.status.includes('DISKUALIFIKASI'))) {
+                                    const bedaNisn = d.studentNisn && studentNisn
+                                        ? d.studentNisn.toString().trim() !== studentNisn.toString().trim()
+                                        : d.studentName && d.studentName.toLowerCase().trim() !== name.toLowerCase().trim();
+                                    // Hanya blokir jika MASIH dalam cooldown period
+                                    // dan fingerprint benar-benar sama (bukan coincidence HP lab)
+                                    if (bedaNisn) {
+                                        const selisihMenit = (now - d.timestamp) / 60000;
+                                        const halfCooldown = (window.deviceCooldownMinutes || 20) / 2;
+                                        if (selisihMenit <= halfCooldown) {
+                                            isDeviceBlocked = true;
+                                            blockedByWho = d.studentName + (d.studentNisn ? ' (NISN: '+d.studentNisn+')' : '');
+                                        }
                                     }
-                                    // Jika sudah melewati setengah cooldown, biarkan masuk
-                                    // (kemungkinan HP berganti pengguna secara sah)
                                 }
                             }
                         });
@@ -17062,23 +17064,26 @@ Terima kasih 🙏</textarea>
                 if (!q._shuffledRight) q._shuffledRight = rightItems;
                 const shuffled = q._shuffledRight;
                 optionsHTML = `
-                <div class="mt-2 space-y-1">
-                    <div class="grid grid-cols-2 gap-3 mb-3">
+                <div class="mt-2 space-y-2">
+                    <div class="hidden sm:grid grid-cols-2 gap-3 mb-3">
                         <div class="text-xs font-bold text-teal-700 text-center bg-teal-50 rounded-lg py-1.5 border border-teal-200">Kolom Kiri</div>
                         <div class="text-xs font-bold text-orange-600 text-center bg-orange-50 rounded-lg py-1.5 border border-orange-200">Kolom Kanan (Pilih pasangan)</div>
                     </div>
                     ${pairs.map((p, li) => {
                         const selectedRight = userMatch[li] !== undefined ? userMatch[li] : '';
-                        return `<div class="grid grid-cols-2 gap-3 items-center">
+                        return `<div class="flex flex-col sm:grid sm:grid-cols-2 gap-2 sm:gap-3">
                             <div class="px-4 py-3 bg-teal-50 border-2 border-teal-200 rounded-xl text-sm font-semibold text-teal-800 min-h-[48px] flex items-center">
                                 <span class="w-6 h-6 rounded-full bg-teal-600 text-white text-xs font-black flex items-center justify-center mr-2 shrink-0">${li+1}</span>
                                 ${p.kiri}
                             </div>
-                            <select onchange="saveMenjodohkanAnswer('${q.id}',${li},this.value)"
-                                class="w-full px-3 py-2.5 border-2 ${selectedRight !== '' ? 'border-orange-400 bg-orange-50' : 'border-gray-200 bg-white'} rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-orange-400 transition-colors cursor-pointer">
-                                <option value="">— Pilih pasangan —</option>
-                                ${shuffled.map(ri => `<option value="${ri.origIdx}" ${selectedRight == ri.origIdx ? 'selected' : ''}>${ri.val}</option>`).join('')}
-                            </select>
+                            <div>
+                                <div class="text-[10px] font-bold text-orange-500 mb-1 sm:hidden">▼ Pilih pasangan:</div>
+                                <select onchange="saveMenjodohkanAnswer('${q.id}',${li},this.value)"
+                                    class="w-full px-3 py-2.5 border-2 ${selectedRight !== '' ? 'border-orange-400 bg-orange-50' : 'border-gray-200 bg-white'} rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-orange-400 transition-colors cursor-pointer">
+                                    <option value="">— Pilih pasangan —</option>
+                                    ${shuffled.map(ri => `<option value="${ri.origIdx}" ${selectedRight == ri.origIdx ? 'selected' : ''}>${ri.val}</option>`).join('')}
+                                </select>
+                            </div>
                         </div>`;
                     }).join('')}
                 </div>`;
@@ -18492,6 +18497,16 @@ Terima kasih 🙏</textarea>
                 });
                 
                 btnReview.style.display = 'flex'; 
+                // ★ FIX: Langsung panggil updateDiscussionStatus untuk menyesuaikan visibility
+                // tombol pembahasan sesuai setting admin (bukan selalu tampil)
+                if (typeof window.updateDiscussionStatus === 'function') {
+                    // Beri sedikit delay agar startDiscussionListener sempat mengambil data terbaru
+                    setTimeout(() => {
+                        if (typeof window.updateDiscussionStatus === 'function') {
+                            window.updateDiscussionStatus();
+                        }
+                    }, 500);
+                }
             }
             
             if(typeof lucide !== 'undefined') window._createIconsSafe();
@@ -18603,9 +18618,11 @@ Terima kasih 🙏</textarea>
             const dedupedData = Array.from(dedupMap.values());
 
             window.currentFilteredData = dedupedData.filter(item => {
-                // Siswa SEDANG MENGERJAKAN / MELANJUTKAN → selalu tampil, bypass semua filter
+                // Siswa SEDANG MENGERJAKAN / MELANJUTKAN → bypass filter waktu/tanggal/sesi,
+                // TAPI tetap harus cocok dengan filter ruang pengawas yang sedang login.
                 const isLive = item.status === 'SEDANG MENGERJAKAN' || item.status.includes('MELANJUTKAN');
-                if (isLive) return true;
+                const matchRuangLive = filterRuang === 'all' || (item.ruangUjian || '-').trim().toLowerCase() === filterRuang.trim().toLowerCase();
+                if (isLive) return matchRuangLive;
 
                 // ── Filter Sesi (hanya untuk data yang sudah selesai) ──
                 let matchSesi = true;
