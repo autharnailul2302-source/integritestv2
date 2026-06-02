@@ -10986,8 +10986,12 @@ Terima kasih 🙏</textarea>
         window.startAutoFinishChecker = function() {
             if (window._autoFinishTimer) clearInterval(window._autoFinishTimer);
 
-            const BUFFER_MS          = 5 * 60 * 1000;  // 5 menit toleransi setelah waktu resmi habis
-            const HEARTBEAT_STALE_MS = 3 * 60 * 1000;  // 3 menit tanpa heartbeat = browser sudah tutup
+            // ★ FIX: Dua jalur auto-finish:
+            //   PATH A — Browser masih terbuka (heartbeat segar): langsung selesaikan saat waktu pas habis, tanpa buffer.
+            //            Siswa yang masih aktif tapi waktu sudah habis harus langsung diselesaikan via forceFinishSignal.
+            //   PATH B — Browser sudah tutup (heartbeat basi): beri toleransi 2 menit agar koneksi putus sesaat tidak langsung di-finish.
+            const BUFFER_OFFLINE_MS  = 2 * 60 * 1000;  // 2 menit toleransi jika browser tutup
+            const HEARTBEAT_STALE_MS = 3 * 60 * 1000;  // 3 menit tanpa heartbeat = browser dianggap tutup
 
             const check = async () => {
                 if (!window.isFirebaseReady || !window.db) return;
@@ -11007,25 +11011,42 @@ Terima kasih 🙏</textarea>
 
                         const durasiMnt  = d.examDurationMinutes || window.currentExamDuration || 60;
                         const deadlineMs = startMs + (durasiMnt * 60 * 1000);
-                        const isTimeUp   = now > (deadlineMs + BUFFER_MS);
 
-                        const lastHB     = d.lastHeartbeat || startMs;
-                        const isStale    = (now - lastHB) > HEARTBEAT_STALE_MS;
+                        const lastHB  = d.lastHeartbeat || startMs;
+                        const isStale = (now - lastHB) > HEARTBEAT_STALE_MS;
 
-                        if (isTimeUp && isStale) {
-                            console.log('[AutoFinish] Timeout:', d.studentName, '— otomatis diselesaikan');
+                        // PATH A: browser masih terbuka — selesaikan tepat saat waktu habis (tanpa buffer ekstra)
+                        // Browser siswa akan menerima forceFinishSignal dan menghitung nilai sendiri.
+                        const isTimeUpOnline = !isStale && now > deadlineMs;
+
+                        // PATH B: browser sudah tutup — selesaikan setelah 2 menit toleransi
+                        const isTimeUpOffline = isStale && now > (deadlineMs + BUFFER_OFFLINE_MS);
+
+                        if (isTimeUpOnline || isTimeUpOffline) {
+                            const label = isTimeUpOnline ? 'browser terbuka' : 'browser tutup';
+                            console.log('[AutoFinish] Timeout (' + label + '):', d.studentName, '— otomatis diselesaikan');
                             const lastScore = (d.score !== '-' && d.score != null) ? d.score : 0;
+
+                            const updatePayload = isTimeUpOnline
+                                ? {
+                                    // PATH A: kirim sinyal ke browser siswa agar hitung nilai sendiri
+                                    forceFinishSignal: true,
+                                    note: (d.note || '') + '\n[' + new Date().toLocaleString('id-ID') + '] Sinyal waktu habis dikirim sistem ke browser siswa.'
+                                  }
+                                : {
+                                    // PATH B: browser sudah tutup, langsung tandai selesai di server
+                                    status:        'SELESAI (Waktu Habis - Otomatis)',
+                                    endTime:       deadlineMs,
+                                    score:         lastScore,
+                                    scoreNonEssay: lastScore,
+                                    forceFinishSignal: false,
+                                    note: (d.note || '') + '\n[' + new Date().toLocaleString('id-ID') + '] Otomatis diselesaikan sistem: waktu habis dan browser tidak aktif.'
+                                  };
+
                             promises.push(
                                 window.updateDoc(
                                     window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', ds.id),
-                                    {
-                                        status:        'SELESAI (Waktu Habis - Otomatis)',
-                                        endTime:       deadlineMs,
-                                        score:         lastScore,
-                                        scoreNonEssay: lastScore,
-                                        forceFinishSignal: false,
-                                        note: (d.note || '') + '\n[' + new Date().toLocaleString('id-ID') + '] Otomatis diselesaikan sistem: waktu habis dan browser tidak aktif.'
-                                    }
+                                    updatePayload
                                 ).catch(e => console.warn('[AutoFinish] Gagal update', d.studentName, e))
                             );
                         }
@@ -11035,8 +11056,9 @@ Terima kasih 🙏</textarea>
             };
 
             check();
-            window._autoFinishTimer = setInterval(check, 60000);
-            console.log('[AutoFinish] Checker aktif — cek tiap 1 menit.');
+            // ★ FIX: interval 30 detik (dari 60 detik) agar respons lebih cepat
+            window._autoFinishTimer = setInterval(check, 30000);
+            console.log('[AutoFinish] Checker aktif — cek tiap 30 detik.');
         };
 
         // Render list jadwal
