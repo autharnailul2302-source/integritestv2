@@ -2529,6 +2529,12 @@
             const container = document.getElementById('pengawas-token-list');
             if (!container) return;
 
+            // ★ FIX: Jika allJadwalDB belum terisi, retry 1x setelah 1 detik
+            if (!window.allJadwalDB || window.allJadwalDB.length === 0) {
+                setTimeout(() => { if (window.updatePengawasTokenDisplay) window.updatePengawasTokenDisplay(); }, 1000);
+                return;
+            }
+
             // Helper: render satu QR card untuk sebuah token
             function renderTokenCard(token, namaJadwal, kelasInfo, badgeHtml) {
                 const uid = 'qr-' + token.replace(/[^A-Z0-9]/g,'') + '-' + Math.random().toString(36).slice(2,6);
@@ -15509,6 +15515,15 @@ Terima kasih 🙏</textarea>
             if(window.listenForKelas) window.listenForKelas();
             if(window.listenForPaket) window.listenForPaket();
 
+            // ★ FIX: Paksa refresh token display segera setelah login pengawas
+            // listenForJadwal() sudah ada guard — tidak buat listener baru jika sudah ada.
+            // Tapi snapshot terakhir sudah lewat, jadi token display tidak terupdate.
+            // Solusi: panggil updatePengawasTokenDisplay langsung dengan data yang sudah ada di allJadwalDB.
+            setTimeout(() => {
+                if (window.updatePengawasTokenDisplay) window.updatePengawasTokenDisplay();
+                if (window.startJadwalScheduler) window.startJadwalScheduler();
+            }, 300);
+
             // Update header untuk pengawas
             document.getElementById('dash-header-title').textContent = 'Monitoring Ruang';
             document.getElementById('dash-header-subtitle').textContent = `Pengawas ${ruang.nama}`;
@@ -16521,6 +16536,12 @@ Terima kasih 🙏</textarea>
                 if(window.listenForPaket) window.listenForPaket();
                 if(window.listenForRuang) window.listenForRuang();
                 if(window.listenForActiveSesi) window.listenForActiveSesi();
+
+                // ★ FIX: Paksa refresh token display setelah restore session pengawas
+                setTimeout(() => {
+                    if (window.updatePengawasTokenDisplay) window.updatePengawasTokenDisplay();
+                    if (window.startJadwalScheduler) window.startJadwalScheduler();
+                }, 300);
 
                 document.getElementById('dash-header-title').textContent = 'Monitoring Ruang';
                 document.getElementById('dash-header-subtitle').textContent = `Pengawas ${ruang.nama}`;
