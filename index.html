@@ -3728,7 +3728,7 @@ html.dark .ob-dot.active { background: #818cf8; }
 
         </div>
     </div>    <!-- SECTION: EXAM -->
-    <div id="section-exam" class="hidden-section min-h-screen bg-slate-100 flex flex-col no-copy relative overflow-hidden">
+    <div id="section-exam" class="hidden-section min-h-screen bg-slate-100 flex flex-col no-copy relative overflow-x-hidden">
         <header class="bg-white shadow-sm border-b sticky top-0 z-30">
             <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
                 <div class="flex items-center gap-4">
@@ -3760,7 +3760,7 @@ html.dark .ob-dot.active { background: #818cf8; }
                 </div>
             </div>
         </header>
-        <main class="flex-1 w-full max-w-4xl mx-auto p-4 md:p-8 flex flex-col h-[calc(100vh-64px)] overflow-y-auto">
+        <main class="flex-1 w-full max-w-4xl mx-auto p-4 md:p-8 flex flex-col h-[calc(100vh-64px)] overflow-y-auto" style="touch-action:pan-y;-webkit-overflow-scrolling:touch;">
             <div id="question-area" class="flex-1"></div>
             <div class="mt-6 pt-4 border-t flex justify-between items-center bg-slate-100 sticky bottom-0 z-20 pb-4">
                 <button id="btn-prev" onclick="window.changeQuestion(-1)" class="px-6 py-2 rounded-lg font-semibold bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -13832,12 +13832,15 @@ Terima kasih 🙏</textarea>
                     return;
                 }
 
-                // ── 1. FULLSCREEN segera saat tombol ditekan ──
+                // ── 1. FULLSCREEN segera saat tombol ditekan (hanya desktop) ──
                 try {
-                    const el = document.documentElement;
-                    if (el.requestFullscreen) await el.requestFullscreen().catch(() => {});
-                    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-                    else if (el.msRequestFullscreen) el.msRequestFullscreen();
+                    const isMobileDevice = /Android|iPhone|iPad/i.test(navigator.userAgent);
+                    if (!isMobileDevice) {
+                        const el = document.documentElement;
+                        if (el.requestFullscreen) await el.requestFullscreen().catch(() => {});
+                        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+                        else if (el.msRequestFullscreen) el.msRequestFullscreen();
+                    }
                 } catch(fsErr) { console.log("FS:", fsErr); }
 
                 // ── 2. Cari paket yang cocok dengan token + kelas siswa ──
@@ -14356,6 +14359,18 @@ Terima kasih 🙏</textarea>
                 const paket = (window.allPaketDB || []).find(p => p.id === paketId);
                 const pkt   = paket ? (paket.jenis && paket.jenis !== 'nonpaket' ? paket.jenis : 'A') : 'A';
 
+                // ★ FIX ANTI-SUBMIT: Pastikan minDuration selalu dibaca ulang dari paket saat mulai ujian
+                // Mencegah bypass karena data Firebase belum tiba saat tombol selesai ditekan lebih awal
+                if (paket && paket.minDuration !== undefined) {
+                    window.currentMinExamDuration = parseInt(paket.minDuration) || 0;
+                }
+                // Juga baca dari durasi ujian paket jika ada
+                if (paket && paket.examDuration) {
+                    window.currentExamDuration = parseInt(paket.examDuration) || window.currentExamDuration || 60;
+                }
+                // Tandai data ujian sudah siap (guard anti-submit)
+                window._examDataReady = true;
+
                 // Load soal berdasarkan paketId dari Firestore (TIDAK ada fallback ke hardcode)
                 let dbQuestions = window.allQuestionsDB.filter(q => q.paketId === paketId && q.aktif !== false);
 
@@ -14424,6 +14439,27 @@ Terima kasih 🙏</textarea>
                 // ★ Reset guard flag agar finishExam & DQ modal bisa berjalan normal
                 window._examFinished = false;
                 window._dqShown = false;
+                // ★ FIX ANTI-SUBMIT: Catat waktu TEPAT saat siswa memulai mengerjakan soal
+                // Ini yang dipakai untuk cek anti-submit, bukan examStartTime dari jadwal
+                // Simpan ke sessionStorage agar bertahan jika Safari iOS reload paksa
+                const _nowStart = Date.now();
+                window._studentExamStartTime = _nowStart;
+                try {
+                    const _savedStart = sessionStorage.getItem('_integritest_exam_start');
+                    if (_savedStart && !isNaN(parseInt(_savedStart))) {
+                        // Ada sesi sebelumnya (reload iOS) — pakai yang lama agar anti-submit tidak reset
+                        const _prevStart = parseInt(_savedStart);
+                        const _prevAge   = (_nowStart - _prevStart) / 60000;
+                        // Hanya pakai jika masih dalam durasi ujian (< 2x durasi)
+                        if (_prevAge < (window.currentExamDuration || 60) * 2) {
+                            window._studentExamStartTime = _prevStart;
+                        } else {
+                            sessionStorage.setItem('_integritest_exam_start', String(_nowStart));
+                        }
+                    } else {
+                        sessionStorage.setItem('_integritest_exam_start', String(_nowStart));
+                    }
+                } catch(e) { /* sessionStorage tidak tersedia */ }
 
                 // Simpan ke Firestore LANGSUNG dulu — agar monitoring menampilkan siswa segera.
                 // Cek dokumen lama (resume) dilakukan setelah save, di background.
@@ -14539,12 +14575,15 @@ Terima kasih 🙏</textarea>
                 document.getElementById('section-welcome').classList.add('hidden-section');
                 document.getElementById('section-exam').classList.remove('hidden-section');
 
-                // ── Paksa fullscreen saat ujian dimulai ──
+                // ── Paksa fullscreen saat ujian dimulai (hanya desktop) ──
                 try {
-                    const el = document.documentElement;
-                    if (el.requestFullscreen) await el.requestFullscreen().catch(() => {});
-                    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-                    else if (el.msRequestFullscreen) el.msRequestFullscreen();
+                    const isMobileDevice = /Android|iPhone|iPad/i.test(navigator.userAgent);
+                    if (!isMobileDevice) {
+                        const el = document.documentElement;
+                        if (el.requestFullscreen) await el.requestFullscreen().catch(() => {});
+                        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+                        else if (el.msRequestFullscreen) el.msRequestFullscreen();
+                    }
                 } catch(fsErr) { console.log("[FS] startExam:", fsErr); }
 
                 window.renderWatermark(name);
@@ -15563,7 +15602,10 @@ Terima kasih 🙏</textarea>
         window.confirmFinishExam = function() {
             // NEW: Anti-Submit Check — gunakan modal internal, BUKAN alert() agar tidak trigger anti-cheat
             if (window.currentMinExamDuration > 0 && window.examStartTime) {
-                const elapsedMs = Date.now() - window.examStartTime;
+                // ★ FIX: Gunakan _studentExamStartTime (waktu siswa benar-benar mulai)
+                // bukan examStartTime dari jadwal yang bisa jauh di masa lalu
+                const startRef = window._studentExamStartTime || window.examStartTime;
+                const elapsedMs = Date.now() - startRef;
                 const elapsedMin = elapsedMs / 60000;
                 
                 if (elapsedMin < window.currentMinExamDuration) {
@@ -17320,8 +17362,37 @@ Terima kasih 🙏</textarea>
             
             // ── Polling counter untuk cek sinyal paksa-selesai dari admin (setiap 30 detik) ──
             let _pollTick = 0;
+            // ★ FIX iOS/iPhone & Samsung: Timer selalu mengacu ke waktu dinding (wall clock)
+            // Safari iOS membekukan setInterval saat layar mati/app background, lalu saat dibuka
+            // semua tick dijalankan sekaligus — menyebabkan timer loncat cepat.
+            // Solusi: simpan titik awal sekali, setiap tick hitung ulang dari Date.now().
+            const _examTimerStartWall = Date.now();
+            const _examTimerStartLeft = timeLeft;
+
+            // ★ FIX iOS iPhone: Tangani saat Safari kembali dari background
+            // iOS membekukan JS saat app di-minimize, lalu saat balik semua setTimeout/setInterval
+            // dijalankan sekaligus dalam milidetik — menyebabkan timer loncat cepat.
+            // visibilitychange event memastikan display timer langsung sinkron saat layar aktif kembali.
+            const _onVisibilityChange = function() {
+                if (document.visibilityState === 'visible' && !window._examFinished) {
+                    // Hitung ulang dari wall clock — tampilkan langsung tanpa menunggu tick berikutnya
+                    const _wElapsed = Math.floor((Date.now() - _examTimerStartWall) / 1000);
+                    const _newLeft  = Math.max(0, _examTimerStartLeft - _wElapsed);
+                    const _m = Math.floor(_newLeft / 60).toString().padStart(2, '0');
+                    const _s = (_newLeft % 60).toString().padStart(2, '0');
+                    const _td = document.getElementById('timer-display');
+                    if (_td) _td.innerText = `${_m}:${_s}`;
+                    if (_newLeft <= 0 && !window._examFinished) { finishExam(); }
+                }
+            };
+            document.addEventListener('visibilitychange', _onVisibilityChange);
+            // Simpan reference agar bisa dihapus saat ujian selesai (prevent memory leak)
+            window._timerVisibilityListener = _onVisibilityChange;
+
             examTimer = setInterval(() => {
-                timeLeft--;
+                // Satu-satunya sumber kebenaran: selisih waktu dinding sejak timer dimulai
+                const _wallElapsed = Math.floor((Date.now() - _examTimerStartWall) / 1000);
+                timeLeft = Math.max(0, _examTimerStartLeft - _wallElapsed);
                 const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
                 const s = (timeLeft % 60).toString().padStart(2, '0');
                 const timerDisplay = document.getElementById('timer-display');
@@ -17894,6 +17965,13 @@ Terima kasih 🙏</textarea>
             window._examFinished = true;
 
             clearInterval(examTimer);
+            // ★ FIX iOS: Hapus visibilitychange listener saat ujian selesai (cleanup)
+            if (window._timerVisibilityListener) {
+                document.removeEventListener('visibilitychange', window._timerVisibilityListener);
+                window._timerVisibilityListener = null;
+            }
+            // Bersihkan sessionStorage start time
+            try { sessionStorage.removeItem('_integritest_exam_start'); } catch(e) {}
             
             // ★ HAPUS listener fullscreenchange SEBELUM apapun agar tidak memicu registerViolation
             try {
