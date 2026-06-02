@@ -10880,7 +10880,11 @@ Terima kasih 🙏</textarea>
         window.startJadwalScheduler = function() {
             if (window._jadwalSchedulerTimer) clearInterval(window._jadwalSchedulerTimer);
             const check = () => {
-                if (!window.isAdmin || !window.isAdmin()) return; // hanya admin yang menjalankan scheduler
+                // ★ FIX: izinkan admin DAN pengawas menjalankan scheduler
+                const isAdminOrPengawas = (window.isAdmin && window.isAdmin()) ||
+                                          (window.currentUserRole === 'pengawas') ||
+                                          (window.currentPengawasRuang);
+                if (!isAdminOrPengawas) return;
                 if (!window.allJadwalDB || !window.isFirebaseReady) return;
 
                 const now = new Date();
@@ -10892,11 +10896,11 @@ Terima kasih 🙏</textarea>
 
                     const tepat_mulai = (timeStr === j.jamMulai);
                     const sudah_lewat_selesai = (timeStr > j.jamSelesai);
-                    const sedang_berjalan = (timeStr >= j.jamMulai && timeStr <= j.jamSelesai);
 
-                    // Aktifkan tepat pada jam mulai ATAU jika sedang dalam rentang tapi belum pernah dijalankan
+                    // ★ FIX: Aktifkan jika dalam rentang waktu — TANPA syarat !sudahDijalankan
+                    // Ini memastikan catch-up berjalan setelah refresh sekalipun sudahDijalankan=true
                     const dalam_rentang = (timeStr >= j.jamMulai && timeStr <= j.jamSelesai);
-                    if ((tepat_mulai || (dalam_rentang && !j.sudahDijalankan)) && !j.isActive) {
+                    if ((tepat_mulai || dalam_rentang) && !j.isActive) {
                         await window._aktifkanJadwal(j);
                         return;
                     }
@@ -10908,7 +10912,7 @@ Terima kasih 🙏</textarea>
                     }
                 });
             };
-            check(); // cek langsung saat mulai
+            check(); // cek langsung saat mulai (catch-up setelah refresh)
             window._jadwalSchedulerTimer = setInterval(check, 60000); // cek tiap menit
             console.log('[Jadwal] Scheduler dimulai, cek tiap menit.');
         };
