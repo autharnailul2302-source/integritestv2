@@ -13974,7 +13974,10 @@ Terima kasih 🙏</textarea>
                 if (window.isFirebaseReady && window.db) {
                     try {
                         const fp = (window.getDeviceFingerprint || getDeviceFingerprint)();
-                        const qSnap = await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results'));
+                        // ★ CACHE: fetch exam_results sekali saja, re-use di renderWelcomePaketList & renderWelcomeRiwayatMapel
+                        window._examResultsSnap = await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results'));
+                        window._examResultsSnapAt = Date.now();
+                        const qSnap = window._examResultsSnap;
                         const now = Date.now();
                         qSnap.forEach(ds => {
                             const d = ds.data();
@@ -14105,7 +14108,9 @@ Terima kasih 🙏</textarea>
                     const loginData = window._loginData || {};
                     const studentNisn = loginData.studentNisn || '';
                     const studentName = loginData.name || '';
-                    const snap = await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results'));
+                    // ★ OPTIMASI: Pakai cache dari handleStudentLogin — tidak perlu fetch ulang
+                    const snap = window._examResultsSnap
+                        || await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results'));
                     const paketSelesai = new Set(); // paketId yang sudah selesai/DQ oleh siswa ini
                     snap.forEach(ds => {
                         const d = ds.data();
@@ -14303,7 +14308,9 @@ Terima kasih 🙏</textarea>
                     (discVisibility !== 'manual' || discManualOpen);
 
                 // ── 2. Ambil hasil ujian siswa ──
-                const snap = await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results'));
+                // ★ OPTIMASI: Pakai cache dari handleStudentLogin — tidak perlu fetch ulang
+                const snap = window._examResultsSnap
+                    || await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results'));
                 const riwayat = [];
                 const seenMapel = new Set();
 
