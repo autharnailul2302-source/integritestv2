@@ -10905,6 +10905,9 @@ Terima kasih 🙏</textarea>
                     manualActive: manual ? true : false
                 });
 
+                // Update objek lokal agar scheduler berikutnya langsung tahu
+                if (manual) jadwal.manualActive = true;
+                jadwal.isActive = true;
                 console.log(`[Jadwal] ✅ Sesi "${jadwal.nama}" diaktifkan ${manual ? 'manual' : 'otomatis'}`);
             } catch(e) { console.error('[Jadwal] Gagal aktifkan:', e); }
         };
@@ -10960,14 +10963,17 @@ Terima kasih 🙏</textarea>
                     }
 
                     // Nonaktifkan saat melewati jam selesai
-                    // ★ FIX: Skip jika diaktifkan manual (manualActive:true) — biarkan admin yang stop
-                    if (sudah_lewat_selesai && j.isActive && !j.manualActive) {
+                    // ★ FIX: jika manualActive:true, biarkan admin yang stop
+                    // isActive:true saat jam lewat = sudah diaktifkan manual, jangan dimatikan otomatis
+                    if (sudah_lewat_selesai && j.isActive) {
+                        if (j.manualActive) return;
                         await window._nonaktifkanJadwal(j.id, true); // true = otomatis
                         return;
                     }
                 });
             };
-            check(); // cek langsung saat mulai (catch-up setelah refresh)
+            // Delay check pertama 3 detik agar data Firebase (termasuk manualActive) sudah terbaca
+            setTimeout(check, 3000);
             window._jadwalSchedulerTimer = setInterval(check, 60000); // cek tiap menit
             console.log('[Jadwal] Scheduler dimulai, cek tiap menit.');
         };
