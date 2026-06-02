@@ -10898,9 +10898,11 @@ Terima kasih 🙏</textarea>
 
                 // Tandai jadwal sudah dijalankan & aktif
                 // ★ Simpan activatedAt agar siswa bisa menghitung sisa waktu yang akurat
+                // ★ manualActive: true → scheduler tidak akan otomatis nonaktifkan meski jam lewat
                 await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'jadwal_ujian', jadwal.id), {
                     isActive: true, sudahDijalankan: true, sesiRefId: docRef.id,
-                    activatedAt: Date.now()
+                    activatedAt: Date.now(),
+                    manualActive: manual ? true : false
                 });
 
                 console.log(`[Jadwal] ✅ Sesi "${jadwal.nama}" diaktifkan ${manual ? 'manual' : 'otomatis'}`);
@@ -10916,7 +10918,7 @@ Terima kasih 🙏</textarea>
                 // Sesi ujian tidak lagi dikelola manual - jadwal langsung jadi acuan
                 // Update jadwal
                 if (jadwal) {
-                    const updatePayload = { isActive: false };
+                    const updatePayload = { isActive: false, manualActive: false };
                     // ★ FIX: Hanya set sudahDijalankan:true jika nonaktif OTOMATIS (jam selesai terlewat)
                     // Jika stop MANUAL, biarkan sudahDijalankan apa adanya agar bisa diaktifkan ulang
                     if (otomatis) updatePayload.sudahDijalankan = true;
@@ -10958,7 +10960,8 @@ Terima kasih 🙏</textarea>
                     }
 
                     // Nonaktifkan saat melewati jam selesai
-                    if (sudah_lewat_selesai && j.isActive) {
+                    // ★ FIX: Skip jika diaktifkan manual (manualActive:true) — biarkan admin yang stop
+                    if (sudah_lewat_selesai && j.isActive && !j.manualActive) {
                         await window._nonaktifkanJadwal(j.id, true); // true = otomatis
                         return;
                     }
@@ -11113,7 +11116,7 @@ Terima kasih 🙏</textarea>
                             </div>
                         </div>
                         <div class="flex gap-1.5 shrink-0">
-                            ${!sudahLewat ? `<button onclick="window.toggleJadwalManual('${j.id}',${!!sedangAktif},'${j.nama.replace(/'/g,"\\'")}') " title="${sedangAktif ? 'Nonaktifkan' : 'Aktifkan'} manual" class="text-xs font-bold ${sedangAktif ? 'text-red-600 hover:bg-red-50 border-red-200' : 'text-green-600 hover:bg-green-50 border-green-200'} border px-3 py-1.5 rounded-lg transition-colors">${sedangAktif ? '⏹ Stop' : '▶ Mulai'}</button>` : ''}
+                            ${(j.isActive || !sudahLewat) ? `<button onclick="window.toggleJadwalManual('${j.id}',${!!j.isActive},'${j.nama.replace(/'/g,"\\'")}') " title="${j.isActive ? 'Nonaktifkan' : 'Aktifkan'} manual" class="text-xs font-bold ${j.isActive ? 'text-red-600 hover:bg-red-50 border-red-200' : 'text-green-600 hover:bg-green-50 border-green-200'} border px-3 py-1.5 rounded-lg transition-colors">${j.isActive ? '⏹ Stop' : '▶ Mulai'}</button>` : ''}
                             <button onclick="window.editJadwal('${j.id}')" title="Edit jadwal" class="text-violet-500 hover:bg-violet-50 p-1.5 rounded-lg transition-colors border border-transparent hover:border-violet-200"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
                             <button onclick="window.hapusJadwal('${j.id}','${j.nama.replace(/'/g,"\\'")}') " title="Hapus jadwal" class="text-red-400 hover:bg-red-50 p-1.5 rounded-lg transition-colors border border-transparent hover:border-red-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                         </div>
