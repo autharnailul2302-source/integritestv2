@@ -5921,9 +5921,14 @@ html.dark .ob-dot.active { background: #818cf8; }
                                 </div>
                             </div>
                         </div>
-                        <button onclick="window.generateIntegrityReport()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95" style="background:rgba(16,185,129,0.6);border:1px solid rgba(52,211,153,0.4);color:white;">
+                        <button onclick="window.generateIntegrityReport()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95" style="background:rgba(16,185,129,0.6);border:1px solid rgba(52,211,153,0.4);color:white;" title="Cetak semua siswa (mode sertifikat per halaman)">
                             <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
                             <span class="hidden sm:inline">Cetak Semua PDF</span>
+                        </button>
+                        <!-- ★ TOMBOL BARU: Cetak Tabel PDF sesuai filter aktif -->
+                        <button onclick="window.generateFilteredTablePDF()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95" style="background:rgba(99,102,241,0.7);border:1px solid rgba(129,140,248,0.4);color:white;" title="Cetak tabel ringkasan sesuai filter aktif (DQ, kelas, dll)">
+                            <i data-lucide="table" class="w-3.5 h-3.5"></i>
+                            <span class="hidden sm:inline">Cetak Tabel Filter</span>
                         </button>
                         <!-- Tombol Panduan toggle -->
                         <button onclick="(function(){var p=document.getElementById('analitik-panduan-section');var ic=document.getElementById('ic-panduan-chevron');if(!p)return;var open=p.style.display!=='none';p.style.display=open?'none':'block';if(ic)ic.style.transform=open?'rotate(0deg)':'rotate(180deg)';})()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95" style="background:rgba(255,255,255,0.13);border:1px solid rgba(255,255,255,0.2);color:white;">
@@ -11573,29 +11578,18 @@ Terima kasih 🙏</textarea>
         // ADMIN CREDENTIALS MANAGEMENT (Firebase-based)
         // ═══════════════════════════════════════════════════════
 
-        // Seed credentials default ke Firebase (pertama kali SAJA — tidak overwrite jika sudah ada)
+        // Seed credentials default ke Firebase (pertama kali)
         window.ensureAdminCredentials = async function() {
             if (!window.isFirebaseReady || !window.db) return;
-            // ★ FIX: Hanya jalankan sekali per sesi — cegah overwrite password yang sudah diubah admin
-            if (window._adminCredEnsured) return;
-            window._adminCredEnsured = true;
             try {
                 const snap = await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'admin_credentials'));
                 if (snap.empty) {
-                    // Hanya seed jika koleksi benar-benar kosong (instalasi baru)
                     await setDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'admin_credentials', 'main_admin'), {
                         username: 'authar', password: 'Sedayu@123',
                         displayName: 'Admin Utama', createdAt: Date.now()
                     });
-                    console.log('[AdminCred] Default credentials seeded (instalasi baru).');
-                } else {
-                    console.log('[AdminCred] Credentials sudah ada di Firestore — tidak di-overwrite.');
                 }
-            } catch(e) { 
-                // Reset flag jika error agar bisa dicoba ulang
-                window._adminCredEnsured = false;
-                console.warn('ensureAdminCredentials:', e); 
-            }
+            } catch(e) { console.warn('ensureAdminCredentials:', e); }
         };
 
         // Simpan perubahan username & password admin
@@ -11613,15 +11607,11 @@ Terima kasih 🙏</textarea>
             if (!newUser || newUser.length < 4) { alert('Username minimal 4 karakter!'); return; }
             if (!oldPass) { alert('Masukkan password lama untuk konfirmasi identitas!'); return; }
 
-            // ★ FIX: Verifikasi password lama — cek semua doc, prioritaskan 'main_admin'
+            // Verifikasi password lama
             let docId = null;
-            let allDocIds = [];
             try {
                 const snap = await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'admin_credentials'));
-                snap.forEach(ds => {
-                    allDocIds.push(ds.id);
-                    if (ds.data().password === oldPass) docId = ds.id;
-                });
+                snap.forEach(ds => { if (ds.data().password === oldPass) docId = ds.id; });
             } catch(e) { alert('Gagal memverifikasi: ' + e.message); return; }
 
             if (!docId) { alert('\u274C Password lama salah! Perubahan dibatalkan.'); return; }
@@ -11635,26 +11625,10 @@ Terima kasih 🙏</textarea>
             }
 
             try {
-                // ★ FIX: Selalu gunakan 'main_admin' sebagai doc utama
-                // Jika doc yang cocok bukan 'main_admin', pindahkan ke 'main_admin' dan hapus yang lama
-                const targetDocId = 'main_admin';
-                await setDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'admin_credentials', targetDocId), {
+                await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'admin_credentials', docId), {
                     username: newUser, password: finalPass,
-                    displayName: newDisplay || newUser, updatedAt: Date.now(),
-                    createdAt: Date.now()
-                }, { merge: true });
-
-                // Hapus doc lama jika berbeda dari main_admin (bersihkan duplikat)
-                if (docId !== targetDocId) {
-                    try {
-                        await deleteDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'admin_credentials', docId));
-                        console.log('[AdminCred] Doc lama', docId, 'dihapus, data dipindah ke main_admin.');
-                    } catch(delErr) { console.warn('[AdminCred] Gagal hapus doc lama:', delErr); }
-                }
-
-                // ★ FIX: Reset flag agar next login baca credentials terbaru
-                window._adminCredEnsured = true;
-
+                    displayName: newDisplay || newUser, updatedAt: Date.now()
+                });
                 ['setting-admin-old-pass','setting-admin-new-pass','setting-admin-conf-pass'].forEach(id => {
                     const el = document.getElementById(id); if (el) el.value = '';
                 });
@@ -19839,6 +19813,12 @@ Terima kasih 🙏</textarea>
                 });
             }
 
+            // ★ FIX: Simpan data terfilter ke window agar tombol cetak PDF bisa pakai filter aktif
+            window._currentAnalitikFiltered = withScores;
+            window._currentAnalitikFilterLabel = {
+                sesi: fSesi, ruang: fRuang, kelas: fKelas, predikat: fPredikat
+            };
+
             // ── Summary cards ──
             const scores = withScores.map(d => d.integrityScore);
             const avg    = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
@@ -21926,6 +21906,124 @@ Terima kasih 🙏</textarea>
             else { alert('Popup diblokir browser. Izinkan popup untuk tab ini lalu coba lagi.'); }
         };
 
+        // ★ FITUR BARU: Cetak PDF Tabel sesuai filter aktif (DQ, kelas, jadwal, dll)
+        window.generateFilteredTablePDF = function() {
+            const data = window._currentAnalitikFiltered || window._allDashboardData || [];
+            if (!data || data.length === 0) {
+                alert('Tidak ada data untuk dicetak. Pastikan filter sudah dipilih dan ada data yang cocok.');
+                return;
+            }
+            const fl = window._currentAnalitikFilterLabel || {};
+            const _e = window.escapeHtml || (s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'));
+            const now = new Date().toLocaleString('id-ID');
+            const _appPdf = window._savedAppearance || {};
+            const judulUjian = (_appPdf.judulUjian || 'Ujian Digital').trim();
+            const schoolName = (_appPdf.subJudul   || 'Sistem Integritas Ujian Digital').trim();
+
+            // Label filter untuk header PDF
+            const predikatLabel = {all:'Semua Predikat',teladan:'Teladan (100)',baik:'Baik (80–99)',cukup:'Cukup (60–79)',evaluasi:'Evaluasi (1–59)',dq:'Diskualifikasi (0)'};
+            const filterDesc = [
+                fl.sesi    && fl.sesi    !== 'all' ? 'Jadwal: ' + fl.sesi    : '',
+                fl.kelas   && fl.kelas   !== 'all' ? 'Kelas: '  + fl.kelas   : '',
+                fl.ruang   && fl.ruang   !== 'all' && fl.ruang !== 'locked' ? 'Ruang: ' + fl.ruang : '',
+                fl.predikat && fl.predikat !== 'all' ? (predikatLabel[fl.predikat] || fl.predikat) : '',
+            ].filter(Boolean).join(' · ') || 'Semua Data';
+
+            // Urutkan: DQ dulu, lalu score tertinggi
+            const sorted = [...data].sort((a,b) => {
+                const sa = a.integrityScore ?? 0, sb = b.integrityScore ?? 0;
+                if (sa !== sb) return sa - sb; // DQ (0) di atas
+                return (a.className||'').localeCompare(b.className||'');
+            });
+
+            const totalDQ    = sorted.filter(d => (d.integrityScore??0) === 0).length;
+            const totalBaik  = sorted.filter(d => (d.integrityScore??0) >= 80).length;
+            const totalPerlu = sorted.length - totalDQ - totalBaik;
+
+            const rows = sorted.map((d, i) => {
+                const sc  = d.integrityScore ?? 0;
+                const isDQ = sc === 0;
+                const scColor = sc===100?'#16a34a':sc>=80?'#22c55e':sc>=60?'#d97706':sc>0?'#ef4444':'#991b1b';
+                const predikat = sc===100?'Teladan':sc>=80?'Baik':sc>=60?'Cukup':sc>0?'Evaluasi':'DQ';
+                const rowBg = isDQ ? '#fef2f2' : i%2===0 ? '#f8fafc' : '#ffffff';
+                return `<tr style="background:${rowBg}">
+                    <td style="padding:8px 10px;text-align:center;font-weight:700;color:#94a3b8;font-size:11px;border-bottom:1px solid #f1f5f9">${i+1}</td>
+                    <td style="padding:8px 10px;font-weight:700;color:#0f172a;font-size:12px;border-bottom:1px solid #f1f5f9">${_e(d.studentName)||'-'}</td>
+                    <td style="padding:8px 10px;color:#64748b;font-size:11px;border-bottom:1px solid #f1f5f9">${_e(d.studentNisn)||'-'}</td>
+                    <td style="padding:8px 10px;color:#64748b;font-size:11px;border-bottom:1px solid #f1f5f9">${_e(d.className)||'-'}</td>
+                    <td style="padding:8px 10px;color:#64748b;font-size:11px;border-bottom:1px solid #f1f5f9">${_e(d.ruangUjian)||'-'}</td>
+                    <td style="padding:8px 10px;text-align:center;font-weight:800;color:#1d4ed8;font-size:13px;border-bottom:1px solid #f1f5f9">${d.score??'—'}</td>
+                    <td style="padding:8px 10px;text-align:center;color:#64748b;font-size:11px;border-bottom:1px solid #f1f5f9">${d.violations||0}×</td>
+                    <td style="padding:8px 10px;text-align:center;font-weight:900;color:${scColor};font-size:13px;border-bottom:1px solid #f1f5f9">${sc}</td>
+                    <td style="padding:8px 10px;text-align:center;font-weight:700;color:${scColor};font-size:10.5px;border-bottom:1px solid #f1f5f9">${_e(predikat)}</td>
+                    <td style="padding:8px 10px;color:#64748b;font-size:10px;border-bottom:1px solid #f1f5f9">${_e((d.note||'').slice(0,60))}</td>
+                </tr>`;
+            }).join('');
+
+            const html = `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
+            <title>Rekap Integritas — ${_e(filterDesc)} · ${_e(judulUjian)}</title>
+            <style>
+                *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+                body{font-family:'Segoe UI',Arial,sans-serif;margin:0;padding:20px;background:#f1f5f9;font-size:13px}
+                @media print{body{background:white;padding:0}.no-print{display:none!important}table{font-size:10px}}
+                table{width:100%;border-collapse:collapse}
+                thead tr{background:linear-gradient(135deg,#1e293b 0%,#334155 100%)}
+                thead th{padding:10px 10px;text-align:left;font-size:9.5px;font-weight:800;color:white;letter-spacing:0.5px;text-transform:uppercase}
+                thead th:nth-child(1),thead th:nth-child(6),thead th:nth-child(7),thead th:nth-child(8),thead th:nth-child(9){text-align:center}
+            </style></head><body>
+            <!-- Toolbar cetak -->
+            <div class="no-print" style="margin-bottom:16px;background:white;padding:12px 18px;border-radius:12px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #e2e8f0">
+                <div style="flex:1">
+                    <div style="font-size:14px;font-weight:800;color:#0f172a">${_e(judulUjian)} &nbsp;<span style="font-weight:400;color:#64748b;font-size:12px">${_e(schoolName)}</span></div>
+                    <div style="font-size:11px;color:#6366f1;font-weight:600;margin-top:2px">Filter aktif: ${_e(filterDesc)} &nbsp;·&nbsp; ${sorted.length} siswa</div>
+                </div>
+                <button onclick="window.print()" style="background:#2563eb;color:white;border:none;padding:9px 20px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer">🖨️ Cetak / Simpan PDF</button>
+                <button onclick="window.close()" style="background:#f1f5f9;color:#334155;border:1.5px solid #e2e8f0;padding:9px 16px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer">✕ Tutup</button>
+            </div>
+            <!-- Header dokumen -->
+            <div style="background:linear-gradient(135deg,#1e293b 0%,#334155 60%,#0f172a 100%);border-radius:16px;padding:22px 28px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
+                <div>
+                    <div style="font-size:8px;letter-spacing:3px;color:rgba(255,255,255,0.45);text-transform:uppercase;margin-bottom:4px">Dokumen Rekap Integritas Ujian</div>
+                    <div style="font-size:20px;font-weight:900;color:white;line-height:1.2">${_e(judulUjian)}</div>
+                    <div style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:4px">${_e(schoolName)} &nbsp;·&nbsp; ${_e(now)}</div>
+                    <div style="margin-top:8px;display:inline-block;background:rgba(99,102,241,0.35);border:1px solid rgba(99,102,241,0.5);border-radius:8px;padding:4px 12px;font-size:10px;color:#a5b4fc;font-weight:700">Filter: ${_e(filterDesc)}</div>
+                </div>
+                <div style="display:flex;gap:12px;text-align:center">
+                    <div style="background:rgba(255,255,255,0.08);border-radius:10px;padding:10px 16px">
+                        <div style="font-size:28px;font-weight:900;color:white">${sorted.length}</div>
+                        <div style="font-size:8px;color:rgba(255,255,255,0.45);margin-top:2px">Total Siswa</div>
+                    </div>
+                    <div style="background:rgba(16,185,129,0.2);border-radius:10px;padding:10px 16px">
+                        <div style="font-size:28px;font-weight:900;color:#34d399">${totalBaik}</div>
+                        <div style="font-size:8px;color:rgba(52,211,153,0.7);margin-top:2px">Baik/Teladan</div>
+                    </div>
+                    <div style="background:rgba(239,68,68,0.2);border-radius:10px;padding:10px 16px">
+                        <div style="font-size:28px;font-weight:900;color:#f87171">${totalDQ}</div>
+                        <div style="font-size:8px;color:rgba(248,113,113,0.7);margin-top:2px">Diskualifikasi</div>
+                    </div>
+                </div>
+            </div>
+            <!-- Tabel -->
+            <div style="background:white;border-radius:14px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.06)">
+                <table>
+                    <thead><tr>
+                        <th>#</th><th>Nama Siswa</th><th>NISN</th><th>Kelas</th><th>Ruang</th>
+                        <th>Nilai</th><th>Pelang.</th><th>Integritas</th><th>Predikat</th><th>Catatan</th>
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+                <div style="padding:12px 20px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center">
+                    <span style="font-size:10px;color:#94a3b8">Dicetak ${_e(now)} · ${_e(judulUjian)} · ${_e(schoolName)}</span>
+                    <span style="font-size:10px;color:#94a3b8">${sorted.length} siswa · Filter: ${_e(filterDesc)}</span>
+                </div>
+            </div>
+            </body></html>`;
+
+            const win = window.open('', '_blank');
+            if (win) { win.document.write(html); win.document.close(); }
+            else { alert('Popup diblokir browser. Izinkan popup untuk tab ini lalu coba lagi.'); }
+        };
+
         // Export PDF satu siswa dari tabel monitoring
         window.exportSinglePDF = function(studentId) { window.generateIntegrityReport(studentId); };
 
@@ -21964,7 +22062,8 @@ Terima kasih 🙏</textarea>
         window._populatePdfKelasDropdown = function() {
             const list = document.getElementById('dropdown-pdf-kelas-list');
             if (!list) return;
-            const data = window._allDashboardData || dashboardData || [];
+            // ★ FIX: Gunakan data terfilter jika ada (sesuai filter kelas/jadwal yang dipilih user)
+            const data = window._allDashboardData || [];
             const finished = data.filter(d => d.status !== 'SEDANG MENGERJAKAN');
             // Kumpulkan kelas unik
             const classSet = {};
