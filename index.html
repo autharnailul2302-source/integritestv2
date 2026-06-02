@@ -10817,13 +10817,23 @@ Terima kasih 🙏</textarea>
             if (mulai >= selesai) return alert('Jam selesai harus lebih besar dari jam mulai!');
 
             try {
+                const now = new Date();
+                const todayStr = now.toISOString().slice(0,10);
+                const timeStr  = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+                // ★ FIX: Reset sudahDijalankan agar scheduler bisa aktifkan ulang setelah edit
+                // Juga reset isActive jika jam baru berbeda dari kondisi sekarang
+                const dalamRentangBaru = (tanggal === todayStr && timeStr >= mulai && timeStr <= selesai);
+                const sudahLewatBaru   = (tanggal < todayStr) || (tanggal === todayStr && timeStr > selesai);
                 await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'jadwal_ujian', id), {
                     nama, tanggal, jamMulai: mulai, jamSelesai: selesai,
                     paket, paketId: paketId || '',
                     kelas: kelasStr, kelasArr: kelasArr,
                     tokenCustom: token || '',
                     durasiCustom: durasi ? parseInt(durasi) : 0,
-                    updatedAt: Date.now()
+                    updatedAt: Date.now(),
+                    // Reset state agar scheduler evaluasi ulang dari awal
+                    sudahDijalankan: sudahLewatBaru ? true : false,
+                    isActive: dalamRentangBaru ? true : false
                 });
                 window.closeEditJadwal();
             } catch(e) { alert('Gagal menyimpan: ' + e.message); }
@@ -10892,7 +10902,7 @@ Terima kasih 🙏</textarea>
         };
 
         // Internal: nonaktifkan sesi milik jadwal ini saja
-        window._nonaktifkanJadwal = async function(jadwalId) {
+        window._nonaktifkanJadwal = async function(jadwalId, otomatis = false) {
             if (!window.isFirebaseReady || !window.db) return;
             try {
                 const jadwal = (window.allJadwalDB || []).find(j => j.id === jadwalId);
@@ -10900,11 +10910,13 @@ Terima kasih 🙏</textarea>
                 // Sesi ujian tidak lagi dikelola manual - jadwal langsung jadi acuan
                 // Update jadwal
                 if (jadwal) {
-                    await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'jadwal_ujian', jadwalId), {
-                        isActive: false
-                    });
+                    const updatePayload = { isActive: false };
+                    // ★ FIX: Hanya set sudahDijalankan:true jika nonaktif OTOMATIS (jam selesai terlewat)
+                    // Jika stop MANUAL, biarkan sudahDijalankan apa adanya agar bisa diaktifkan ulang
+                    if (otomatis) updatePayload.sudahDijalankan = true;
+                    await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'jadwal_ujian', jadwalId), updatePayload);
                 }
-                console.log(`[Jadwal] 🔴 Jadwal "${jadwal ? jadwal.nama : jadwalId}" dinonaktifkan`);
+                console.log(`[Jadwal] 🔴 Jadwal "${jadwal ? jadwal.nama : jadwalId}" dinonaktifkan (${otomatis ? 'otomatis' : 'manual'})`);
             } catch(e) { console.error('[Jadwal] Gagal nonaktifkan:', e); }
         };
 
@@ -10929,17 +10941,19 @@ Terima kasih 🙏</textarea>
                     const tepat_mulai = (timeStr === j.jamMulai);
                     const sudah_lewat_selesai = (timeStr > j.jamSelesai);
 
-                    // ★ FIX: Aktifkan jika dalam rentang waktu — TANPA syarat !sudahDijalankan
-                    // Ini memastikan catch-up berjalan setelah refresh sekalipun sudahDijalankan=true
+                    // Aktifkan jika:
+                    // - Tepat jam mulai, ATAU
+                    // - Sedang dalam rentang waktu DAN belum pernah dijalankan (catch-up setelah refresh)
+                    // sudahDijalankan dipertahankan agar jadwal yang sudah selesai tidak aktif lagi
                     const dalam_rentang = (timeStr >= j.jamMulai && timeStr <= j.jamSelesai);
-                    if ((tepat_mulai || dalam_rentang) && !j.isActive) {
+                    if ((tepat_mulai || (dalam_rentang && !j.sudahDijalankan)) && !j.isActive) {
                         await window._aktifkanJadwal(j);
                         return;
                     }
 
                     // Nonaktifkan saat melewati jam selesai
                     if (sudah_lewat_selesai && j.isActive) {
-                        await window._nonaktifkanJadwal(j.id);
+                        await window._nonaktifkanJadwal(j.id, true); // true = otomatis
                         return;
                     }
                 });
@@ -11093,7 +11107,7 @@ Terima kasih 🙏</textarea>
                             </div>
                         </div>
                         <div class="flex gap-1.5 shrink-0">
-                            ${!sudahLewat ? `<button onclick="window.toggleJadwalManual('${j.id}',${!!j.isActive},'${j.nama.replace(/'/g,"\\'")}') " title="${j.isActive ? 'Nonaktifkan' : 'Aktifkan'} manual" class="text-xs font-bold ${j.isActive ? 'text-red-600 hover:bg-red-50 border-red-200' : 'text-green-600 hover:bg-green-50 border-green-200'} border px-3 py-1.5 rounded-lg transition-colors">${j.isActive ? '⏹ Stop' : '▶ Mulai'}</button>` : ''}
+                            ${!sudahLewat ? `<button onclick="window.toggleJadwalManual('${j.id}',${!!sedangAktif},'${j.nama.replace(/'/g,"\\'")}') " title="${sedangAktif ? 'Nonaktifkan' : 'Aktifkan'} manual" class="text-xs font-bold ${sedangAktif ? 'text-red-600 hover:bg-red-50 border-red-200' : 'text-green-600 hover:bg-green-50 border-green-200'} border px-3 py-1.5 rounded-lg transition-colors">${sedangAktif ? '⏹ Stop' : '▶ Mulai'}</button>` : ''}
                             <button onclick="window.editJadwal('${j.id}')" title="Edit jadwal" class="text-violet-500 hover:bg-violet-50 p-1.5 rounded-lg transition-colors border border-transparent hover:border-violet-200"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
                             <button onclick="window.hapusJadwal('${j.id}','${j.nama.replace(/'/g,"\\'")}') " title="Hapus jadwal" class="text-red-400 hover:bg-red-50 p-1.5 rounded-lg transition-colors border border-transparent hover:border-red-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                         </div>
