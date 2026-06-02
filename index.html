@@ -557,8 +557,8 @@
                     })();
                     // ★ Mulai polling kendala pengawas
                     if (window.startKendalaPolling) window.startKendalaPolling();
-                    // ★ Cek notifikasi unlock request dari pengawas
-                    setTimeout(() => { if (window.updateUnlockRequestNotifications) window.updateUnlockRequestNotifications(); }, 2000);
+                    // ★ Listener realtime unlock request (menggantikan polling)
+                    setTimeout(() => { if (window.startUnlockRequestListener) window.startUnlockRequestListener(); }, 2000);
                 }
 
                 // ★ RESTORE SESSION — cek sesi admin/pengawas yang tersimpan, delay agar
@@ -4455,7 +4455,7 @@ html.dark .ob-dot.active { background: #818cf8; }
     </div>
 
     <!-- TOAST PELANGGARAN: Pojok kanan bawah untuk Admin & Pengawas (tidak menutup layar) -->
-    <div id="cheat-toast-container" class="fixed bottom-5 right-5 z-[9990] flex flex-col-reverse gap-2 pointer-events-none" style="max-width:360px;width:calc(100% - 40px);"></div>
+    <div id="cheat-toast-container" class="fixed right-4 z-[9990] flex flex-col-reverse gap-2 pointer-events-none" style="max-width:360px;width:calc(100% - 32px);bottom:calc(72px + env(safe-area-inset-bottom, 0px));"></div>
     
     <!-- MODAL VIOLATION DETAILS (NEW) -->
     <div id="modal-violation-details" class="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm hidden">
@@ -10335,6 +10335,7 @@ Terima kasih 🙏</textarea>
                 window.renderJadwalList();
                 window.updateJadwalTanggalFilter();
                 // Update tampilan token di panel pengawas setiap kali status jadwal berubah
+                // ★ Dipanggil untuk semua role (admin & pengawas) agar token langsung update saat jadwal diaktifkan
                 if (window.updatePengawasTokenDisplay) window.updatePengawasTokenDisplay();
                 // Sync currentSesiId dari jadwal aktif
                 if (window._syncSesiFromJadwal) window._syncSesiFromJadwal();
@@ -10807,17 +10808,21 @@ Terima kasih 🙏</textarea>
         // Toggle aktif/nonaktif manual
         window.toggleJadwalManual = async function(id, currentState, nama) {
             if (!window.isFirebaseReady) return alert('Mode Offline.');
-            const action = currentState ? 'Nonaktifkan' : 'Aktifkan';
-            if (!confirm(`${action} jadwal "${nama}" secara manual?`)) return;
+            // Cari tombol yang diklik untuk feedback loading (tidak pakai confirm() agar tidak blocking di mobile)
+            const btn = document.querySelector(`button[onclick*="toggleJadwalManual('${id}'"]`);
+            const origText = btn ? btn.innerHTML : '';
             try {
+                if (btn) { btn.disabled = true; btn.innerHTML = currentState ? '⏳ Stop...' : '⏳ Memulai...'; }
                 if (!currentState) {
-                    // Aktifkan: nonaktifkan semua sesi ujian dulu, lalu aktifkan jadwal ini
                     const j = window.allJadwalDB.find(x => x.id === id);
                     if (j) await window._aktifkanJadwal(j, true);
                 } else {
                     await window._nonaktifkanJadwal(id);
                 }
-            } catch(e) { alert('Gagal: ' + e.message); }
+            } catch(e) {
+                alert('Gagal: ' + e.message);
+                if (btn) { btn.disabled = false; btn.innerHTML = origText; }
+            }
         };
 
         // Internal: aktifkan sesi berdasarkan jadwal
@@ -10889,8 +10894,9 @@ Terima kasih 🙏</textarea>
                     const sudah_lewat_selesai = (timeStr > j.jamSelesai);
                     const sedang_berjalan = (timeStr >= j.jamMulai && timeStr <= j.jamSelesai);
 
-                    // Aktifkan tepat pada jam mulai
-                    if (tepat_mulai && !j.isActive) {
+                    // Aktifkan tepat pada jam mulai ATAU jika sedang dalam rentang tapi belum pernah dijalankan
+                    const dalam_rentang = (timeStr >= j.jamMulai && timeStr <= j.jamSelesai);
+                    if ((tepat_mulai || (dalam_rentang && !j.sudahDijalankan)) && !j.isActive) {
                         await window._aktifkanJadwal(j);
                         return;
                     }
@@ -11999,6 +12005,9 @@ Terima kasih 🙏</textarea>
 
             // ★ Simpan tab aktif ke sessionStorage agar tetap saat refresh
             try { sessionStorage.setItem('integritest_active_tab', tab); } catch(e) {}
+
+            // Bersihkan listener banding jika berpindah dari tab banding
+            if (tab !== 'banding' && window.stopBandingAdminListener) window.stopBandingAdminListener();
 
             // ── Desktop tab styles ──
             const activeClass   = "flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-blue-600 text-white font-bold text-sm transition-all";
@@ -15696,6 +15705,9 @@ Terima kasih 🙏</textarea>
             // Hapus tab tersimpan saat logout agar mulai fresh
             try { sessionStorage.removeItem('integritest_active_tab'); } catch(e) {}
             window.currentGuruData = null;
+            // Bersihkan semua listener realtime sebelum reload
+            if (window.stopBandingAdminListener) window.stopBandingAdminListener();
+            if (window._unlockRequestUnsubscribe) { try { window._unlockRequestUnsubscribe(); } catch(e) {} window._unlockRequestUnsubscribe = null; }
             location.reload();
         };
         // Alias — dipakai tombol "Keluar" di banner guru/pengawas
@@ -27107,6 +27119,39 @@ body { font-family:'Segoe UI',Arial,sans-serif; background:#f1f5f9; font-size:9p
         };
 
         // ── Update semua notifikasi unlock request (badge + banner) ──
+        // Helper: apply pendingCount ke semua elemen UI
+        window._applyUnlockNotifCount = function(pendingCount) {
+            const label = pendingCount > 99 ? '99+' : String(pendingCount);
+            const badgePanel = document.getElementById('unlock-req-badge');
+            if (badgePanel) {
+                if (pendingCount > 0) { badgePanel.textContent = label; badgePanel.classList.remove('hidden'); }
+                else badgePanel.classList.add('hidden');
+            }
+            const badgeNav = document.getElementById('unlock-req-badge-nav');
+            if (badgeNav) {
+                if (pendingCount > 0) { badgeNav.textContent = label; badgeNav.classList.remove('hidden'); badgeNav.classList.add('flex'); }
+                else { badgeNav.classList.add('hidden'); badgeNav.classList.remove('flex'); }
+            }
+            const lainnyaDot = document.getElementById('lainnya-badge-combined');
+            if (lainnyaDot) {
+                if (pendingCount > 0) lainnyaDot.classList.remove('hidden');
+                else lainnyaDot.classList.add('hidden');
+            }
+            const banner = document.getElementById('unlock-req-alert-banner');
+            const bannerTxt = document.getElementById('unlock-req-banner-text');
+            if (banner) {
+                if (pendingCount > 0) {
+                    if (bannerTxt) bannerTxt.textContent = pendingCount === 1
+                        ? '1 permintaan Unlock Device dari Pengawas'
+                        : `${pendingCount} permintaan Unlock Device dari Pengawas`;
+                    banner.classList.remove('hidden');
+                } else {
+                    banner.classList.add('hidden');
+                }
+            }
+        };
+
+        // Kompatibilitas: fungsi lama tetap bisa dipanggil setelah approve/reject
         window.updateUnlockRequestNotifications = async function() {
             if (!window.isFirebaseReady || !window.db || !window.isAdmin || !window.isAdmin()) return;
             try {
@@ -27115,74 +27160,83 @@ body { font-family:'Segoe UI',Arial,sans-serif; background:#f1f5f9; font-size:9p
                 );
                 let pendingCount = 0;
                 snap.forEach(d => { if (d.data().status === 'pending') pendingCount++; });
-
-                const label = pendingCount > 99 ? '99+' : String(pendingCount);
-
-                // Badge di dalam panel sec-unlock-requests
-                const badgePanel = document.getElementById('unlock-req-badge');
-                if (badgePanel) {
-                    if (pendingCount > 0) { badgePanel.textContent = label; badgePanel.classList.remove('hidden'); }
-                    else badgePanel.classList.add('hidden');
-                }
-
-                // Badge di nav Setting (dalam dropdown Lainnya)
-                const badgeNav = document.getElementById('unlock-req-badge-nav');
-                if (badgeNav) {
-                    if (pendingCount > 0) { badgeNav.textContent = label; badgeNav.classList.remove('hidden'); badgeNav.classList.add('flex'); }
-                    else { badgeNav.classList.add('hidden'); badgeNav.classList.remove('flex'); }
-                }
-
-                // Titik ungu di tombol "⋯" Lainnya
-                const lainnyaDot = document.getElementById('lainnya-badge-combined');
-                if (lainnyaDot) {
-                    if (pendingCount > 0) lainnyaDot.classList.remove('hidden');
-                    else lainnyaDot.classList.add('hidden');
-                }
-
-                // Banner di welcome panel
-                const banner = document.getElementById('unlock-req-alert-banner');
-                const bannerTxt = document.getElementById('unlock-req-banner-text');
-                if (banner) {
-                    if (pendingCount > 0) {
-                        if (bannerTxt) bannerTxt.textContent = pendingCount === 1
-                            ? '1 permintaan Unlock Device dari Pengawas'
-                            : `${pendingCount} permintaan Unlock Device dari Pengawas`;
-                        banner.classList.remove('hidden');
-                    } else {
-                        banner.classList.add('hidden');
-                    }
-                }
+                window._applyUnlockNotifCount(pendingCount);
             } catch(e) { /* silent fail */ }
         };
 
-        // Auto-polling notifikasi unlock request setiap 15 detik
-        setInterval(() => { if (window.updateUnlockRequestNotifications) window.updateUnlockRequestNotifications(); }, 15000);
+        // ★ Realtime listener unlock requests — menggantikan setInterval 15 detik
+        window._unlockRequestUnsubscribe = null;
+        window.startUnlockRequestListener = function() {
+            if (!window.isFirebaseReady || !window.db) return;
+            if (!window.isAdmin || !window.isAdmin()) return;
+            if (window._unlockRequestUnsubscribe) return; // guard duplikat
+            const colRef = window.collection(window.db, 'artifacts', window.appId, 'public', 'data', 'unlock_requests');
+            let _prevPendingCount = null;
+            window._unlockRequestUnsubscribe = window.onSnapshot(colRef, (snapshot) => {
+                let pendingCount = 0;
+                snapshot.forEach(d => { if (d.data().status === 'pending') pendingCount++; });
+                window._applyUnlockNotifCount(pendingCount);
+                // Auto-reload panel list jika sedang terbuka & ada perubahan jumlah pending
+                const panelUnlock = document.getElementById('sec-unlock-requests');
+                const isPanelVisible = panelUnlock && !panelUnlock.classList.contains('hidden');
+                if (isPanelVisible && _prevPendingCount !== null && _prevPendingCount !== pendingCount) {
+                    if (window.loadUnlockRequests) window.loadUnlockRequests();
+                }
+                _prevPendingCount = pendingCount;
+            }, (err) => {
+                console.warn('[UnlockListener] onSnapshot error:', err.message);
+                window._unlockRequestUnsubscribe = null;
+            });
+        };
 
-        window.loadBandingAdminList = async function() {
+        // ★ Realtime listener banding admin — menggantikan getDocs sekali saat panel dibuka.
+        // Listener aktif selama panel terbuka; dibersihkan saat panel ditutup/tab berpindah.
+        window._bandingAdminUnsubscribe = null;
+
+        window.startBandingAdminListener = function() {
+            if (!window.isFirebaseReady || !window.db) return;
+            if (window._bandingAdminUnsubscribe) return; // sudah aktif
             const container = document.getElementById('banding-admin-list-container');
-            if (!container) return;
-            if (!window.isFirebaseReady || !window.db) {
-                container.innerHTML = `<div class="px-6 py-10 text-center text-gray-400"><p class="font-medium">Firebase belum siap. Coba refresh halaman.</p></div>`;
-                return;
+            if (container) {
+                container.innerHTML = `<div class="px-6 py-10 text-center text-gray-400"><i data-lucide="loader-2" class="w-8 h-8 mx-auto mb-2 animate-spin text-amber-400"></i><p class="font-medium">Memuat data banding...</p></div>`;
+                if(typeof lucide !== 'undefined') window._createIconsSafe && window._createIconsSafe();
             }
-            container.innerHTML = `<div class="px-6 py-10 text-center text-gray-400"><i data-lucide="loader-2" class="w-8 h-8 mx-auto mb-2 animate-spin text-amber-400"></i><p class="font-medium">Memuat data banding...</p></div>`;
-            if(typeof lucide !== 'undefined') window._createIconsSafe && window._createIconsSafe();
-            try {
-                const snap = await window.getDocs(window.collection(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results'));
+            const colRef = window.collection(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results');
+            window._bandingAdminUnsubscribe = window.onSnapshot(colRef, (snapshot) => {
                 const rows = [];
-                snap.forEach(d => { const r = {id: d.id, ...d.data()}; if (r.appealStatus && r.appealStatus !== 'none') rows.push(r); });
+                const allData = [];
+                snapshot.forEach(d => {
+                    const r = {id: d.id, ...d.data()};
+                    allData.push(r);
+                    if (r.appealStatus && r.appealStatus !== 'none') rows.push(r);
+                });
                 window._bandingAdminData = rows;
-                window.updateAppealNotifications(snap.docs.map(d => d.data()));
-                // Isi filter ruang
+                if (window.updateAppealNotifications) window.updateAppealNotifications(allData);
+                // Isi filter ruang (hanya jika belum terisi)
                 const filterRuang = document.getElementById('banding-filter-ruang');
-                if (filterRuang) {
+                if (filterRuang && filterRuang.options.length <= 1) {
                     const ruangSet = [...new Set(rows.map(r => r.ruangName || r.roomName || '').filter(Boolean))].sort();
                     filterRuang.innerHTML = '<option value="all">Semua Ruang</option>' + ruangSet.map(r => `<option value="${_e(r)}">${_e(r)}</option>`).join('');
                 }
                 window.renderBandingAdminList();
-            } catch(err) {
-                container.innerHTML = `<div class="px-6 py-10 text-center text-red-400"><p class="font-medium">Gagal memuat: ${_e(err.message)}</p></div>`;
+            }, (err) => {
+                const c = document.getElementById('banding-admin-list-container');
+                if (c) c.innerHTML = `<div class="px-6 py-10 text-center text-red-400"><p class="font-medium">Gagal memuat: ${_e(err.message)}</p></div>`;
+                window._bandingAdminUnsubscribe = null;
+            });
+        };
+
+        window.stopBandingAdminListener = function() {
+            if (window._bandingAdminUnsubscribe) {
+                try { window._bandingAdminUnsubscribe(); } catch(e) {}
+                window._bandingAdminUnsubscribe = null;
             }
+        };
+
+        // Kompatibilitas: loadBandingAdminList kini memulai listener realtime
+        window.loadBandingAdminList = function() {
+            window.stopBandingAdminListener(); // restart fresh agar filter ruang ter-rebuild
+            window.startBandingAdminListener();
         };
 
         window.renderBandingAdminList = function() {
