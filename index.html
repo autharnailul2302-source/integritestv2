@@ -13921,9 +13921,31 @@ Terima kasih 🙏</textarea>
                                     // Jika paketId berbeda → siswa mau ujian mapel lain → boleh masuk
                                 }
                             }
+                            // ★ FIX HP LAB/POCO: Device block hanya berlaku dalam window cooldown
+                            // DAN hanya jika fingerprint di Firebase masih valid (belum dihapus setelah ujian)
+                            // Catatan: setelah fix ini, fingerprint dihapus dari localStorage saat selesai,
+                            // sehingga siswa berikutnya akan punya ID baru — tidak akan collision.
+                            // Tapi untuk data lama di Firebase yang belum di-fix, tambahkan toleransi:
+                            // - Cek apakah data ini masih dalam window cooldown (sudah dicek di atas via timestamp)
+                            // - Cek apakah nama/NISN siswa yang login ini berbeda dengan yang di record
                             if (d.deviceFingerprint === fp && (d.status.includes('SELESAI') || d.status.includes('DISKUALIFIKASI'))) {
-                                const beda = d.studentNisn && studentNisn ? d.studentNisn.toString() !== studentNisn.toString() : d.studentName.toLowerCase() !== name.toLowerCase();
-                                if (beda) { isDeviceBlocked = true; blockedByWho = d.studentName + (d.studentNisn ? ' (NISN: '+d.studentNisn+')' : ''); }
+                                const bedaNisn = d.studentNisn && studentNisn
+                                    ? d.studentNisn.toString().trim() !== studentNisn.toString().trim()
+                                    : d.studentName.toLowerCase().trim() !== name.toLowerCase().trim();
+                                // Hanya blokir jika MASIH dalam cooldown period (timestamp sudah dicek di atas)
+                                // dan fingerprint benar-benar sama (bukan coincidence HP lab)
+                                if (bedaNisn) {
+                                    // Tambahan: cek apakah selisih waktu masih dalam 1/2 cooldown
+                                    // (lebih ketat dari cooldown penuh untuk device block)
+                                    const selisihMenit = (now - d.timestamp) / 60000;
+                                    const halfCooldown = (window.deviceCooldownMinutes || 20) / 2;
+                                    if (selisihMenit <= halfCooldown) {
+                                        isDeviceBlocked = true;
+                                        blockedByWho = d.studentName + (d.studentNisn ? ' (NISN: '+d.studentNisn+')' : '');
+                                    }
+                                    // Jika sudah melewati setengah cooldown, biarkan masuk
+                                    // (kemungkinan HP berganti pengguna secara sah)
+                                }
                             }
                         });
                     } catch(dbErr) { console.warn("DB check offline:", dbErr); }
@@ -18248,8 +18270,20 @@ Terima kasih 🙏</textarea>
 
             try { localStorage.setItem('ukktkj_session_done', JSON.stringify({
                 name: (currentStudent || {}).name,
+                nisn: (currentStudent || {}).nisn,
                 date: new Date().toISOString()
             })); } catch(e) {}
+
+            // ★ FIX POCO/HP LAB: Hapus device fingerprint dari localStorage setelah ujian selesai
+            // Supaya siswa lain yang pakai HP yang SAMA tidak dianggap duplikat / kena device lock
+            // Cooldown tetap berlaku via 'ukktkj_session_done' di atas (nama+waktu)
+            // Device ID akan di-generate ulang (fresh) saat siswa berikutnya login
+            try {
+                localStorage.removeItem('ukktkj_device_v3');
+                sessionStorage.removeItem('ukktkj_device_ss');
+                sessionStorage.removeItem('ukktkj_fp_locked');
+                console.log('[IntegriTest] Device fingerprint dihapus — HP siap dipakai siswa berikutnya.');
+            } catch(e) {}
 
             // ★ Hapus UID siswa dari authorized_uids setelah ujian selesai
             try {
