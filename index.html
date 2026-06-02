@@ -17496,26 +17496,28 @@ Terima kasih 🙏</textarea>
 
         function startExamLogic() {
             // ── Hitung sisa waktu berdasarkan waktu mulai ujian di server ──
-            // Jika siswa terlambat masuk, timer otomatis dikurangi sesuai selisih waktu.
+            // ★ FIX REDMI/Android: JANGAN gunakan Date.now() lokal sebagai anchor —
+            //   jam HP bisa berbeda dari jam server (baterai saver, timezone, dll).
+            //   Gunakan window.examStartTime (dari server/jadwal activatedAt) sebagai
+            //   satu-satunya sumber kebenaran kapan ujian dimulai.
             const durasiDetik = (window.currentExamDuration || 60) * 60;
-            if (window.examStartTime) {
-                const elapsed = Math.floor((Date.now() - window.examStartTime) / 1000);
-                timeLeft = Math.max(0, durasiDetik - elapsed);
-                if (elapsed > 0) {
-                    console.log('[IntegriTest] Siswa terlambat ' + elapsed + ' detik — sisa waktu: ' + timeLeft + ' detik');
-                }
-            } else {
-                timeLeft = durasiDetik;
+            const _serverAnchorMs = window.examStartTime || Date.now();
+            const _deadlineMs     = _serverAnchorMs + (durasiDetik * 1000);
+
+            // Hitung sisa waktu: deadline dari server dikurangi waktu sekarang.
+            const _initialElapsed = Math.floor((Date.now() - _serverAnchorMs) / 1000);
+            timeLeft = Math.max(0, durasiDetik - _initialElapsed);
+            if (_initialElapsed > 0) {
+                console.log('[IntegriTest] Siswa terlambat ' + _initialElapsed + ' detik — sisa waktu: ' + timeLeft + ' detik');
             }
-            
-            // ── Polling counter untuk cek sinyal paksa-selesai dari admin (setiap 30 detik) ──
+
+            // ── Polling counter untuk cek sinyal paksa-selesai dari admin ──
             let _pollTick = 0;
-            // ★ FIX iOS/iPhone & Samsung: Timer selalu mengacu ke waktu dinding (wall clock)
-            // Safari iOS membekukan setInterval saat layar mati/app background, lalu saat dibuka
-            // semua tick dijalankan sekaligus — menyebabkan timer loncat cepat.
-            // Solusi: simpan titik awal sekali, setiap tick hitung ulang dari Date.now().
-            const _examTimerStartWall = Date.now();
-            const _examTimerStartLeft = timeLeft;
+            // ★ FIX REDMI/Android/iOS: Anchor waktu BUKAN Date.now() lokal, tapi _deadlineMs dari server.
+            //   Setiap tick: timeLeft = floor((_deadlineMs - Date.now()) / 1000)
+            //   Meski setInterval di-throttle baterai saver atau iOS freeze,
+            //   display langsung koreksi di tick berikutnya — tidak bisa lari lebih cepat dari waktu nyata.
+            const _examTimerStartLeft = timeLeft; // disimpan untuk fallback visibilitychange
 
             // ★ FIX iOS iPhone: Tangani saat Safari kembali dari background
             // iOS membekukan JS saat app di-minimize, lalu saat balik semua setTimeout/setInterval
@@ -17523,9 +17525,8 @@ Terima kasih 🙏</textarea>
             // visibilitychange event memastikan display timer langsung sinkron saat layar aktif kembali.
             const _onVisibilityChange = function() {
                 if (document.visibilityState === 'visible' && !window._examFinished) {
-                    // Hitung ulang dari wall clock — tampilkan langsung tanpa menunggu tick berikutnya
-                    const _wElapsed = Math.floor((Date.now() - _examTimerStartWall) / 1000);
-                    const _newLeft  = Math.max(0, _examTimerStartLeft - _wElapsed);
+                    // ★ FIX REDMI: gunakan _deadlineMs (dari server) bukan _examTimerStartWall (jam lokal HP)
+                    const _newLeft = Math.max(0, Math.floor((_deadlineMs - Date.now()) / 1000));
                     const _m = Math.floor(_newLeft / 60).toString().padStart(2, '0');
                     const _s = (_newLeft % 60).toString().padStart(2, '0');
                     const _td = document.getElementById('timer-display');
@@ -17538,9 +17539,9 @@ Terima kasih 🙏</textarea>
             window._timerVisibilityListener = _onVisibilityChange;
 
             examTimer = setInterval(() => {
-                // Satu-satunya sumber kebenaran: selisih waktu dinding sejak timer dimulai
-                const _wallElapsed = Math.floor((Date.now() - _examTimerStartWall) / 1000);
-                timeLeft = Math.max(0, _examTimerStartLeft - _wallElapsed);
+                // ★ FIX REDMI: satu-satunya sumber kebenaran adalah _deadlineMs dari server.
+                // timeLeft = sisa detik hingga deadline — tidak bisa cepat meski HP di-throttle.
+                timeLeft = Math.max(0, Math.floor((_deadlineMs - Date.now()) / 1000));
                 const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
                 const s = (timeLeft % 60).toString().padStart(2, '0');
                 const timerDisplay = document.getElementById('timer-display');
