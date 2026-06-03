@@ -5200,6 +5200,9 @@ html.dark .ob-dot.active { background: #818cf8; }
                                 <button onclick="window.exportToCSV()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-teal-200 bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-bold transition-all">
                                     <i data-lucide="file-text" class="w-3.5 h-3.5"></i> CSV
                                 </button>
+                                <button onclick="window.openCetakPerKelasModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-all">
+                                    <i data-lucide="printer" class="w-3.5 h-3.5"></i> Cetak Per Kelas
+                                </button>
                                 <button id="btn-reset-all" onclick="window.resetAllExamData()" class="admin-only-el flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold transition-all">
                                     <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Reset
                                 </button>
@@ -5218,7 +5221,7 @@ html.dark .ob-dot.active { background: #818cf8; }
 
                         <!-- Filter Lanjutan — tersembunyi by default, tampil saat diklik -->
                         <div id="adv-filter-panel" style="display:none">
-                            <div class="grid grid-cols-2 md:grid-cols-5 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200 mt-1">
+                            <div class="grid grid-cols-2 md:grid-cols-6 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200 mt-1">
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-500 mb-1">📅 Jadwal Ujian</label>
                                     <select id="filter-sesi" onchange="if(window._pg)window._pg.monitoring.page=1; window.filterDashboard()" class="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
@@ -5247,6 +5250,10 @@ html.dark .ob-dot.active { background: #818cf8; }
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-500 mb-1">Tanggal</label>
                                     <input type="date" id="filter-date" onchange="if(window._pg)window._pg.monitoring.page=1; window.filterDashboard()" class="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-500 mb-1">🔍 Cari Nama Siswa</label>
+                                    <input type="text" id="filter-nama" placeholder="Ketik nama siswa..." oninput="if(window._pg)window._pg.monitoring.page=1; window.filterDashboard()" class="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 outline-none">
                                 </div>
                             </div>
                         </div>
@@ -18737,19 +18744,23 @@ Terima kasih 🙏</textarea>
             filterDashboardInternal();
         };
 
+        let _dashboardUpdateTimer = null;
         window.updateDashboardTable = function(data) {
             dashboardData = data;
             // Simpan semua data tanpa filter agar PDF rekap kelas selalu lengkap
             window._allDashboardData = data;
             // Update cache untuk fitur belum ujian
             window._allExamResultsCache = data || [];
-            filterDashboardInternal();
+            // ★ PERF FIX: debounce render — jangan re-render tiap doc masuk satu per satu
+            clearTimeout(_dashboardUpdateTimer);
+            _dashboardUpdateTimer = setTimeout(() => filterDashboardInternal(), 250);
         };
 
         function filterDashboardInternal() {
             const filterPkt  = document.getElementById('filter-session').value;
             const filterCls  = document.getElementById('filter-class').value;
             const filterDate = document.getElementById('filter-date').value;
+            const filterNama = (document.getElementById('filter-nama')?.value || '').toLowerCase().trim();
             const filterRuangEl = document.getElementById('filter-ruang');
             const filterSesiEl  = document.getElementById('filter-sesi');
             let filterRuang  = filterRuangEl ? filterRuangEl.value : 'all';
@@ -18830,6 +18841,7 @@ Terima kasih 🙏</textarea>
 
                 const matchPkt   = filterPkt === 'all' || item.packetType === filterPkt;
                 const matchCls   = filterCls === 'all' || item.className === filterCls;
+                const matchNama  = !filterNama || (item.studentName || '').toLowerCase().includes(filterNama);
                 const matchRuang = filterRuang === 'all' || (item.ruangUjian || '-').trim().toLowerCase() === filterRuang.trim().toLowerCase();
                 let matchDate = true;
                 if (filterDate && !isLive) { // tanggal tidak memblokir siswa live
@@ -18851,7 +18863,7 @@ Terima kasih 🙏</textarea>
                     else if (sf === 'dq') matchStatus = st.includes('DISKUALIFIKASI');
                     else if (sf === 'verify') matchStatus = st.includes('VERIFIKASI') || st.includes('PERLU');
                 }
-                return matchSesi && matchPkt && matchCls && matchRuang && matchDate && matchStatus;
+                return matchSesi && matchPkt && matchCls && matchNama && matchRuang && matchDate && matchStatus;
             });
 
             // ── Update Stat Cards ──
@@ -18876,7 +18888,8 @@ Terima kasih 🙏</textarea>
             const totalM = window.currentFilteredData.length;
             const pageData = pgSlice(window.currentFilteredData, pgM);
 
-            pageData.forEach(item => {
+            // ★ PERF FIX: gunakan map+join lalu tulis ke DOM sekali — bukan innerHTML += tiap baris
+            tbody.innerHTML = pageData.map(item => {
                 const date = new Date(item.timestamp).toLocaleTimeString('id-ID');
 
                 const isCheating = item.status.includes('DISKUALIFIKASI');
@@ -18910,7 +18923,7 @@ Terima kasih 🙏</textarea>
                 const sesiInfo = filterSesi === 'all' && item.sesiName
                     ? `<div class="text-[10px] text-indigo-500 font-semibold mt-0.5">${item.sesiName}</div>` : '';
 
-                const row = `
+                return `
                     <tr class="${rowClass} transition-colors">
                         <td class="px-6 py-4">
                             <div class="font-semibold text-gray-900">${_e(item.studentName)}</div>
@@ -18943,7 +18956,6 @@ Terima kasih 🙏</textarea>
                         <td class="px-6 py-4 text-center text-xs font-mono font-bold" id="sisa-waktu-${item.id}">
                             ${(()=>{
                                 if (!isDoing) return '<span class="text-gray-300">—</span>';
-                                // Hitung sisa waktu dari startTime + durasi
                                 const started = item.examStartTime || item.timestamp;
                                 const durasi  = (window.currentExamDuration || 60) * 60 * 1000;
                                 const deadline = started + durasi;
@@ -18983,8 +18995,7 @@ Terima kasih 🙏</textarea>
                         </td>
                     </tr>
                 `;
-                tbody.innerHTML += row;
-            });
+            }).join(''); // ★ PERF: tulis semua baris ke DOM sekaligus
 
             // Render pager
             const pw = document.getElementById('pager-monitoring-wrap');
@@ -26033,34 +26044,36 @@ body { font-family:'Segoe UI',Arial,sans-serif; background:#f1f5f9; font-size:9p
         function _listenForSiswa() {
             if (!window.isFirebaseReady || !window.db) return;
             if (window._unsub_listenForSiswa) return; // ★ guard duplikat
+            let _renderTimer = null;
             window._unsub_listenForSiswa = window.onSnapshot(window.query(COLL_SISWA()), (snap) => {
                 window.allSiswaDB = [];
                 snap.forEach(d => window.allSiswaDB.push({ id: d.id, ...d.data() }));
                 _updateSiswaStats();
-                // Selalu render tabel siswa
-                window.renderSiswaTable();
 
-                // AUTO-REBUILD allKartuData dari Firestore setiap kali data siswa siap
-                // Ini memastikan kartu tidak hilang setelah pindah halaman / refresh
-                const hasPeserta = window.allSiswaDB.filter(s => s.noPeserta);
-                if (hasPeserta.length) {
-                    window.allKartuData = hasPeserta.map(s => ({
-                        siswaId: s.id,
-                        nisn: s.nisn || '',
-                        nama: s.nama || '',
-                        kelas: s.kelas || '',
-                        waOrtu: s.waOrtu || '',
-                        noPeserta: s.noPeserta,
-                        ruang: s.ruangKartu || '-',
-                        ruangId: s.ruangKartuId || ''
-                    }));
-                    window.allKartuData.sort((a, b) => a.noPeserta.localeCompare(b.noPeserta));
-                    if (typeof _updateKartuFilters === 'function') _updateKartuFilters();
-                    if (typeof _updateKartuStats === 'function') _updateKartuStats();
-                    if (typeof window.renderKartuTable === 'function') {
-                        window.renderKartuTable();
+                // ★ PERF FIX: debounce render tabel — jangan render ulang tiap doc berubah satu-satu
+                clearTimeout(_renderTimer);
+                _renderTimer = setTimeout(() => {
+                    window.renderSiswaTable();
+
+                    // AUTO-REBUILD allKartuData dari Firestore setiap kali data siswa siap
+                    const hasPeserta = window.allSiswaDB.filter(s => s.noPeserta);
+                    if (hasPeserta.length) {
+                        window.allKartuData = hasPeserta.map(s => ({
+                            siswaId: s.id,
+                            nisn: s.nisn || '',
+                            nama: s.nama || '',
+                            kelas: s.kelas || '',
+                            waOrtu: s.waOrtu || '',
+                            noPeserta: s.noPeserta,
+                            ruang: s.ruangKartu || '-',
+                            ruangId: s.ruangKartuId || ''
+                        }));
+                        window.allKartuData.sort((a, b) => a.noPeserta.localeCompare(b.noPeserta));
+                        if (typeof _updateKartuFilters === 'function') _updateKartuFilters();
+                        if (typeof _updateKartuStats === 'function') _updateKartuStats();
+                        if (typeof window.renderKartuTable === 'function') window.renderKartuTable();
                     }
-                }
+                }, 300); // tunggu 300ms, kalau ada perubahan lain dalam 300ms digabung jadi 1 render
             });
         }
 
@@ -26334,30 +26347,48 @@ body { font-family:'Segoe UI',Arial,sans-serif; background:#f1f5f9; font-size:9p
             btn.innerHTML = 'Menyimpan...';
             let added=0, updated=0, kelasAdded=0;
             try {
+                // ★ PERF FIX: gunakan writeBatch — kirim max 500 doc per batch, bukan satu-satu
+                const { writeBatch, doc: fsDoc, collection: fsColl, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
+                const BATCH_LIMIT = 400; // aman di bawah limit 500 Firestore
+
+                // Bangun lookup NISN dari data yang sudah ada
+                const existingMap = new Map(window.allSiswaDB.map(d => [d.nisn.toString(), d]));
+
+                let batch = writeBatch(window.db);
+                let opCount = 0;
+
+                const flushBatch = async () => {
+                    if (opCount > 0) { await batch.commit(); batch = writeBatch(window.db); opCount = 0; }
+                };
+
                 for (const s of data) {
-                    const existing = window.allSiswaDB.find(d => d.nisn.toString()===s.nisn.toString());
+                    const existing = existingMap.get(s.nisn.toString());
                     if (existing) {
-                        await window.updateDoc(window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', existing.id), { nama:s.nama, kelas:s.kelas, waOrtu:s.waOrtu, updatedAt:Date.now() });
+                        const ref = fsDoc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', existing.id);
+                        batch.update(ref, { nama: s.nama, kelas: s.kelas, waOrtu: s.waOrtu, updatedAt: Date.now() });
                         updated++;
                     } else {
-                        await window.addDoc(COLL_SISWA(), { ...s, createdAt:Date.now(), notifSent:false });
+                        const ref = fsDoc(fsColl(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa'));
+                        batch.set(ref, { ...s, createdAt: Date.now(), notifSent: false });
                         added++;
                     }
+                    opCount++;
+                    if (opCount >= BATCH_LIMIT) await flushBatch();
                 }
+                await flushBatch();
 
-                // ── AUTO-CREATE KELAS: Ambil nama kelas unik dari data siswa,
-                //    lalu simpan ke koleksi 'kelas' jika belum ada ──
+                // AUTO-CREATE KELAS — juga di-batch
                 const uniqueKelasFromImport = [...new Set(data.map(s => (s.kelas || '').trim()).filter(Boolean))];
                 const existingKelasNama = (window.kelasList || []).map(k => (k.nama || '').trim().toLowerCase());
                 for (const namaKelas of uniqueKelasFromImport) {
                     if (!existingKelasNama.includes(namaKelas.toLowerCase())) {
-                        await window.addDoc(
-                            window.collection(window.db, 'artifacts', window.appId, 'public', 'data', 'kelas'),
-                            { nama: namaKelas, keterangan: '', createdAt: Date.now(), updatedAt: Date.now() }
-                        );
-                        kelasAdded++;
+                        const ref = fsDoc(fsColl(window.db, 'artifacts', window.appId, 'public', 'data', 'kelas'));
+                        batch.set(ref, { nama: namaKelas, keterangan: '', createdAt: Date.now(), updatedAt: Date.now() });
+                        kelasAdded++; opCount++;
+                        if (opCount >= BATCH_LIMIT) await flushBatch();
                     }
                 }
+                await flushBatch();
 
                 document.getElementById('siswa-import-preview').classList.add('hidden');
                 window._parsedSiswaData = [];
@@ -30336,6 +30367,235 @@ body { font-family:'Segoe UI',Arial,sans-serif; background:#f1f5f9; font-size:9p
 
     // Expose ke window untuk debug
     window._cameraModule = { stopCamera, initCamera, ambilFotoVerifikasi };
+
+    // ─── MODAL CETAK PER KELAS ────────────────────────────────────────────
+    (function() {
+        // Inject modal HTML ke body
+        const modalHtml = `
+        <div id="_modal-cetak-kelas" style="display:none;position:fixed;inset:0;z-index:99990;background:rgba(0,0,0,0.6);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)window.closeCetakPerKelasModal()">
+            <div style="background:white;border-radius:20px;width:100%;max-width:520px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,0.35);">
+                <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:18px 22px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+                    <div>
+                        <h2 style="color:white;font-size:16px;font-weight:900;margin:0;">🖨️ Cetak Hasil Per Kelas</h2>
+                        <p style="color:#c7d2fe;font-size:11px;margin:3px 0 0;">Pilih kelas dan mapel ujian, lalu cetak rekap nilai</p>
+                    </div>
+                    <button onclick="window.closeCetakPerKelasModal()" style="width:32px;height:32px;border-radius:8px;border:none;background:rgba(255,255,255,0.15);cursor:pointer;color:white;font-size:18px;display:flex;align-items:center;justify-content:center;">✕</button>
+                </div>
+                <div style="padding:20px 22px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;flex:1;">
+                    <div>
+                        <label style="display:block;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Kelas</label>
+                        <select id="_cpk-kelas" style="width:100%;padding:9px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:13px;font-weight:600;outline:none;background:#f9fafb;" onchange="window._updateCpkMapel()">
+                            <option value="">-- Pilih Kelas --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Mata Pelajaran / Paket Soal</label>
+                        <select id="_cpk-mapel" style="width:100%;padding:9px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:13px;font-weight:600;outline:none;background:#f9fafb;">
+                            <option value="">-- Pilih terlebih dahulu --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Tampilkan Kolom</label>
+                        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                            <label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#374151;cursor:pointer;"><input type="checkbox" id="_cpk-col-nisn" checked style="accent-color:#4f46e5;"> NISN</label>
+                            <label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#374151;cursor:pointer;"><input type="checkbox" id="_cpk-col-ruang" checked style="accent-color:#4f46e5;"> Ruang</label>
+                            <label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#374151;cursor:pointer;"><input type="checkbox" id="_cpk-col-nilai" checked style="accent-color:#4f46e5;"> Nilai</label>
+                            <label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#374151;cursor:pointer;"><input type="checkbox" id="_cpk-col-status" checked style="accent-color:#4f46e5;"> Status</label>
+                            <label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#374151;cursor:pointer;"><input type="checkbox" id="_cpk-col-pelanggaran" style="accent-color:#4f46e5;"> Pelanggaran</label>
+                            <label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#374151;cursor:pointer;"><input type="checkbox" id="_cpk-col-integritas" style="accent-color:#4f46e5;"> Integritas</label>
+                        </div>
+                    </div>
+                    <div id="_cpk-preview-info" style="padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;font-size:12px;color:#166534;font-weight:600;display:none;"></div>
+                </div>
+                <div style="padding:14px 22px;border-top:1px solid #f1f5f9;display:flex;gap:8px;justify-content:flex-end;background:#fafafa;flex-shrink:0;">
+                    <button onclick="window.closeCetakPerKelasModal()" style="padding:9px 20px;border:1.5px solid #e5e7eb;border-radius:10px;background:white;font-size:13px;font-weight:700;cursor:pointer;color:#6b7280;">Batal</button>
+                    <button onclick="window.doCetakPerKelas()" style="padding:9px 24px;background:#4f46e5;color:white;border:none;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:7px;transition:background .15s;" onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'">🖨️ Cetak / Print</button>
+                </div>
+            </div>
+        </div>`;
+        document.addEventListener('DOMContentLoaded', function() {
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        });
+    })();
+
+    window.openCetakPerKelasModal = function() {
+        const modal = document.getElementById('_modal-cetak-kelas');
+        if (!modal) return;
+
+        // Ambil semua data
+        const allData = window._allDashboardData || window.currentFilteredData || [];
+
+        // Isi dropdown kelas dari data
+        const kelasSet = [...new Set(allData.map(d => d.className || '').filter(Boolean))].sort();
+        const selKelas = document.getElementById('_cpk-kelas');
+        selKelas.innerHTML = '<option value="">-- Pilih Kelas --</option>' + kelasSet.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
+
+        // Reset mapel
+        document.getElementById('_cpk-mapel').innerHTML = '<option value="">-- Pilih Kelas dulu --</option>';
+        document.getElementById('_cpk-preview-info').style.display = 'none';
+
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    };
+
+    window.closeCetakPerKelasModal = function() {
+        const modal = document.getElementById('_modal-cetak-kelas');
+        if (modal) modal.style.display = 'none';
+        document.body.style.overflow = '';
+    };
+
+    window._updateCpkMapel = function() {
+        const kelas = document.getElementById('_cpk-kelas').value;
+        const allData = window._allDashboardData || window.currentFilteredData || [];
+        const selMapel = document.getElementById('_cpk-mapel');
+        const info = document.getElementById('_cpk-preview-info');
+
+        if (!kelas) {
+            selMapel.innerHTML = '<option value="">-- Pilih Kelas dulu --</option>';
+            info.style.display = 'none';
+            return;
+        }
+
+        // Ambil mapel/paket unik untuk kelas ini
+        const mapelSet = [...new Set(
+            allData.filter(d => d.className === kelas)
+                   .map(d => d.packetType || d.paketNama || '')
+                   .filter(Boolean)
+        )].sort();
+
+        selMapel.innerHTML = '<option value="">-- Pilih Mata Pelajaran --</option>' + mapelSet.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
+
+        // Tampilkan info jumlah siswa
+        const jumlah = allData.filter(d => d.className === kelas).length;
+        info.style.display = 'block';
+        info.textContent = `✅ ${jumlah} peserta ditemukan di kelas ${kelas}`;
+
+        selMapel.onchange = function() {
+            const mapel = selMapel.value;
+            if (!mapel) { info.textContent = `✅ ${jumlah} peserta ditemukan di kelas ${kelas}`; return; }
+            const jumlahMapel = allData.filter(d => d.className === kelas && (d.packetType === mapel || d.paketNama === mapel)).length;
+            info.textContent = `✅ ${jumlahMapel} peserta untuk ${mapel} — Kelas ${kelas}`;
+        };
+    };
+
+    window.doCetakPerKelas = function() {
+        const kelas  = document.getElementById('_cpk-kelas').value;
+        const mapel  = document.getElementById('_cpk-mapel').value;
+        if (!kelas) { alert('Pilih kelas terlebih dahulu!'); return; }
+        if (!mapel) { alert('Pilih mata pelajaran / paket soal terlebih dahulu!'); return; }
+
+        const showNisn         = document.getElementById('_cpk-col-nisn').checked;
+        const showRuang        = document.getElementById('_cpk-col-ruang').checked;
+        const showNilai        = document.getElementById('_cpk-col-nilai').checked;
+        const showStatus       = document.getElementById('_cpk-col-status').checked;
+        const showPelanggaran  = document.getElementById('_cpk-col-pelanggaran').checked;
+        const showIntegritas   = document.getElementById('_cpk-col-integritas').checked;
+
+        const allData = window._allDashboardData || window.currentFilteredData || [];
+        const filtered = allData.filter(d =>
+            d.className === kelas &&
+            (d.packetType === mapel || d.paketNama === mapel)
+        ).sort((a, b) => (a.studentName || '').localeCompare(b.studentName || '', 'id'));
+
+        if (filtered.length === 0) {
+            alert('Tidak ada data untuk kombinasi kelas dan mapel ini.');
+            return;
+        }
+
+        window.closeCetakPerKelasModal();
+
+        const cols = [
+            { key: 'no',    label: 'No.',        show: true },
+            { key: 'nama',  label: 'Nama Siswa',  show: true },
+            { key: 'nisn',  label: 'NISN',         show: showNisn },
+            { key: 'ruang', label: 'Ruang',        show: showRuang },
+            { key: 'nilai', label: 'Nilai',        show: showNilai },
+            { key: 'status',label: 'Status',       show: showStatus },
+            { key: 'pelang',label: 'Pelanggaran',  show: showPelanggaran },
+            { key: 'integ', label: 'Integritas (%)',show: showIntegritas },
+        ].filter(c => c.show);
+
+        const colWidths = { no:'4%', nama:'24%', nisn:'12%', ruang:'9%', nilai:'8%', status:'18%', pelang:'10%', integ:'11%' };
+
+        const thead = cols.map(c => `<th style="padding:7px 10px;background:#4f46e5;color:white;text-align:${c.key==='no'?'center':'left'};font-size:11px;font-weight:700;width:${colWidths[c.key]||'auto'}">${c.label}</th>`).join('');
+
+        const tbody = filtered.map((d, i) => {
+            const st = (d.status || '').toUpperCase();
+            const isDQ  = st.includes('DISKUALIFIKASI');
+            const isDone = st.includes('SELESAI');
+            const statusColor = isDQ ? '#dc2626' : isDone ? '#16a34a' : '#2563eb';
+            const rowBg = i % 2 === 0 ? '#ffffff' : '#f8f9ff';
+            const cellStyle = `padding:7px 10px;font-size:11px;border-bottom:1px solid #e5e7eb;vertical-align:middle;background:${rowBg};`;
+            return '<tr>' + cols.map(c => {
+                if (c.key === 'no') return `<td style="${cellStyle}text-align:center;font-weight:700;">${i+1}</td>`;
+                if (c.key === 'nama') return `<td style="${cellStyle}font-weight:700;">${escapeHtml(d.studentName||'—')}</td>`;
+                if (c.key === 'nisn') return `<td style="${cellStyle}font-family:monospace;">${escapeHtml(d.studentNisn||'—')}</td>`;
+                if (c.key === 'ruang') return `<td style="${cellStyle}">${escapeHtml(d.ruangUjian||'—')}</td>`;
+                if (c.key === 'nilai') return `<td style="${cellStyle}font-weight:800;color:${isDQ?'#dc2626':'#1d4ed8'};text-align:center;">${d.score!==undefined&&d.score!==null?d.score:'—'}</td>`;
+                if (c.key === 'status') return `<td style="${cellStyle}font-weight:700;color:${statusColor};">${escapeHtml(d.status||'—')}</td>`;
+                if (c.key === 'pelang') return `<td style="${cellStyle}text-align:center;color:${(d.violations||0)>0?'#dc2626':'#6b7280'};">${d.violations||0}x</td>`;
+                if (c.key === 'integ') return `<td style="${cellStyle}text-align:center;font-weight:700;color:${(d.integritas||0)>=80?'#16a34a':(d.integritas||0)>=60?'#d97706':'#dc2626'};">${d.integritas!==undefined?d.integritas:'—'}</td>`;
+                return `<td style="${cellStyle}">—</td>`;
+            }).join('') + '</tr>';
+        }).join('');
+
+        const tglCetak = new Date().toLocaleString('id-ID', {day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+        const selesai  = filtered.filter(d => (d.status||'').toUpperCase().includes('SELESAI')).length;
+        const dq       = filtered.filter(d => (d.status||'').toUpperCase().includes('DISKUALIFIKASI')).length;
+        const nilaiArr = filtered.map(d => d.score).filter(v => v !== undefined && v !== null && !isNaN(v));
+        const rataRata = nilaiArr.length ? (nilaiArr.reduce((a,b)=>a+b,0)/nilaiArr.length).toFixed(1) : '—';
+
+        const html = `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Rekap Nilai — ${escapeHtml(kelas)} — ${escapeHtml(mapel)}</title>
+        <style>
+            body{font-family:'Segoe UI',Arial,sans-serif;margin:0;padding:0;background:#fff;color:#1f2937;}
+            @media print{body{margin:0;} .no-print{display:none!important;} @page{size:A4 landscape;margin:1.5cm 1cm;}}
+            table{border-collapse:collapse;width:100%;}
+        </style></head><body>
+        <div style="padding:20px 24px;">
+            <div style="text-align:center;margin-bottom:18px;border-bottom:3px double #4f46e5;padding-bottom:14px;">
+                <h1 style="font-size:18px;font-weight:900;color:#1e293b;margin:0;">REKAP HASIL UJIAN</h1>
+                <h2 style="font-size:15px;font-weight:700;color:#4f46e5;margin:4px 0 2px;">${escapeHtml(mapel)}</h2>
+                <p style="font-size:12px;color:#6b7280;margin:0;">Kelas: <strong>${escapeHtml(kelas)}</strong> &nbsp;|&nbsp; Dicetak: ${tglCetak}</p>
+            </div>
+            <div style="display:flex;gap:24px;margin-bottom:14px;flex-wrap:wrap;">
+                <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 18px;min-width:110px;text-align:center;">
+                    <div style="font-size:22px;font-weight:900;color:#1d4ed8;">${filtered.length}</div>
+                    <div style="font-size:10px;color:#6b7280;font-weight:600;">TOTAL PESERTA</div>
+                </div>
+                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 18px;min-width:110px;text-align:center;">
+                    <div style="font-size:22px;font-weight:900;color:#16a34a;">${selesai}</div>
+                    <div style="font-size:10px;color:#6b7280;font-weight:600;">SELESAI</div>
+                </div>
+                <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 18px;min-width:110px;text-align:center;">
+                    <div style="font-size:22px;font-weight:900;color:#dc2626;">${dq}</div>
+                    <div style="font-size:10px;color:#6b7280;font-weight:600;">DISKUALIFIKASI</div>
+                </div>
+                <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:10px 18px;min-width:110px;text-align:center;">
+                    <div style="font-size:22px;font-weight:900;color:#7c3aed;">${rataRata}</div>
+                    <div style="font-size:10px;color:#6b7280;font-weight:600;">RATA-RATA NILAI</div>
+                </div>
+            </div>
+            <table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table>
+            <div style="margin-top:18px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+                <p style="font-size:10px;color:#9ca3af;margin:0;">*Data diambil dari sistem INTEGRITEST &nbsp;|&nbsp; ${tglCetak}</p>
+                <div style="text-align:center;font-size:11px;color:#374151;">
+                    <p style="margin:0 0 40px;font-weight:600;">Mengetahui,</p>
+                    <p style="margin:0;font-weight:700;border-top:1.5px solid #374151;padding-top:4px;min-width:160px;">_______________________</p>
+                    <p style="margin:2px 0 0;font-size:10px;color:#6b7280;">Panitia / Pengawas</p>
+                </div>
+            </div>
+            <div class="no-print" style="margin-top:20px;text-align:center;">
+                <button onclick="window.print()" style="padding:10px 28px;background:#4f46e5;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">🖨️ Cetak / Simpan PDF</button>
+                <button onclick="window.close()" style="padding:10px 20px;border:1.5px solid #e5e7eb;border-radius:10px;background:white;font-size:14px;font-weight:600;cursor:pointer;margin-left:10px;">Tutup</button>
+            </div>
+        </div>
+        <script>setTimeout(function(){window.print();},600);<\/script>
+        </body></html>`;
+
+        const win = window.open('', '_blank', 'width=1050,height=720');
+        if (win) { win.document.write(html); win.document.close(); }
+        else { alert('Pop-up diblokir browser. Izinkan pop-up untuk halaman ini dan coba lagi.'); }
+    };
 
     // ─── MODAL GALERI FOTO SISWA (untuk panel Log Anomali) ────────────
     window.openFotoModal = function(rJson) {
