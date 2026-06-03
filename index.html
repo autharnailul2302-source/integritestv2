@@ -17529,9 +17529,9 @@ Terima kasih 🙏</textarea>
         function renderSidebarButtons() {
             const grid = document.getElementById('question-grid');
             if(!grid) return;
-            grid.innerHTML = '';
-            
-            currentQuestionList.forEach((q, idx) => {
+
+            // ★ PERF FIX: build semua HTML sekaligus, tulis 1x — bukan appendChild per tombol
+            const html = currentQuestionList.map((q, idx) => {
                 const ans = userAnswers[q.id];
                 const isEssayQ = q.tipe === 'essay';
                 const isMenjodohkanQ = q.tipe === 'menjodohkan';
@@ -17541,9 +17541,8 @@ Terima kasih 🙏</textarea>
                         ? (ans && typeof ans === 'object' && !Array.isArray(ans) && Object.keys(ans).length === (q.pasangan||[]).length)
                         : ans !== undefined && !(Array.isArray(ans) && ans.length === 0);
                 const isActive = idx === currentQuestionIndex;
-                
+
                 let btnClass = "h-10 w-full rounded font-bold text-sm flex items-center justify-center transition-colors ";
-                
                 if (isActive) {
                     btnClass += "border-2 border-blue-600 bg-white text-blue-600";
                 } else if (isAnswered) {
@@ -17551,13 +17550,9 @@ Terima kasih 🙏</textarea>
                 } else {
                     btnClass += "bg-slate-200 text-slate-600 hover:bg-slate-300";
                 }
-
-                const btn = document.createElement('button');
-                btn.className = btnClass;
-                btn.innerText = idx + 1;
-                btn.onclick = () => jumpToQuestion(idx);
-                grid.appendChild(btn);
-            });
+                return `<button class="${btnClass}" onclick="jumpToQuestion(${idx})">${idx + 1}</button>`;
+            }).join('');
+            grid.innerHTML = html;
         }
 
         function startExamLogic() {
@@ -17626,7 +17621,10 @@ Terima kasih 🙏</textarea>
                 // ★ FIX: Cek sinyal paksa-selesai setiap 5 detik (bukan 30),
                 //         dan gunakan getDoc tunggal (bukan getDocs semua dokumen)
                 _pollTick++;
-                if (_pollTick % 5 === 0 && window.isFirebaseReady && window.db && window.currentExamDocId && !window._examFinished) {
+                // ★ PERF FIX: heartbeat tiap 15 detik (bukan 5) — 250 siswa × 5dtk = 50 write/dtk ke Firestore (terlalu berat)
+                // 250 siswa × 15dtk = ~17 write/dtk, jauh lebih aman dan tetap real-time cukup
+                const _heartbeatInterval = 15;
+                if (_pollTick % _heartbeatInterval === 0 && window.isFirebaseReady && window.db && window.currentExamDocId && !window._examFinished) {
                     try {
                         window.getDoc(window.doc(
                             window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', window.currentExamDocId
