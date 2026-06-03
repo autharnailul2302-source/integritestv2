@@ -22708,11 +22708,12 @@ Terima kasih 🙏</textarea>
         // kolom sama dengan Excel (minus statistik multi-sheet).
         // ══════════════════════════════════════════════════════════════
         function exportToCSVInternal() {
-            const dataToExport = window.currentFilteredData && window.currentFilteredData.length > 0
-                ? window.currentFilteredData : dashboardData;
+            // ★ FIX: Selalu gunakan currentFilteredData (sesuai filter aktif).
+            // JANGAN fallback ke dashboardData — itu berisi semua data tanpa filter.
+            const dataToExport = window.currentFilteredData || [];
 
             if (!dataToExport || dataToExport.length === 0) {
-                return alert('Belum ada data untuk diexport ke CSV.');
+                return alert('Tidak ada data untuk diexport ke CSV. Pastikan filter sudah dipilih dan ada data yang sesuai.');
             }
 
             // --- Info dari settings tampilan ---
@@ -22724,14 +22725,26 @@ Terima kasih 🙏</textarea>
             const filterPkt  = document.getElementById('filter-session').value;
             const filterCls  = document.getElementById('filter-class').value;
             const filterDate = document.getElementById('filter-date').value;
+            const filterSesiEl = document.getElementById('filter-sesi');
+            const filterSesi = filterSesiEl ? filterSesiEl.value : 'active';
+
             const labelPkt   = filterPkt  !== 'all' ? `Paket ${filterPkt}` : 'Semua Paket';
             const labelCls   = filterCls  !== 'all' ? filterCls              : 'Semua Kelas';
             const labelDate  = filterDate || new Date().toLocaleDateString('id-ID');
+
+            // Label jadwal/sesi
+            let labelSesi = 'Jadwal Aktif';
+            if (filterSesi === 'all') labelSesi = 'Semua Jadwal';
+            else if (filterSesi !== 'active') {
+                const jFound = (window.allJadwalDB || []).find(j => j.id === filterSesi);
+                labelSesi = jFound ? (jFound.nama || filterSesi) : filterSesi;
+            }
 
             // --- Nama file ---
             let filename = namaUjian.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_\-]/g,'') || 'Rekap_Nilai';
             if (filterCls  !== 'all') filename += `_${filterCls.replace(/\s+/g,'-')}`;
             if (filterPkt  !== 'all') filename += `_Paket-${filterPkt}`;
+            if (filterSesi !== 'active' && filterSesi !== 'all') filename += `_Sesi-${filterSesi.slice(0,8)}`;
             if (filterDate)           filename += `_${filterDate}`;
             filename += '.csv';
 
@@ -22767,7 +22780,7 @@ Terima kasih 🙏</textarea>
             lines.push(csvCell(namaUjian));
             lines.push('');
             lines.push(`${csvCell('Laporan Rekap Nilai')},${csvCell(namaUjian)}`);
-            lines.push(`${csvCell('Kelas')},${csvCell(labelCls)},${csvCell('Paket')},${csvCell(labelPkt)},${csvCell('Tanggal')},${csvCell(labelDate)}`);
+            lines.push(`${csvCell('Jadwal')},${csvCell(labelSesi)},${csvCell('Kelas')},${csvCell(labelCls)},${csvCell('Paket')},${csvCell(labelPkt)},${csvCell('Tanggal')},${csvCell(labelDate)}`);
             lines.push(`${csvCell('Dicetak')},${csvCell(new Date().toLocaleString('id-ID'))}`);
             lines.push('');
 
@@ -22837,30 +22850,44 @@ Terima kasih 🙏</textarea>
         function exportToExcelInternal() {
             if (typeof XLSX === 'undefined') { alert("Library XLSX belum siap, coba refresh halaman."); return; }
 
-            const dataToExport = window.currentFilteredData && window.currentFilteredData.length > 0
-                ? window.currentFilteredData : dashboardData;
+            // ★ FIX: Selalu gunakan currentFilteredData (sesuai filter aktif).
+            // JANGAN fallback ke dashboardData — itu berisi semua data tanpa filter.
+            // Jika memang filter menghasilkan 0 data, beri pesan jelas.
+            const dataToExport = window.currentFilteredData || [];
 
-            if (!dataToExport || dataToExport.length === 0) return alert("Belum ada data untuk diexport");
+            if (!dataToExport || dataToExport.length === 0) return alert("Tidak ada data untuk diexport. Pastikan filter sudah dipilih dan ada data yang sesuai.");
 
             // --- Ambil data tampilan dari settings ---
             const _app = window._savedAppearance || {};
             const namaUjian   = (_app.judulUjian || 'Rekap Nilai Ujian').trim();
             const namaSekolah = (_app.subJudul   || 'INTEGRITEST').trim();
 
-            // --- Info filter untuk judul ---
+            // --- Info filter untuk judul (baca semua filter aktif) ---
             const filterPkt  = document.getElementById('filter-session').value;
             const filterCls  = document.getElementById('filter-class').value;
             const filterDate = document.getElementById('filter-date').value;
+            const filterSesiEl = document.getElementById('filter-sesi');
+            const filterSesi = filterSesiEl ? filterSesiEl.value : 'active';
 
+            // Label paket: baca dari filter-session (paket soal)
             const labelPkt  = filterPkt  !== 'all' ? `Paket ${filterPkt}` : 'Semua Paket';
             const labelCls  = filterCls  !== 'all' ? filterCls : 'Semua Kelas';
             const labelDate = filterDate ? filterDate : new Date().toLocaleDateString('id-ID');
+
+            // Label jadwal/sesi
+            let labelSesi = 'Jadwal Aktif';
+            if (filterSesi === 'all') labelSesi = 'Semua Jadwal';
+            else if (filterSesi !== 'active') {
+                const jFound = (window.allJadwalDB || []).find(j => j.id === filterSesi);
+                labelSesi = jFound ? (jFound.nama || filterSesi) : filterSesi;
+            }
 
             // --- Nama file dinamis ---
             let filename = namaUjian.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_\-]/g,'');
             if (!filename) filename = 'Rekap_Nilai';
             if (filterCls  !== 'all') filename += `_${filterCls.replace(/\s+/g,'-')}`;
             if (filterPkt  !== 'all') filename += `_Paket-${filterPkt}`;
+            if (filterSesi !== 'active' && filterSesi !== 'all') filename += `_Sesi-${filterSesi.slice(0,8)}`;
             if (filterDate)           filename += `_${filterDate}`;
             filename += '.xlsx';
 
@@ -22890,7 +22917,7 @@ Terima kasih 🙏</textarea>
                 [namaUjian],                                                 // R2: Nama Ujian
                 [''],                                                         // R3
                 [`Laporan Rekap Nilai — ${namaUjian}`],                      // R4
-                [`Kelas: ${labelCls}  |  Paket: ${labelPkt}  |  Tanggal: ${labelDate}`], // R5
+                [`Jadwal: ${labelSesi}  |  Kelas: ${labelCls}  |  Paket: ${labelPkt}  |  Tanggal: ${labelDate}`], // R5
                 [`Dicetak: ${new Date().toLocaleString('id-ID')}`],          // R6
                 [''],                                                         // R7
             ];
