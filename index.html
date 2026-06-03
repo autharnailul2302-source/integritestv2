@@ -2936,6 +2936,20 @@
             border-color: var(--dm-border) !important;
             color: var(--dm-text) !important;
         }
+
+        /* ── Dark Mode: Textarea soal uraian di halaman ujian ── */
+        html.dark #section-exam textarea {
+            background-color: var(--dm-input-bg) !important;
+            border-color: var(--dm-border) !important;
+            color: var(--dm-text) !important;
+        }
+        html.dark #section-exam textarea::placeholder {
+            color: var(--dm-text4) !important;
+        }
+        /* Light mode fallback — pastikan teks selalu hitam di mode terang */
+        #section-exam textarea {
+            color: #111827;
+        }
         html.dark .fixed.inset-0 .hover\:bg-gray-100:hover { background-color: var(--dm-surface3) !important; }
 
         /* ── Dark Mode: Khusus elemen dengan inline style bg putih ── */
@@ -5210,13 +5224,18 @@ html.dark .ob-dot.active { background: #818cf8; }
                         </div>
 
                         <!-- Quick Filter Status — selalu tampil -->
-                        <div class="flex flex-wrap gap-1.5">
+                        <div class="flex flex-wrap items-center gap-1.5">
                             <button id="qf-all"     onclick="window.setStatusFilter('all')"     class="qf-btn px-3 py-1.5 rounded-full text-xs font-bold border-2 border-blue-500 bg-blue-500 text-white transition-all">Semua</button>
                             <button id="qf-ongoing" onclick="window.setStatusFilter('ongoing')" class="qf-btn px-3 py-1.5 rounded-full text-xs font-bold border-2 border-gray-200 bg-white text-gray-600 hover:border-emerald-400 transition-all">🟢 Mengerjakan</button>
                             <button id="qf-done"    onclick="window.setStatusFilter('done')"    class="qf-btn px-3 py-1.5 rounded-full text-xs font-bold border-2 border-gray-200 bg-white text-gray-600 hover:border-indigo-400 transition-all">✅ Selesai</button>
                             <button id="qf-pending" onclick="window.setStatusFilter('pending')" class="qf-btn px-3 py-1.5 rounded-full text-xs font-bold border-2 border-gray-200 bg-white text-gray-600 hover:border-purple-400 transition-all">⏳ Esai Pending</button>
                             <button id="qf-dq"      onclick="window.setStatusFilter('dq')"      class="qf-btn px-3 py-1.5 rounded-full text-xs font-bold border-2 border-gray-200 bg-white text-gray-600 hover:border-red-400 transition-all">🚫 DQ</button>
                             <button id="qf-verify"  onclick="window.setStatusFilter('verify')"  class="qf-btn px-3 py-1.5 rounded-full text-xs font-bold border-2 border-gray-200 bg-white text-gray-600 hover:border-amber-400 transition-all">⚠️ Verifikasi</button>
+                            <!-- Search box selalu tampil -->
+                            <div class="relative ml-auto">
+                                <svg class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                                <input type="text" id="filter-nama-quick" placeholder="Cari nama / no. kartu..." oninput="(function(v){var main=document.getElementById('filter-nama');if(main)main.value=v;if(window._pg)window._pg.monitoring.page=1;window.filterDashboard();})(this.value)" class="pl-8 pr-3 py-1.5 border border-gray-200 rounded-full text-xs bg-white focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none w-52 transition-all">
+                            </div>
                         </div>
 
                         <!-- Filter Lanjutan — tersembunyi by default, tampil saat diklik -->
@@ -18838,7 +18857,7 @@ Terima kasih 🙏</textarea>
 
                 const matchPkt   = filterPkt === 'all' || item.packetType === filterPkt;
                 const matchCls   = filterCls === 'all' || item.className === filterCls;
-                const matchNama  = !filterNama || (item.studentName || '').toLowerCase().includes(filterNama);
+                const matchNama  = !filterNama || (item.studentName || '').toLowerCase().includes(filterNama) || (item.studentNisn || '').toLowerCase().includes(filterNama);
                 const matchRuang = filterRuang === 'all' || (item.ruangUjian || '-').trim().toLowerCase() === filterRuang.trim().toLowerCase();
                 let matchDate = true;
                 if (filterDate && !isLive) { // tanggal tidak memblokir siswa live
